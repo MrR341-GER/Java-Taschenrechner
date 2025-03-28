@@ -3,6 +3,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
+import java.awt.geom.Point2D;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +22,16 @@ public class GraphPanel extends JPanel {
     private static final float ZOOM_FACTOR = 1.2f; // Faktor für Zoom-Operationen
 
     // Darstellungsparameter
-    private double xMin = -10; // Minimaler X-Wert im sichtbaren Bereich
-    private double xMax = 10; // Maximaler X-Wert im sichtbaren Bereich
-    private double yMin = -10; // Minimaler Y-Wert im sichtbaren Bereich
-    private double yMax = 10; // Maximaler Y-Wert im sichtbaren Bereich
+    private double xMin = -10; // Minimaler X-Wert im sichtbaren Bereich (wird dynamisch angepasst)
+    private double xMax = 10; // Maximaler X-Wert im sichtbaren Bereich (wird dynamisch angepasst)
+    private double yMin = -10; // Minimaler Y-Wert im sichtbaren Bereich (fest)
+    private double yMax = 10; // Maximaler Y-Wert im sichtbaren Bereich (fest)
     private double xScale; // Skalierungsfaktor für X-Werte (Pixel pro Einheit)
     private double yScale; // Skalierungsfaktor für Y-Werte (Pixel pro Einheit)
+
+    // Verschiebungen für zentriertes Koordinatensystem
+    private int xOffset;
+    private int yOffset;
 
     // Maus-Interaktion
     private Point lastMousePos; // Letzte Mausposition (für Pan)
@@ -35,6 +42,13 @@ public class GraphPanel extends JPanel {
 
     // Formatter für die Achsenbeschriftung
     private final DecimalFormat axisFormat = new DecimalFormat("0.##");
+
+    // Schnittpunkt-Funktionalität
+    private boolean showIntersections = false; // Flag, ob Schnittpunkte angezeigt werden sollen
+    private List<IntersectionPoint> intersectionPoints = new ArrayList<>(); // Liste der berechneten Schnittpunkte
+
+    // Property Change Support für Benachrichtigungen
+    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     /**
      * Konstruktor - initialisiert das Panel und fügt Maus-Listener hinzu
@@ -75,36 +89,114 @@ public class GraphPanel extends JPanel {
                     yMax -= dy;
 
                     lastMousePos = e.getPoint();
+
+                    // Neu zeichnen
                     repaint();
+
+                    // Wenn Schnittpunkte aktiviert sind, dynamisch neu berechnen
+                    if (showIntersections) {
+                        calculateIntersections();
+                    }
                 }
             }
         });
 
         // Mouse-Wheel Listener für Zoom
         addMouseWheelListener(e -> {
-            // Mausposition in Weltkoordinaten umrechnen
-            double mouseX = screenToWorldX(e.getX());
-            double mouseY = screenToWorldY(e.getY());
+            // Speichere die ursprüngliche Mausposition in Bildschirmkoordinaten
+            Point mousePoint = e.getPoint();
 
-            // Zoom-Faktor basierend auf Mausrad-Richtung
-            double factor = (e.getWheelRotation() < 0) ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
+            // Speichere die ursprüngliche Mausposition in Weltkoordinaten
+            double worldMouseX = screenToWorldX(mousePoint.x);
+            double worldMouseY = screenToWorldY(mousePoint.y);
 
-            // Zoom um die Mausposition herum
-            double newWidth = (xMax - xMin) * factor;
-            double newHeight = (yMax - yMin) * factor;
+            // Zoom-Faktor basierend auf Mausrad-Richtung (umgekehrt)
+            double factor = (e.getWheelRotation() > 0) ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
 
-            // Berechne relative Position der Maus im sichtbaren Bereich (0-1)
-            double relX = (mouseX - xMin) / (xMax - xMin);
-            double relY = (mouseY - yMin) / (yMax - yMin);
+            // Aktuellen Bereich speichern
+            double oldYRange = yMax - yMin;
+            double oldXRange = xMax - xMin;
 
-            // Zoom-Punkt als relatives Zentrum verwenden
-            xMin = mouseX - relX * newWidth;
-            xMax = xMin + newWidth;
-            yMin = mouseY - relY * newHeight;
-            yMax = yMin + newHeight;
+            // Bereiche anpassen
+            double newYRange = oldYRange * factor;
+            double centerY = (yMax + yMin) / 2;
+            double aspectRatio = (double)(getWidth() - 2 * AXIS_MARGIN) / (getHeight() - 2 * AXIS_MARGIN);
+            double newXRange = newYRange * aspectRatio;
+            double centerX = (xMax + xMin) / 2;
+
+            // Bestimme den Punkt, auf den gezoomt werden soll (Position des Mauszeigers)
+            double relX = (worldMouseX - xMin) / oldXRange; // Position relativ zur Breite
+            double relY = (worldMouseY - yMin) / oldYRange; // Position relativ zur Höhe
+
+            // Berechne neue Grenzen, sodass der Mauspunkt seine relative Position behält
+            xMin = worldMouseX - relX * newXRange;
+            xMax = xMin + newXRange;
+            yMin = worldMouseY - relY * newYRange;
+            yMax = yMin + newYRange;
 
             repaint();
+
+            // Wenn Schnittpunkte aktiviert sind, dynamisch neu berechnen
+            if (showIntersections) {
+                calculateIntersections();
+            }
         });
+
+        // ComponentListener hinzufügen, um auf Größenänderungen zu reagieren
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                // Beim ersten Anzeigen oder nach manueller Größenänderung des Panels
+                // passen wir die Y-Werte automatisch an, um das Seitenverhältnis zu erhalten
+                adjustViewToMaintainAspectRatio();
+
+                // Wenn Schnittpunkte aktiviert sind, dynamisch neu berechnen
+                if (showIntersections) {
+                    calculateIntersections();
+                }
+            }
+        });
+
+        // Initialisiere die Ansicht basierend auf der aktuellen Größe
+        resetView();
+    }
+    /**
+     * Fügt einen PropertyChangeListener hinzu
+     */
+    public void addPropertyChangeListener(String propertyName, PropertyChangeListener listener) {
+        pcs.addPropertyChangeListener(propertyName, listener);
+    }
+
+    /**
+     * Entfernt einen PropertyChangeListener
+     */
+    public void removePropertyChangeListener(String propertyName, PropertyChangeListener listener) {
+        pcs.removePropertyChangeListener(propertyName, listener);
+    }
+
+    /**
+     * Passt die X-Werte an, um das korrekte Seitenverhältnis basierend auf der Y-Achse zu erhalten
+     */
+    private void adjustViewToMaintainAspectRatio() {
+        int width = getWidth() - 2 * AXIS_MARGIN;
+        int height = getHeight() - 2 * AXIS_MARGIN;
+
+        if (width <= 0 || height <= 0) return; // Verhindere Division durch Null
+
+        double yRange = yMax - yMin;
+
+        // Berechne das Seitenverhältnis des Panels
+        double panelAspectRatio = (double) width / height;
+
+        // Berechne den entsprechenden X-Bereich für das korrekte Seitenverhältnis
+        double centerX = (xMax + xMin) / 2;
+        double xRange = yRange * panelAspectRatio;
+
+        // Setze neue X-Werte, zentriert um die aktuelle Mitte
+        xMin = centerX - xRange / 2;
+        xMax = centerX + xRange / 2;
+
+        repaint();
     }
 
     /**
@@ -113,6 +205,11 @@ public class GraphPanel extends JPanel {
     public void addFunction(String expression, Color color) {
         FunctionParser parser = new FunctionParser(expression);
         functions.add(new FunctionInfo(parser, color));
+
+        if (showIntersections) {
+            calculateIntersections();
+        }
+
         repaint();
     }
 
@@ -121,6 +218,7 @@ public class GraphPanel extends JPanel {
      */
     public void clearFunctions() {
         functions.clear();
+        intersectionPoints.clear();
         repaint();
     }
 
@@ -128,39 +226,156 @@ public class GraphPanel extends JPanel {
      * Setzt die Ansicht auf Standardwerte zurück
      */
     public void resetView() {
-        xMin = -10;
-        xMax = 10;
+        // Feste Y-Werte
         yMin = -10;
         yMax = 10;
+
+        // X-Werte werden automatisch angepasst, um das korrekte Seitenverhältnis zu erhalten
+        adjustViewToMaintainAspectRatio();
+    }
+
+    /**
+     * Zentriert die Ansicht auf den angegebenen Punkt
+     */
+    public void centerViewAt(double xCenter, double yCenter) {
+        // Berechne den aktuellen Bereich
+        double xRange = xMax - xMin;
+        double yRange = yMax - yMin;
+
+        // Setze neue Grenzen um den Zielpunkt herum
+        xMin = xCenter - xRange / 2;
+        xMax = xCenter + xRange / 2;
+        yMin = yCenter - yRange / 2;
+        yMax = yCenter + yRange / 2;
+
+        // Neuzeichnen
         repaint();
+
+        // Wenn Schnittpunkte aktiviert sind, neu berechnen
+        if (showIntersections) {
+            calculateIntersections();
+        }
     }
 
     /**
      * Konvertiert eine X-Bildschirmkoordinate in eine X-Weltkoordinate
      */
     private double screenToWorldX(int screenX) {
-        return xMin + (screenX - AXIS_MARGIN) / xScale;
+        return xMin + (screenX - xOffset) / xScale;
     }
 
     /**
      * Konvertiert eine Y-Bildschirmkoordinate in eine Y-Weltkoordinate
      */
     private double screenToWorldY(int screenY) {
-        return yMax - (screenY - AXIS_MARGIN) / yScale;
+        return yMax - (screenY - yOffset) / yScale;
     }
 
     /**
      * Konvertiert eine X-Weltkoordinate in eine X-Bildschirmkoordinate
      */
     private int worldToScreenX(double worldX) {
-        return (int) (AXIS_MARGIN + (worldX - xMin) * xScale);
+        return (int) (xOffset + (worldX - xMin) * xScale);
     }
 
     /**
      * Konvertiert eine Y-Weltkoordinate in eine Y-Bildschirmkoordinate
      */
     private int worldToScreenY(double worldY) {
-        return (int) (AXIS_MARGIN + (yMax - worldY) * yScale);
+        return (int) (yOffset + (yMax - worldY) * yScale);
+    }
+
+    /**
+     * Schaltet die Anzeige von Schnittpunkten ein oder aus
+     */
+    public void toggleIntersections(boolean show) {
+        this.showIntersections = show;
+
+        if (show) {
+            calculateIntersections();
+        } else {
+            intersectionPoints.clear();
+        }
+
+        repaint();
+    }
+
+    /**
+     * Berechnet alle Schnittpunkte zwischen den gezeichneten Funktionen
+     */
+    private void calculateIntersections() {
+        List<IntersectionPoint> oldIntersections = new ArrayList<>(intersectionPoints);
+        intersectionPoints.clear();
+
+        // Wir brauchen mindestens zwei Funktionen für Schnittpunkte
+        if (functions.size() < 2) {
+            // Nur ein Event feuern, wenn sich etwas geändert hat
+            if (!oldIntersections.isEmpty()) {
+                pcs.firePropertyChange("intersectionsUpdated", oldIntersections, intersectionPoints);
+            }
+            return;
+        }
+
+        // Berechne Schnittpunkte für alle Funktionspaare
+        for (int i = 0; i < functions.size() - 1; i++) {
+            for (int j = i + 1; j < functions.size(); j++) {
+                FunctionInfo f1 = functions.get(i);
+                FunctionInfo f2 = functions.get(j);
+
+                // Funktionsausdrücke (versuchen, sie aus dem Funktionsobjekt zu extrahieren)
+                String expr1 = "f" + (i+1);
+                String expr2 = "f" + (j+1);
+
+                // Suche Schnittpunkte im aktuellen Ansichtsfenster
+                List<Point2D.Double> points = IntersectionFinder.findIntersections(
+                        f1.function, f2.function, xMin, xMax);
+
+                // Füge die gefundenen Schnittpunkte als IntersectionPoint-Objekte zur Gesamtliste hinzu
+                for (Point2D.Double point : points) {
+                    IntersectionPoint ip = new IntersectionPoint(
+                            point.x, point.y, i, j, expr1, expr2);
+
+                    // Prüfe auf Duplikate
+                    boolean isDuplicate = false;
+                    for (IntersectionPoint existingPoint : intersectionPoints) {
+                        if (Math.abs(existingPoint.x - point.x) < 1e-6 &&
+                                Math.abs(existingPoint.y - point.y) < 1e-6) {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDuplicate) {
+                        intersectionPoints.add(ip);
+                    }
+                }
+            }
+        }
+
+        // Event feuern, falls sich die Schnittpunkte geändert haben
+        boolean changed = oldIntersections.size() != intersectionPoints.size();
+        if (!changed) {
+            // Prüfe auf unterschiedliche Punkte
+            for (int i = 0; i < intersectionPoints.size(); i++) {
+                if (i >= oldIntersections.size() ||
+                        Math.abs(intersectionPoints.get(i).x - oldIntersections.get(i).x) > 1e-6 ||
+                        Math.abs(intersectionPoints.get(i).y - oldIntersections.get(i).y) > 1e-6) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (changed) {
+            pcs.firePropertyChange("intersectionsUpdated", oldIntersections, intersectionPoints);
+        }
+    }
+
+    /**
+     * Gibt die Liste der aktuell berechneten Schnittpunkte zurück
+     */
+    public List<IntersectionPoint> getIntersectionPoints() {
+        return intersectionPoints;
     }
 
     @Override
@@ -174,8 +389,18 @@ public class GraphPanel extends JPanel {
         // Berechne die Skalierungsfaktoren
         int width = getWidth() - 2 * AXIS_MARGIN;
         int height = getHeight() - 2 * AXIS_MARGIN;
-        xScale = width / (xMax - xMin);
-        yScale = height / (yMax - yMin);
+
+        // Berechne den Bereich in X- und Y-Richtung
+        double xRange = xMax - xMin;
+        double yRange = yMax - yMin;
+
+        // Verwende einheitliche Skalierung, um Verzerrung zu vermeiden
+        yScale = height / yRange;
+        xScale = yScale; // Wichtig: Wir verwenden den gleichen Skalierungsfaktor für beide Achsen
+
+        // Da wir einheitliche Skalierung verwenden, werden die Offsets einfach auf die Ränder gesetzt
+        xOffset = AXIS_MARGIN;
+        yOffset = AXIS_MARGIN;
 
         // Koordinatengitter zeichnen
         drawGrid(g2d);
@@ -186,6 +411,11 @@ public class GraphPanel extends JPanel {
         // Funktionen zeichnen
         for (FunctionInfo function : functions) {
             drawFunction(g2d, function);
+        }
+
+        // Schnittpunkte zeichnen, wenn aktiviert
+        if (showIntersections) {
+            drawIntersectionPoints(g2d);
         }
 
         // Info-Text
@@ -200,24 +430,27 @@ public class GraphPanel extends JPanel {
         g2d.setColor(new Color(240, 240, 240)); // Hellgrau
         g2d.setStroke(new BasicStroke(0.5f));
 
-        // Berechne Gitterlinienabstände in Weltkoordinaten
-        double xGridSpacing = calculateGridSpacing(xMax - xMin);
-        double yGridSpacing = calculateGridSpacing(yMax - yMin);
+        // Berechne Gitterlinienabstände in Weltkoordinaten - verwende für beide Achsen den Y-Bereich
+        double gridSpacing = calculateGridSpacing(yMax - yMin);
+
+        // Verfügbarer Zeichenbereich
+        int drawingWidth = getWidth() - 2 * AXIS_MARGIN;
+        int drawingHeight = getHeight() - 2 * AXIS_MARGIN;
 
         // X-Gitterlinien
-        double x = Math.ceil(xMin / xGridSpacing) * xGridSpacing;
+        double x = Math.ceil(xMin / gridSpacing) * gridSpacing;
         while (x <= xMax) {
             int screenX = worldToScreenX(x);
-            g2d.draw(new Line2D.Double(screenX, AXIS_MARGIN, screenX, getHeight() - AXIS_MARGIN));
-            x += xGridSpacing;
+            g2d.draw(new Line2D.Double(screenX, yOffset, screenX, yOffset + drawingHeight));
+            x += gridSpacing;
         }
 
         // Y-Gitterlinien
-        double y = Math.ceil(yMin / yGridSpacing) * yGridSpacing;
+        double y = Math.ceil(yMin / gridSpacing) * gridSpacing;
         while (y <= yMax) {
             int screenY = worldToScreenY(y);
-            g2d.draw(new Line2D.Double(AXIS_MARGIN, screenY, getWidth() - AXIS_MARGIN, screenY));
-            y += yGridSpacing;
+            g2d.draw(new Line2D.Double(xOffset, screenY, xOffset + drawingWidth, screenY));
+            y += gridSpacing;
         }
     }
 
@@ -250,36 +483,42 @@ public class GraphPanel extends JPanel {
         g2d.setColor(Color.BLACK);
         g2d.setStroke(new BasicStroke(1.5f));
 
+        // Verfügbarer Zeichenbereich
+        int drawingWidth = getWidth() - 2 * AXIS_MARGIN;
+        int drawingHeight = getHeight() - 2 * AXIS_MARGIN;
+
         // X-Achse
         int yAxisPos = worldToScreenY(0);
-        if (yAxisPos < AXIS_MARGIN)
-            yAxisPos = AXIS_MARGIN;
-        if (yAxisPos > getHeight() - AXIS_MARGIN)
-            yAxisPos = getHeight() - AXIS_MARGIN;
+        if (yAxisPos < yOffset)
+            yAxisPos = yOffset;
+        if (yAxisPos > yOffset + drawingHeight)
+            yAxisPos = yOffset + drawingHeight;
 
-        g2d.draw(new Line2D.Double(AXIS_MARGIN, yAxisPos, getWidth() - AXIS_MARGIN, yAxisPos));
+        g2d.draw(new Line2D.Double(xOffset, yAxisPos, xOffset + drawingWidth, yAxisPos));
 
         // Y-Achse
         int xAxisPos = worldToScreenX(0);
-        if (xAxisPos < AXIS_MARGIN)
-            xAxisPos = AXIS_MARGIN;
-        if (xAxisPos > getWidth() - AXIS_MARGIN)
-            xAxisPos = getWidth() - AXIS_MARGIN;
+        if (xAxisPos < xOffset)
+            xAxisPos = xOffset;
+        if (xAxisPos > xOffset + drawingWidth)
+            xAxisPos = xOffset + drawingWidth;
 
-        g2d.draw(new Line2D.Double(xAxisPos, AXIS_MARGIN, xAxisPos, getHeight() - AXIS_MARGIN));
+        g2d.draw(new Line2D.Double(xAxisPos, yOffset, xAxisPos, yOffset + drawingHeight));
 
         // Achsenbeschriftungen
         g2d.setFont(new Font("Arial", Font.PLAIN, 10));
 
+        // Gemeinsamer Abstand für beide Achsen
+        double gridSpacing = calculateGridSpacing(yMax - yMin);
+
         // X-Achse Markierungen und Beschriftungen
-        double xGridSpacing = calculateGridSpacing(xMax - xMin);
-        double x = Math.ceil(xMin / xGridSpacing) * xGridSpacing;
+        double x = Math.ceil(xMin / gridSpacing) * gridSpacing;
 
         while (x <= xMax) {
             int screenX = worldToScreenX(x);
 
             // Nur zeichnen, wenn innerhalb der Grenzen
-            if (screenX >= AXIS_MARGIN && screenX <= getWidth() - AXIS_MARGIN) {
+            if (screenX >= xOffset && screenX <= xOffset + drawingWidth) {
                 // Markierung
                 g2d.draw(new Line2D.Double(screenX, yAxisPos - TICK_LENGTH, screenX, yAxisPos + TICK_LENGTH));
 
@@ -291,18 +530,17 @@ public class GraphPanel extends JPanel {
                     g2d.drawString(label, screenX - labelWidth / 2, yAxisPos + TICK_LENGTH + 12);
                 }
             }
-            x += xGridSpacing;
+            x += gridSpacing;
         }
 
         // Y-Achse Markierungen und Beschriftungen
-        double yGridSpacing = calculateGridSpacing(yMax - yMin);
-        double y = Math.ceil(yMin / yGridSpacing) * yGridSpacing;
+        double y = Math.ceil(yMin / gridSpacing) * gridSpacing;
 
         while (y <= yMax) {
             int screenY = worldToScreenY(y);
 
             // Nur zeichnen, wenn innerhalb der Grenzen
-            if (screenY >= AXIS_MARGIN && screenY <= getHeight() - AXIS_MARGIN) {
+            if (screenY >= yOffset && screenY <= yOffset + drawingHeight) {
                 // Markierung
                 g2d.draw(new Line2D.Double(xAxisPos - TICK_LENGTH, screenY, xAxisPos + TICK_LENGTH, screenY));
 
@@ -314,19 +552,19 @@ public class GraphPanel extends JPanel {
                     g2d.drawString(label, xAxisPos - labelWidth - 5, screenY + 4);
                 }
             }
-            y += yGridSpacing;
+            y += gridSpacing;
         }
 
         // Ursprungsbeschriftung
-        if (xAxisPos >= AXIS_MARGIN && xAxisPos <= getWidth() - AXIS_MARGIN &&
-                yAxisPos >= AXIS_MARGIN && yAxisPos <= getHeight() - AXIS_MARGIN) {
+        if (xAxisPos >= xOffset && xAxisPos <= xOffset + drawingWidth &&
+                yAxisPos >= yOffset && yAxisPos <= yOffset + drawingHeight) {
             g2d.drawString("0", xAxisPos + 4, yAxisPos + 12);
         }
 
         // Achsenbeschriftungen
         g2d.setFont(new Font("Arial", Font.BOLD, 12));
-        g2d.drawString("x", getWidth() - AXIS_MARGIN + 10, yAxisPos + 4);
-        g2d.drawString("y", xAxisPos - 4, AXIS_MARGIN - 10);
+        g2d.drawString("x", xOffset + drawingWidth + 10, yAxisPos + 4);
+        g2d.drawString("y", xAxisPos - 4, yOffset - 10);
     }
 
     /**
@@ -396,6 +634,40 @@ public class GraphPanel extends JPanel {
     }
 
     /**
+     * Zeichnet die Schnittpunkte zwischen Funktionen
+     */
+    private void drawIntersectionPoints(Graphics2D g2d) {
+        if (intersectionPoints.isEmpty()) {
+            return;
+        }
+
+        // Einstellungen für Schnittpunkte
+        g2d.setColor(Color.RED);
+        int pointSize = 8;
+
+        // Zeichne jeden Schnittpunkt als kleinen ausgefüllten Kreis
+        for (IntersectionPoint point : intersectionPoints) {
+            // Prüfe, ob der Punkt im sichtbaren Bereich liegt
+            if (point.x >= xMin && point.x <= xMax &&
+                    point.y >= yMin && point.y <= yMax) {
+
+                int screenX = worldToScreenX(point.x);
+                int screenY = worldToScreenY(point.y);
+
+                // Zeichne einen ausgefüllten Kreis
+                g2d.fillOval(screenX - pointSize/2, screenY - pointSize/2,
+                        pointSize, pointSize);
+
+                // Zeichne die Koordinaten als Text daneben
+                g2d.setFont(new Font("Arial", Font.PLAIN, 10));
+                DecimalFormat df = new DecimalFormat("0.##");
+                String coords = "(" + df.format(point.x) + ", " + df.format(point.y) + ")";
+                g2d.drawString(coords, screenX + pointSize, screenY);
+            }
+        }
+    }
+
+    /**
      * Klasse zur Speicherung von Funktionsinformationen
      */
     private static class FunctionInfo {
@@ -405,182 +677,6 @@ public class GraphPanel extends JPanel {
         FunctionInfo(FunctionParser function, Color color) {
             this.function = function;
             this.color = color;
-        }
-    }
-
-    /**
-     * Einfacher Parser für mathematische Funktionen
-     * Diese Klasse verwendet Rekursiven Abstieg zum Parsen von Ausdrücken
-     */
-    private static class FunctionParser {
-        private final String expression;
-        private int pos;
-        private char ch;
-
-        public FunctionParser(String expression) {
-            this.expression = expression.toLowerCase().replaceAll("\\s+", "");
-        }
-
-        /**
-         * Wertet die Funktion an einer bestimmten Stelle x aus
-         */
-        public double evaluateAt(double x) {
-            pos = 0;
-            nextChar();
-            double result = parseExpression(x);
-
-            if (pos < expression.length()) {
-                throw new RuntimeException("Unexpected character: " + ch);
-            }
-
-            return result;
-        }
-
-        private void nextChar() {
-            ch = (pos < expression.length()) ? expression.charAt(pos++) : '\0';
-        }
-
-        private boolean eat(char charToEat) {
-            while (ch == ' ')
-                nextChar();
-            if (ch == charToEat) {
-                nextChar();
-                return true;
-            }
-            return false;
-        }
-
-        private double parseExpression(double x) {
-            double result = parseTerm(x);
-
-            while (true) {
-                if (eat('+'))
-                    result += parseTerm(x);
-                else if (eat('-'))
-                    result -= parseTerm(x);
-                else
-                    return result;
-            }
-        }
-
-        private double parseTerm(double x) {
-            double result = parseFactor(x);
-
-            while (true) {
-                if (eat('*'))
-                    result *= parseFactor(x);
-                else if (eat('/')) {
-                    double divisor = parseFactor(x);
-                    if (Math.abs(divisor) < 1e-10) {
-                        throw new ArithmeticException("Division by zero");
-                    }
-                    result /= divisor;
-                } else
-                    return result;
-            }
-        }
-
-        private double parseFactor(double x) {
-            if (eat('+'))
-                return parseFactor(x);
-            if (eat('-'))
-                return -parseFactor(x);
-
-            double result;
-
-            // Klammern
-            if (eat('(')) {
-                result = parseExpression(x);
-                eat(')');
-            }
-            // Zahlen
-            else if ((ch >= '0' && ch <= '9') || ch == '.') {
-                StringBuilder sb = new StringBuilder();
-                while ((ch >= '0' && ch <= '9') || ch == '.') {
-                    sb.append(ch);
-                    nextChar();
-                }
-                result = Double.parseDouble(sb.toString());
-            }
-            // Die Variable x
-            else if (ch == 'x') {
-                nextChar();
-                result = x;
-            }
-            // Funktionen wie sin, cos, etc.
-            else if (ch >= 'a' && ch <= 'z') {
-                StringBuilder funcName = new StringBuilder();
-                while (ch >= 'a' && ch <= 'z') {
-                    funcName.append(ch);
-                    nextChar();
-                }
-
-                String name = funcName.toString();
-                if (eat('(')) {
-                    result = parseExpression(x);
-                    eat(')');
-
-                    // Bekannte Funktionen auswerten
-                    switch (name) {
-                        case "sin":
-                            result = Math.sin(result);
-                            break;
-                        case "cos":
-                            result = Math.cos(result);
-                            break;
-                        case "tan":
-                            result = Math.tan(result);
-                            break;
-                        case "sqrt":
-                            if (result < 0)
-                                throw new ArithmeticException("Square root of negative number");
-                            result = Math.sqrt(result);
-                            break;
-                        case "log":
-                            if (result <= 0)
-                                throw new ArithmeticException("Logarithm of non-positive number");
-                            result = Math.log10(result);
-                            break;
-                        case "ln":
-                            if (result <= 0)
-                                throw new ArithmeticException("Natural logarithm of non-positive number");
-                            result = Math.log(result);
-                            break;
-                        case "abs":
-                            result = Math.abs(result);
-                            break;
-                        case "exp":
-                            result = Math.exp(result);
-                            break;
-                        default:
-                            throw new RuntimeException("Unknown function: " + name);
-                    }
-                } else {
-                    // Mathematische Konstanten
-                    switch (name) {
-                        case "pi":
-                            result = Math.PI;
-                            break;
-                        case "e":
-                            result = Math.E;
-                            break;
-                        case "x":
-                            result = x;
-                            break;
-                        default:
-                            throw new RuntimeException("Unknown identifier: " + name);
-                    }
-                }
-            } else {
-                throw new RuntimeException("Unexpected: " + ch);
-            }
-
-            // Exponentation (Potenzen)
-            if (eat('^')) {
-                result = Math.pow(result, parseFactor(x));
-            }
-
-            return result;
         }
     }
 }

@@ -1,3 +1,3 @@
-javac GrafischerTaschenrechnerMitPlotter.java
-jar cvfe GrafischerTaschenrechnerMitPlotter.jar GrafischerTaschenrechnerMitPlotter GrafischerTaschenrechnerMitPlotter.class
-java GrafischerTaschenrechnerMitPlotter
+javac GrafischerTaschenrechner.java
+jar cvfe GrafischerTaschenrechner.jar GrafischerTaschenrechner GrafischerTaschenrechner.class
+java GrafischerTaschenrechner

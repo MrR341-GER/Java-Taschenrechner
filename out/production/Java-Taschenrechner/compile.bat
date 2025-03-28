@@ -1,2 +1,3 @@
 javac GrafischerTaschenrechner.java
+jar cvfe GrafischerTaschenrechner.jar GrafischerTaschenrechner GrafischerTaschenrechner.class
 java GrafischerTaschenrechner

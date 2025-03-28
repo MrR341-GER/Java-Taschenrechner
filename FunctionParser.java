@@ -1,0 +1,175 @@
+/**
+ * Parser für mathematische Funktionen
+ * Diese Klasse verwendet Rekursiven Abstieg zum Parsen von Ausdrücken
+ */
+public class FunctionParser {
+    private final String expression;
+    private int pos;
+    private char ch;
+
+    public FunctionParser(String expression) {
+        this.expression = expression.toLowerCase().replaceAll("\\s+", "");
+    }
+
+    /**
+     * Wertet die Funktion an einer bestimmten Stelle x aus
+     */
+    public double evaluateAt(double x) {
+        pos = 0;
+        nextChar();
+        double result = parseExpression(x);
+
+        if (pos < expression.length()) {
+            throw new RuntimeException("Unexpected character: " + ch);
+        }
+
+        return result;
+    }
+
+    private void nextChar() {
+        ch = (pos < expression.length()) ? expression.charAt(pos++) : '\0';
+    }
+
+    private boolean eat(char charToEat) {
+        while (ch == ' ')
+            nextChar();
+        if (ch == charToEat) {
+            nextChar();
+            return true;
+        }
+        return false;
+    }
+
+    private double parseExpression(double x) {
+        double result = parseTerm(x);
+
+        while (true) {
+            if (eat('+'))
+                result += parseTerm(x);
+            else if (eat('-'))
+                result -= parseTerm(x);
+            else
+                return result;
+        }
+    }
+
+    private double parseTerm(double x) {
+        double result = parseFactor(x);
+
+        while (true) {
+            if (eat('*'))
+                result *= parseFactor(x);
+            else if (eat('/')) {
+                double divisor = parseFactor(x);
+                if (Math.abs(divisor) < 1e-10) {
+                    throw new ArithmeticException("Division by zero");
+                }
+                result /= divisor;
+            } else
+                return result;
+        }
+    }
+
+    private double parseFactor(double x) {
+        if (eat('+'))
+            return parseFactor(x);
+        if (eat('-'))
+            return -parseFactor(x);
+
+        double result;
+
+        // Klammern
+        if (eat('(')) {
+            result = parseExpression(x);
+            eat(')');
+        }
+        // Zahlen
+        else if ((ch >= '0' && ch <= '9') || ch == '.') {
+            StringBuilder sb = new StringBuilder();
+            while ((ch >= '0' && ch <= '9') || ch == '.') {
+                sb.append(ch);
+                nextChar();
+            }
+            result = Double.parseDouble(sb.toString());
+        }
+        // Die Variable x
+        else if (ch == 'x') {
+            nextChar();
+            result = x;
+        }
+        // Funktionen wie sin, cos, etc.
+        else if (ch >= 'a' && ch <= 'z') {
+            StringBuilder funcName = new StringBuilder();
+            while (ch >= 'a' && ch <= 'z') {
+                funcName.append(ch);
+                nextChar();
+            }
+
+            String name = funcName.toString();
+            if (eat('(')) {
+                result = parseExpression(x);
+                eat(')');
+
+                // Bekannte Funktionen auswerten
+                switch (name) {
+                    case "sin":
+                        result = Math.sin(result);
+                        break;
+                    case "cos":
+                        result = Math.cos(result);
+                        break;
+                    case "tan":
+                        result = Math.tan(result);
+                        break;
+                    case "sqrt":
+                        if (result < 0)
+                            throw new ArithmeticException("Square root of negative number");
+                        result = Math.sqrt(result);
+                        break;
+                    case "log":
+                        if (result <= 0)
+                            throw new ArithmeticException("Logarithm of non-positive number");
+                        result = Math.log10(result);
+                        break;
+                    case "ln":
+                        if (result <= 0)
+                            throw new ArithmeticException("Natural logarithm of non-positive number");
+                        result = Math.log(result);
+                        break;
+                    case "abs":
+                        result = Math.abs(result);
+                        break;
+                    case "exp":
+                        result = Math.exp(result);
+                        break;
+                    default:
+                        throw new RuntimeException("Unknown function: " + name);
+                }
+            } else {
+                // Mathematische Konstanten
+                switch (name) {
+                    case "pi":
+                        result = Math.PI;
+                        break;
+                    case "e":
+                        result = Math.E;
+                        break;
+                    case "x":
+                        result = x;
+                        break;
+                    default:
+                        throw new RuntimeException("Unknown identifier: " + name);
+                }
+            }
+        } else {
+            throw new RuntimeException("Unexpected: " + ch);
+        }
+
+        // Exponentation (Potenzen)
+        if (eat('^')) {
+            result = Math.pow(result, parseFactor(x));
+        }
+
+        return result;
+    }
+}
