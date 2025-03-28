@@ -26,12 +26,19 @@ public class GrafischerTaschenrechner extends JFrame {
     // Berechnungsverlauf
     private ArrayList<String> calculationHistory = new ArrayList<>();
 
+    // Konstanten für Textpuffer (zusätzlicher Platz um Text herum)
+    private static final int TEXT_PADDING_HORIZONTAL = 16;
+    private static final int TEXT_PADDING_VERTICAL = 10;
+    private static final int MINIMUM_BUTTON_WIDTH = 40;
+    private static final int MINIMUM_BUTTON_HEIGHT = 35;
+
     public GrafischerTaschenrechner() {
         // Fenstertitel und Grundeinstellungen
         super("Taschenrechner");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 500);
         setLocationRelativeTo(null);
+        setMinimumSize(new Dimension(400, 300));
 
         // Eingabefeld erstellen
         displayField = new JTextField("0");
@@ -82,6 +89,7 @@ public class GrafischerTaschenrechner extends JFrame {
 
         // Clear-History-Button
         JButton clearHistoryButton = new JButton("Verlauf löschen");
+        adjustButtonSize(clearHistoryButton);
         clearHistoryButton.addActionListener(e -> {
             historyModel.clear();
             calculationHistory.clear();
@@ -96,11 +104,13 @@ public class GrafischerTaschenrechner extends JFrame {
         JButton debugButton = new JButton("Debug");
         debugButton.setFont(new Font("Arial", Font.PLAIN, 16));
         debugButton.setBackground(new Color(255, 200, 200));
+        adjustButtonSize(debugButton);
         debugButton.addActionListener(e -> toggleDebug());
 
         JButton historyButton = new JButton("History");
         historyButton.setFont(new Font("Arial", Font.PLAIN, 16));
         historyButton.setBackground(new Color(200, 230, 255));
+        adjustButtonSize(historyButton);
         historyButton.addActionListener(e -> toggleHistory());
 
         // Panel für die Kontroll-Buttons
@@ -108,7 +118,7 @@ public class GrafischerTaschenrechner extends JFrame {
         controlButtonPanel.add(debugButton);
         controlButtonPanel.add(historyButton);
 
-        // Panels für die verschiedenen Tastengruppen
+        // Panels für die verschiedenen Tastengruppen mit festen Abständen
         JPanel ziffernPanel = new JPanel(new GridLayout(4, 3, 5, 5));
         JPanel operatorenPanel = new JPanel(new GridLayout(5, 1, 5, 5));
         JPanel funktionsPanel = new JPanel(new GridLayout(1, 4, 5, 5));
@@ -119,6 +129,7 @@ public class GrafischerTaschenrechner extends JFrame {
         for (String ziffer : ziffern) {
             JButton button = new JButton(ziffer);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
+            adjustButtonSize(button);
             button.addActionListener(new TastenListener());
             ziffernPanel.add(button);
         }
@@ -129,6 +140,7 @@ public class GrafischerTaschenrechner extends JFrame {
             JButton button = new JButton(operator);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
             button.setBackground(new Color(230, 230, 250)); // Leichter Flieder-Farbton
+            adjustButtonSize(button);
             button.addActionListener(new TastenListener());
             operatorenPanel.add(button);
         }
@@ -138,6 +150,7 @@ public class GrafischerTaschenrechner extends JFrame {
         for (String funktion : funktionen) {
             JButton button = new JButton(funktion);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
+            adjustButtonSize(button);
 
             // Spezielle Farben für Funktionstasten
             if (funktion.equals("C")) {
@@ -158,6 +171,7 @@ public class GrafischerTaschenrechner extends JFrame {
             JButton button = new JButton(funktion);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
             button.setBackground(new Color(230, 230, 250)); // Flieder-Farbton
+            adjustButtonSize(button);
             button.addActionListener(new TastenListener());
             wissenschaftlichPanel.add(button);
         }
@@ -210,6 +224,28 @@ public class GrafischerTaschenrechner extends JFrame {
         add(verticalSplitPane, BorderLayout.CENTER);
 
         debug("Taschenrechner gestartet");
+    }
+
+    // Hilfsmethode zum dynamischen Anpassen der Buttongröße basierend auf dem Text
+    private void adjustButtonSize(JButton button) {
+        // Berechne die Textgröße
+        FontMetrics metrics = button.getFontMetrics(button.getFont());
+        int textWidth = metrics.stringWidth(button.getText());
+        int textHeight = metrics.getHeight();
+
+        // Setze die Mindestgröße des Buttons basierend auf der Textgröße plus Puffer
+        int width = Math.max(textWidth + TEXT_PADDING_HORIZONTAL, MINIMUM_BUTTON_WIDTH);
+        int height = Math.max(textHeight + TEXT_PADDING_VERTICAL, MINIMUM_BUTTON_HEIGHT);
+
+        button.setMinimumSize(new Dimension(width, height));
+        button.setPreferredSize(new Dimension(width, height));
+
+        // Kleine Ränder für besseres Aussehen
+        button.setMargin(new Insets(4, 4, 4, 4));
+
+        // Debug-Ausgabe zur Kontrolle
+        debug("Button '" + button.getText() + "' Größe angepasst: " + width + "x" + height +
+                " (Text: " + textWidth + "x" + textHeight + ")");
     }
 
     private void toggleHistory() {
