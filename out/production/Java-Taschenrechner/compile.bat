@@ -1,0 +1,2 @@
+javac GrafischerTaschenrechner.java
+java GrafischerTaschenrechner
