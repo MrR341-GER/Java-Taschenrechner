@@ -204,7 +204,8 @@ public class GrafischerTaschenrechner extends Taschenrechner {
     /**
      * Holt den aktuellen Text aus dem Display des Taschenrechners
      */
-    private String getDisplayText() {
+    @Override
+    public String getDisplayText() {
         try {
             // Wir müssen zur Komponente navigieren, die das Display enthält
             JSplitPane verticalSplitPane = (JSplitPane) ((JTabbedPane) getContentPane().getComponent(0))

@@ -15,15 +15,15 @@ public class IntersectionPoint extends Point2D.Double {
     /**
      * Erstellt einen neuen Schnittpunkt mit Funktionsinformationen
      *
-     * @param x X-Koordinate des Schnittpunkts
-     * @param y Y-Koordinate des Schnittpunkts
-     * @param functionIndex1 Index der ersten Funktion
-     * @param functionIndex2 Index der zweiten Funktion
+     * @param x                   X-Koordinate des Schnittpunkts
+     * @param y                   Y-Koordinate des Schnittpunkts
+     * @param functionIndex1      Index der ersten Funktion
+     * @param functionIndex2      Index der zweiten Funktion
      * @param function1Expression Ausdruck der ersten Funktion
      * @param function2Expression Ausdruck der zweiten Funktion
      */
     public IntersectionPoint(double x, double y, int functionIndex1, int functionIndex2,
-                             String function1Expression, String function2Expression) {
+            String function1Expression, String function2Expression) {
         super(x, y);
         this.functionIndex1 = functionIndex1;
         this.functionIndex2 = functionIndex2;
