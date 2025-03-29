@@ -1,12 +1,17 @@
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 /**
  * Engine for mathematical calculations in the calculator
  */
 public class CalculationEngine {
     private final Taschenrechner calculator;
+    // Muster zur Erkennung von Funktionen (enthält 'x' und ggf. weitere
+    // mathematische Operationen)
+    private final Pattern functionPattern = Pattern.compile(".*[a-zA-Z&&[^eE]].*");
 
     public CalculationEngine(Taschenrechner calculator) {
         this.calculator = calculator;
@@ -27,6 +32,14 @@ public class CalculationEngine {
             }
 
             calculator.debug("Originale Formel: " + formel);
+
+            // Prüfe, ob die Formel eine Funktion sein könnte
+            if (checkIfFunction(formel)) {
+                calculator.debug("Mögliche Funktion erkannt: " + formel);
+                // Frage Benutzer, ob er die Funktion plotten möchte
+                askToPlotFunction(formel);
+                return;
+            }
 
             // Simple preprocessing - correctly handle double operators
             // --3 becomes +3, +-3 remains -3
@@ -65,6 +78,109 @@ public class CalculationEngine {
             for (int i = 0; i < Math.min(3, e.getStackTrace().length); i++) {
                 calculator.debug("  bei " + e.getStackTrace()[i]);
             }
+        }
+    }
+
+    /**
+     * Prüft, ob eine Formel möglicherweise eine Funktion oder Konstante ist,
+     * die im Plotter dargestellt werden kann
+     */
+    private boolean checkIfFunction(String formel) {
+        // Fehler oder ungültige mathematische Ausdrücke überspringen
+        if (formel.equals("Fehler") || formel.equals("NaN") || formel.equals("Infinity")) {
+            return false;
+        }
+
+        // Bekannte Konstanten identifizieren
+        if (formel.equals("pi") || formel.equals("e") || formel.equals("phi") ||
+                formel.equals("sqrt2") || formel.equals("sqrt3") || formel.equals("golden")) {
+            return true; // Konstanten können als horizontale Linien gezeichnet werden
+        }
+
+        // Prüfe auf numerische Werte (keine Variablen) mit maximal einer Operation
+        try {
+            // Versuche, die Formel als Zahl zu parsen
+            Double.parseDouble(formel);
+            // Es ist eine reine Zahl, kann als horizontale Linie dargestellt werden
+            return true;
+        } catch (NumberFormatException e) {
+            // Keine reine Zahl, prüfe auf Variablen
+            Matcher matcher = functionPattern.matcher(formel);
+
+            // Wenn es Variablen enthält (insbesondere 'x'), ist es eine plottbare Funktion
+            return matcher.matches();
+        }
+    }
+
+    /**
+     * Fragt den Benutzer, ob er die erkannte Funktion oder Konstante plotten möchte
+     */
+    private void askToPlotFunction(String function) {
+        String message;
+        String title;
+
+        // Bestimme, ob es sich um eine Konstante oder Funktion handelt
+        boolean isConstant = isConstantExpression(function);
+
+        if (isConstant) {
+            // Für Konstanten angepasste Nachricht
+            message = "Die Eingabe \"" + function + "\" ist ein konstanter Wert.\n" +
+                    "Möchten Sie diesen Wert als horizontale Linie im Funktionsplotter darstellen?";
+            title = "Konstante plotten?";
+        } else {
+            // Für Funktionen originale Nachricht
+            message = "Die Eingabe \"" + function + "\" sieht wie eine Funktion aus.\n" +
+                    "Möchten Sie diese Funktion im Funktionsplotter zeichnen?";
+            title = "Funktion plotten?";
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            int option = JOptionPane.showConfirmDialog(
+                    calculator,
+                    message,
+                    title,
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+
+            if (option == JOptionPane.YES_OPTION) {
+                // Wenn der Benutzer zustimmt, Funktion an den Plotter übergeben
+                transferToPlotter(function);
+            }
+        });
+    }
+
+    /**
+     * Prüft, ob ein Ausdruck eine Konstante ist (keine Variablen enthält)
+     */
+    private boolean isConstantExpression(String expression) {
+        // Bekannte Konstanten
+        if (expression.equals("pi") || expression.equals("e") || expression.equals("phi") ||
+                expression.equals("sqrt2") || expression.equals("sqrt3") || expression.equals("golden")) {
+            return true;
+        }
+
+        // Prüfe auf reine Zahlen
+        try {
+            Double.parseDouble(expression);
+            return true;
+        } catch (NumberFormatException e) {
+            // Kein konkreter Wert, prüfe auf Variable 'x'
+            return !expression.contains("x");
+        }
+    }
+
+    /**
+     * Überträgt die Funktion zum Plotter
+     */
+    private void transferToPlotter(String function) {
+        calculator.debug("Übertrage Funktion zum Plotter: " + function);
+
+        // Prüfen, ob wir eine GrafischerTaschenrechner-Instanz haben
+        if (calculator instanceof GrafischerTaschenrechner) {
+            GrafischerTaschenrechner graphCalc = (GrafischerTaschenrechner) calculator;
+            graphCalc.transferFunctionToPlotter(function);
+        } else {
+            calculator.debug("Konnte Funktion nicht übertragen: Keine Instanz von GrafischerTaschenrechner");
         }
     }
 

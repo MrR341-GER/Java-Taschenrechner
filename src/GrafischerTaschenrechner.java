@@ -3,33 +3,86 @@ import java.awt.*;
 import java.awt.event.*;
 
 /**
- * Integration des Funktionsplotters in den Taschenrechner
+ * Erweiterter grafischer Taschenrechner mit Tab-Interface für verschiedene Modi
  */
 public class GrafischerTaschenrechner extends Taschenrechner {
     private JTabbedPane tabbedPane;
     private PlotterPanel plotterPanel;
+    private StatisticsPanel statisticsPanel;
+    private ConverterPanel converterPanel;
+    private ScientificPanel scientificPanel;
+    private JMenuBar menuBar;
+    private JCheckBoxMenuItem showIntersectionsItem;
 
     public GrafischerTaschenrechner() {
         super(); // Ruft den Konstruktor des Taschenrechners auf
 
         // Bestehende Komponenten holen
         Container contentPane = getContentPane();
-        Component mainComponent = contentPane.getComponent(0); // Das ist das verticalSplitPane
+        Component mainComponent = contentPane.getComponent(0); // Das ist das main panel
         contentPane.remove(mainComponent);
+
+        // Menüleiste erstellen
+        createMenuBar();
+        setJMenuBar(menuBar);
 
         // TabbedPane erstellen
         tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Taschenrechner", mainComponent);
+        tabbedPane.addTab("Standard", mainComponent);
+
+        // Wissenschaftlicher Taschenrechner erstellen und hinzufügen
+        scientificPanel = new ScientificPanel(this);
+        tabbedPane.addTab("Wissenschaftlich", scientificPanel);
 
         // Funktionsplotter erstellen und hinzufügen
         plotterPanel = new PlotterPanel();
+
+        // Statistik-Panel erstellen und hinzufügen
+        statisticsPanel = new StatisticsPanel(this);
+
+        // Umrechnungs-Panel erstellen und hinzufügen
+        converterPanel = new ConverterPanel(this);
+
+        // Verbinde den DebugManager mit den Panels
+        DebugManager debugManager = getDebugManager();
+        if (debugManager != null) {
+            plotterPanel.setDebugManager(debugManager);
+            scientificPanel.setDebugManager(debugManager);
+            statisticsPanel.setDebugManager(debugManager);
+            converterPanel.setDebugManager(debugManager);
+            debug("DebugManager mit allen Panels verbunden");
+        } else {
+            System.out.println("Warnung: DebugManager konnte nicht mit Panels verbunden werden");
+        }
+
         tabbedPane.addTab("Funktionsplotter", plotterPanel);
+        tabbedPane.addTab("Statistik", statisticsPanel);
+        tabbedPane.addTab("Umrechner", converterPanel);
 
         // Tab-Wechsel-Event, um alles neu zu zeichnen
         tabbedPane.addChangeListener(e -> {
             tabbedPane.repaint();
-            if (tabbedPane.getSelectedIndex() == 1) {
+            int selectedIndex = tabbedPane.getSelectedIndex();
+
+            if (selectedIndex == 2) { // Funktionsplotter
                 plotterPanel.repaint();
+                debug("Zu Funktionsplotter-Tab gewechselt");
+
+                // Aktualisiere Checkboxen im Menü entsprechend den Einstellungen im Plotter
+                if (showIntersectionsItem != null) {
+                    showIntersectionsItem.setSelected(plotterPanel.isShowingIntersections());
+                }
+            } else if (selectedIndex == 1) { // Wissenschaftlich
+                debug("Zu Wissenschaftlich-Tab gewechselt");
+                scientificPanel.refreshDisplay();
+            } else if (selectedIndex == 3) { // Statistik
+                debug("Zu Statistik-Tab gewechselt");
+                statisticsPanel.refresh();
+            } else if (selectedIndex == 4) { // Umrechner
+                debug("Zu Umrechner-Tab gewechselt");
+                converterPanel.refresh();
+            } else {
+                debug("Zu Standard-Tab gewechselt");
             }
         });
 
@@ -37,7 +90,7 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         contentPane.add(tabbedPane, BorderLayout.CENTER);
 
         // Fenstergröße anpassen
-        setSize(800, 600);
+        setSize(900, 650);
         setLocationRelativeTo(null);
 
         // Schaltfläche für Transfer vom Taschenrechner zum Plotter hinzufügen
@@ -58,69 +111,210 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         plotButton.addActionListener(e -> transferToPlotter());
 
         // Zum Taschenrechner-Control-Panel hinzufügen
-        // Wir müssen das richtige Panel finden und den Button hinzufügen
-        addButtonToControlPanel(plotButton);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(plotButton);
+
+        // Button-Panel zum Hauptpanel hinzufügen
+        if (mainComponent instanceof JPanel) {
+            ((JPanel) mainComponent).add(buttonPanel, BorderLayout.SOUTH);
+        }
+
+        debug("Erweiterter grafischer Taschenrechner initialisiert");
     }
 
     /**
-     * Findet das Control-Panel und fügt den Plot-Button hinzu
+     * Gibt den DebugManager des Taschenrechners zurück
      */
-    private void addButtonToControlPanel(JButton plotButton) {
-        // Hier müssen wir durch die Komponenten-Hierarchie navigieren
-        // Dies hängt stark vom genauen Layout des bestehenden Rechners ab
-        // Annahme: Das Control-Panel ist ein JPanel in verticalSplitPane mit FlowLayout
-
+    private DebugManager getDebugManager() {
         try {
-            JSplitPane verticalSplitPane = (JSplitPane) ((JTabbedPane) getContentPane().getComponent(0))
-                    .getComponentAt(0);
-            JSplitPane mainSplitPane = (JSplitPane) verticalSplitPane.getTopComponent();
-            JPanel mainPanel = (JPanel) mainSplitPane.getLeftComponent();
+            // Dies ist ein Reflection-basierter Ansatz, um auf den DebugManager zuzugreifen
+            // In der realen Implementierung sollte es eine sauberere Lösung geben
+            java.lang.reflect.Field field = Taschenrechner.class.getDeclaredField("debugManager");
+            field.setAccessible(true);
+            return (DebugManager) field.get(this);
+        } catch (Exception e) {
+            System.out.println("Fehler beim Zugriff auf DebugManager: " + e.getMessage());
+            return null;
+        }
+    }
 
-            // Wir suchen nach dem Panel mit den Control-Buttons (History, Debug)
-            Component[] components = mainPanel.getComponents();
-            for (Component comp : components) {
-                if (comp instanceof JPanel) {
-                    JPanel panel = (JPanel) comp;
-                    Component[] panelComponents = panel.getComponents();
+    /**
+     * Erstellt die Menüleiste mit allen Menüs und Untermenüs
+     */
+    private void createMenuBar() {
+        menuBar = new JMenuBar();
 
-                    for (Component subComp : panelComponents) {
-                        if (subComp instanceof JPanel) {
-                            // Das könnte das ButtonPanel sein
-                            JPanel buttonPanel = (JPanel) subComp;
-                            Component[] buttonComponents = buttonPanel.getComponents();
+        // Datei-Menü
+        JMenu fileMenu = new JMenu("Datei");
+        fileMenu.setMnemonic(KeyEvent.VK_D);
 
-                            for (Component buttonComp : buttonComponents) {
-                                if (buttonComp instanceof JPanel &&
-                                        ((JPanel) buttonComp).getLayout() instanceof FlowLayout) {
-                                    // Das sollte das Control-Button-Panel sein
-                                    ((JPanel) buttonComp).add(plotButton);
-                                    ((JPanel) buttonComp).revalidate();
-                                    return;
-                                }
-                            }
+        JMenuItem newItem = new JMenuItem("Neu", KeyEvent.VK_N);
+        newItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
+        newItem.addActionListener(e -> clearAll());
+
+        JMenuItem exitItem = new JMenuItem("Beenden", KeyEvent.VK_B);
+        exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
+        exitItem.addActionListener(e -> System.exit(0));
+
+        fileMenu.add(newItem);
+        fileMenu.addSeparator();
+        fileMenu.add(exitItem);
+
+        // Bearbeiten-Menü
+        JMenu editMenu = new JMenu("Bearbeiten");
+        editMenu.setMnemonic(KeyEvent.VK_B);
+
+        JMenuItem clearItem = new JMenuItem("Löschen", KeyEvent.VK_L);
+        clearItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
+        clearItem.addActionListener(e -> {
+            // Im Taschenrechner das Display löschen
+            if (tabbedPane.getSelectedIndex() == 0) {
+                setDisplayText("0");
+            }
+            // Im Wissenschaftlichen Taschenrechner
+            else if (tabbedPane.getSelectedIndex() == 1) {
+                scientificPanel.clearDisplay();
+            }
+            // Im Plotter die aktuell ausgewählte Funktion löschen
+            else if (tabbedPane.getSelectedIndex() == 2) {
+                // Implementierung für Plotter-Funktionslöschen
+            }
+            // In Statistik
+            else if (tabbedPane.getSelectedIndex() == 3) {
+                statisticsPanel.clearData();
+            }
+            // Im Umrechner
+            else if (tabbedPane.getSelectedIndex() == 4) {
+                converterPanel.clear();
+            }
+        });
+
+        editMenu.add(clearItem);
+
+        // Ansicht-Menü
+        JMenu viewMenu = new JMenu("Ansicht");
+        viewMenu.setMnemonic(KeyEvent.VK_A);
+
+        JMenuItem calcItem = new JMenuItem("Standard Taschenrechner", KeyEvent.VK_T);
+        calcItem.addActionListener(e -> tabbedPane.setSelectedIndex(0));
+
+        JMenuItem scientificItem = new JMenuItem("Wissenschaftlicher Taschenrechner", KeyEvent.VK_W);
+        scientificItem.addActionListener(e -> tabbedPane.setSelectedIndex(1));
+
+        JMenuItem plotterItem = new JMenuItem("Funktionsplotter", KeyEvent.VK_F);
+        plotterItem.addActionListener(e -> tabbedPane.setSelectedIndex(2));
+
+        JMenuItem statsItem = new JMenuItem("Statistik", KeyEvent.VK_S);
+        statsItem.addActionListener(e -> tabbedPane.setSelectedIndex(3));
+
+        JMenuItem converterItem = new JMenuItem("Umrechner", KeyEvent.VK_U);
+        converterItem.addActionListener(e -> tabbedPane.setSelectedIndex(4));
+
+        JCheckBoxMenuItem showGridItem = new JCheckBoxMenuItem("Koordinatensystem anzeigen");
+        showGridItem.setSelected(true);
+        showGridItem.addActionListener(e -> {
+            if (plotterPanel != null) {
+                plotterPanel.getGraphPanel().setShowGrid(showGridItem.isSelected());
+            }
+        });
+
+        viewMenu.add(calcItem);
+        viewMenu.add(scientificItem);
+        viewMenu.add(plotterItem);
+        viewMenu.add(statsItem);
+        viewMenu.add(converterItem);
+        viewMenu.addSeparator();
+        viewMenu.add(showGridItem);
+
+        // Extras-Menü
+        JMenu toolsMenu = new JMenu("Extras");
+        toolsMenu.setMnemonic(KeyEvent.VK_E);
+
+        JMenuItem historyItem = new JMenuItem("Verlauf anzeigen");
+        historyItem.addActionListener(e -> toggleHistory());
+
+        JMenuItem debugItem = new JMenuItem("Debug-Modus");
+        debugItem.addActionListener(e -> toggleDebug());
+
+        // Schnittpunkte anzeigen ins Extras-Menü verschieben
+        showIntersectionsItem = new JCheckBoxMenuItem("Schnittpunkte anzeigen");
+        showIntersectionsItem.setSelected(false);
+        showIntersectionsItem.addActionListener(e -> {
+            if (plotterPanel != null) {
+                boolean show = showIntersectionsItem.isSelected();
+                // Versuche, auf die Schnittpunkt-Checkbox im Panel zuzugreifen
+                // (falls wir einen direkten Zugriff haben)
+                try {
+                    // Dies ist ein Versuch, die Checkbox direkt zu ändern, falls möglich
+                    JCheckBox intersectionCheckbox = plotterPanel.getIntersectionCheckbox();
+                    if (intersectionCheckbox != null) {
+                        // Wichtig: triggere den ActionListener der Checkbox
+                        if (intersectionCheckbox.isSelected() != show) {
+                            intersectionCheckbox.doClick();
                         }
+                    } else {
+                        // Falls kein direkter Zugriff, verwende die Methode im Plotter
+                        plotterPanel.toggleIntersections(show);
                     }
+                } catch (Exception ex) {
+                    // Falls die Methode nicht existiert, verwende die grundlegende Methode
+                    plotterPanel.getGraphPanel().toggleIntersections(show);
                 }
             }
+        });
 
-            // Alternativ: Wenn wir das Panel nicht finden können, fügen wir es einfach
-            // am unteren Rand des Hauptpanels hinzu
-            JPanel plotButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            plotButtonPanel.add(plotButton);
-            mainPanel.add(plotButtonPanel, BorderLayout.SOUTH);
-            mainPanel.revalidate();
+        toolsMenu.add(historyItem);
+        toolsMenu.add(debugItem);
+        toolsMenu.addSeparator();
+        toolsMenu.add(showIntersectionsItem);
 
-        } catch (Exception e) {
-            // Im Fehlerfall als separates Panel hinzufügen
-            JPanel plotButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            plotButtonPanel.add(plotButton);
+        // Hilfe-Menü
+        JMenu helpMenu = new JMenu("Hilfe");
+        helpMenu.setMnemonic(KeyEvent.VK_H);
 
-            Container contentPane = getContentPane();
-            contentPane.add(plotButtonPanel, BorderLayout.SOUTH);
-            contentPane.revalidate();
+        JMenuItem aboutItem = new JMenuItem("Über", KeyEvent.VK_U);
+        aboutItem.addActionListener(e -> {
+            JOptionPane.showMessageDialog(this,
+                    "Wissenschaftlicher Taschenrechner mit Funktionsplotter\n" +
+                            "Version 2.0\n" +
+                            "© 2025",
+                    "Über",
+                    JOptionPane.INFORMATION_MESSAGE);
+        });
 
-            System.err.println("Konnte Button nicht zum Control-Panel hinzufügen: " + e.getMessage());
-            e.printStackTrace();
+        helpMenu.add(aboutItem);
+
+        // Alle Menüs zur Menüleiste hinzufügen
+        menuBar.add(fileMenu);
+        menuBar.add(editMenu);
+        menuBar.add(viewMenu);
+        menuBar.add(toolsMenu);
+        menuBar.add(helpMenu);
+    }
+
+    /**
+     * Löscht alle Eingaben und setzt die Anwendung zurück
+     */
+    private void clearAll() {
+        int selectedTab = tabbedPane.getSelectedIndex();
+
+        if (selectedTab == 0) {
+            // Standard Taschenrechner zurücksetzen
+            setDisplayText("0");
+        } else if (selectedTab == 1) {
+            // Wissenschaftlicher Taschenrechner zurücksetzen
+            scientificPanel.clearDisplay();
+        } else if (selectedTab == 2) {
+            // Funktionsplotter zurücksetzen - alle Funktionen löschen
+            plotterPanel.getGraphPanel().clearFunctions();
+            // Ansicht zurücksetzen
+            plotterPanel.getGraphPanel().resetView();
+        } else if (selectedTab == 3) {
+            // Statistik zurücksetzen
+            statisticsPanel.clearData();
+        } else if (selectedTab == 4) {
+            // Umrechner zurücksetzen
+            converterPanel.clear();
         }
     }
 
@@ -130,10 +324,19 @@ public class GrafischerTaschenrechner extends Taschenrechner {
     private void transferToPlotter() {
         // Aktuellen Ausdruck vom Taschenrechner holen
         String expression = getDisplayText();
+        transferFunctionToPlotter(expression);
+    }
 
+    /**
+     * Überträgt eine spezifische Funktion zum Plotter
+     * (Wird sowohl vom manuellen Übertragen als auch von der automatischen
+     * Funktionserkennung verwendet)
+     */
+    public void transferFunctionToPlotter(String expression) {
         if (expression != null && !expression.isEmpty() && !expression.equals("0")) {
             // Zum Plotter-Tab wechseln
-            tabbedPane.setSelectedIndex(1);
+            tabbedPane.setSelectedIndex(2);
+            debug("Ausdruck zum Plotter übertragen: " + expression);
 
             // Ausdruck in das Funktionsfeld übertragen
             try {
@@ -141,12 +344,21 @@ public class GrafischerTaschenrechner extends Taschenrechner {
                 for (Component comp : components) {
                     if (comp instanceof JPanel) {
                         transferExpressionToTextField((JPanel) comp, expression);
+                    } else if (comp instanceof JSplitPane) {
+                        // Bei Spalten-Layout die rechte Komponente durchsuchen
+                        JSplitPane splitPane = (JSplitPane) comp;
+                        Component rightComponent = splitPane.getRightComponent();
+                        if (rightComponent instanceof JPanel) {
+                            transferExpressionToTextField((JPanel) rightComponent, expression);
+                        }
                     }
                 }
             } catch (Exception e) {
+                debug("Fehler beim Übertragen des Ausdrucks: " + e.getMessage());
                 System.err.println("Fehler beim Übertragen des Ausdrucks: " + e.getMessage());
             }
         } else {
+            debug("Versuch, leeren Ausdruck zu übertragen");
             JOptionPane.showMessageDialog(this,
                     "Bitte zuerst einen Ausdruck im Taschenrechner eingeben.",
                     "Leerer Ausdruck",
@@ -164,8 +376,6 @@ public class GrafischerTaschenrechner extends Taschenrechner {
             if (comp instanceof JTextField) {
                 JTextField textField = (JTextField) comp;
                 // Wir nehmen an, dass das Textfeld für die Funktionseingabe ist
-                // Optional: Wir könnten nach einem bestimmten Namen oder einer Eigenschaft
-                // suchen
                 textField.setText(expression);
                 return true;
             } else if (comp instanceof JPanel) {
@@ -199,32 +409,6 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         }
 
         return false;
-    }
-
-    /**
-     * Holt den aktuellen Text aus dem Display des Taschenrechners
-     */
-    @Override
-    public String getDisplayText() {
-        try {
-            // Wir müssen zur Komponente navigieren, die das Display enthält
-            JSplitPane verticalSplitPane = (JSplitPane) ((JTabbedPane) getContentPane().getComponent(0))
-                    .getComponentAt(0);
-            JSplitPane mainSplitPane = (JSplitPane) verticalSplitPane.getTopComponent();
-            JPanel mainPanel = (JPanel) mainSplitPane.getLeftComponent();
-
-            // Das Display ist normalerweise das erste Element im mainPanel
-            Component[] components = mainPanel.getComponents();
-            for (Component comp : components) {
-                if (comp instanceof JTextField) {
-                    return ((JTextField) comp).getText();
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Fehler beim Lesen des Display-Texts: " + e.getMessage());
-        }
-
-        return "";
     }
 
     /**

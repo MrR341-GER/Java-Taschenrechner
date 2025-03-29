@@ -166,6 +166,58 @@ public class FunctionParser {
                     case "exp":
                         result = Math.exp(result);
                         break;
+                    // Neue Funktionen
+                    case "asin":
+                    case "arcsin":
+                        if (result < -1 || result > 1)
+                            throw new ArithmeticException("Arcsin argument out of range [-1, 1]");
+                        result = Math.asin(result);
+                        break;
+                    case "acos":
+                    case "arccos":
+                        if (result < -1 || result > 1)
+                            throw new ArithmeticException("Arccos argument out of range [-1, 1]");
+                        result = Math.acos(result);
+                        break;
+                    case "atan":
+                    case "arctan":
+                        result = Math.atan(result);
+                        break;
+                    case "sinh":
+                        result = Math.sinh(result);
+                        break;
+                    case "cosh":
+                        result = Math.cosh(result);
+                        break;
+                    case "tanh":
+                        result = Math.tanh(result);
+                        break;
+                    case "log2":
+                        if (result <= 0)
+                            throw new ArithmeticException("Logarithm of non-positive number");
+                        result = Math.log(result) / Math.log(2);
+                        break;
+                    case "floor":
+                        result = Math.floor(result);
+                        break;
+                    case "ceil":
+                    case "ceiling":
+                        result = Math.ceil(result);
+                        break;
+                    case "round":
+                        result = Math.round(result);
+                        break;
+                    case "cbrt":
+                        result = Math.cbrt(result);
+                        break;
+                    case "degrees":
+                    case "deg":
+                        result = Math.toDegrees(result);
+                        break;
+                    case "radians":
+                    case "rad":
+                        result = Math.toRadians(result);
+                        break;
                     default:
                         throw new RuntimeException("Unknown function: " + name);
                 }
@@ -185,6 +237,24 @@ public class FunctionParser {
                         break;
                     case "x":
                         result = x;
+                        break;
+                    // Neue Konstanten
+                    case "phi":
+                    case "golden":
+                        result = (1 + Math.sqrt(5)) / 2; // Goldener Schnitt (≈ 1.618033988749895)
+                        break;
+                    case "sqrt2":
+                        result = Math.sqrt(2);
+                        break;
+                    case "sqrt3":
+                        result = Math.sqrt(3);
+                        break;
+                    case "inf":
+                    case "infinity":
+                        result = Double.POSITIVE_INFINITY;
+                        break;
+                    case "nan":
+                        result = Double.NaN;
                         break;
                     default:
                         throw new RuntimeException("Unknown identifier: " + name);

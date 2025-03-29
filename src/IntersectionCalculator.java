@@ -14,6 +14,11 @@ public class IntersectionCalculator {
     private boolean showIntersections = false;
     private List<IntersectionPoint> intersectionPoints = new ArrayList<>();
 
+    // Constants for rendering
+    private static final int POINT_SIZE = 8;
+    private static final Color POINT_COLOR = Color.BLACK;
+    private static final Color HIGHLIGHT_COLOR = new Color(0, 102, 204); // Dunkelblau für Hervorhebung
+
     public IntersectionCalculator(GraphPanel panel, CoordinateTransformer transformer,
             FunctionRenderer functionRenderer) {
         this.panel = panel;
@@ -175,8 +180,7 @@ public class IntersectionCalculator {
         }
 
         // Settings for intersection points
-        g2d.setColor(Color.RED);
-        int pointSize = 8;
+        g2d.setColor(POINT_COLOR);
 
         // Draw each intersection point as a small filled circle
         for (IntersectionPoint point : intersectionPoints) {
@@ -188,14 +192,14 @@ public class IntersectionCalculator {
                 int screenY = transformer.worldToScreenY(point.y);
 
                 // Draw a filled circle
-                g2d.fillOval(screenX - pointSize / 2, screenY - pointSize / 2,
-                        pointSize, pointSize);
+                g2d.fillOval(screenX - POINT_SIZE / 2, screenY - POINT_SIZE / 2,
+                        POINT_SIZE, POINT_SIZE);
 
                 // Draw the coordinates as text next to it with dynamic precision
                 g2d.setFont(new Font("Arial", Font.PLAIN, 10));
                 String coords = "(" + transformer.getAxisFormat().format(point.x) +
                         ", " + transformer.getAxisFormat().format(point.y) + ")";
-                g2d.drawString(coords, screenX + pointSize, screenY);
+                g2d.drawString(coords, screenX + POINT_SIZE, screenY);
             }
         }
     }

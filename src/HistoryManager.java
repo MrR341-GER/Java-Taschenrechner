@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class HistoryManager {
     private JList<String> historyList;
     private DefaultListModel<String> historyModel;
-    private JPanel historyPanel;
+    private JDialog historyDialog;
     private ArrayList<String> calculationHistory = new ArrayList<>();
     private final Taschenrechner calculator;
 
@@ -38,22 +38,56 @@ public class HistoryManager {
             }
         });
 
-        // Create scroll pane for the history list
+        // Create dialog for the history
+        createHistoryDialog();
+    }
+
+    /**
+     * Creates the dialog for displaying history
+     */
+    private void createHistoryDialog() {
+        // Erstelle den Dialog, wenn er noch nicht existiert
+        historyDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(calculator), "Berechnungsverlauf");
+        historyDialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+
+        // Erstelle das Panel mit allen Komponenten für den Dialog
+        JPanel dialogPanel = new JPanel(new BorderLayout(5, 5));
+        dialogPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Überschrift
+        JLabel titleLabel = new JLabel("Berechnungsverlauf:");
+        dialogPanel.add(titleLabel, BorderLayout.NORTH);
+
+        // Scrollbare Liste mit allen Berechnungen
         JScrollPane historyScrollPane = new JScrollPane(historyList);
+        historyScrollPane.setPreferredSize(new Dimension(400, 300));
+        dialogPanel.add(historyScrollPane, BorderLayout.CENTER);
 
-        // Create the history panel
-        historyPanel = new JPanel(new BorderLayout());
-        historyPanel.add(new JLabel("Berechnungsverlauf:"), BorderLayout.NORTH);
-        historyPanel.add(historyScrollPane, BorderLayout.CENTER);
+        // Panel für Buttons am unteren Rand
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
-        // Create clear history button
+        // Lösch-Button für den Verlauf
         JButton clearHistoryButton = new JButton("Verlauf löschen");
         clearHistoryButton.addActionListener(e -> {
             historyModel.clear();
             calculationHistory.clear();
             calculator.debug("Berechnungsverlauf gelöscht");
         });
-        historyPanel.add(clearHistoryButton, BorderLayout.SOUTH);
+
+        // Schließen-Button
+        JButton closeButton = new JButton("Schließen");
+        closeButton.addActionListener(e -> hideHistoryDialog());
+
+        buttonPanel.add(clearHistoryButton);
+        buttonPanel.add(closeButton);
+        dialogPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Dialog konfigurieren
+        historyDialog.setContentPane(dialogPanel);
+        historyDialog.setSize(450, 400);
+
+        // Dialog mittig zum Hauptfenster positionieren
+        historyDialog.setLocationRelativeTo(calculator);
     }
 
     /**
@@ -71,23 +105,36 @@ public class HistoryManager {
     }
 
     /**
-     * Returns the history panel
+     * Shows the history dialog
      */
-    public JPanel getHistoryPanel() {
-        return historyPanel;
+    public void showHistoryDialog() {
+        if (historyDialog != null) {
+            historyDialog.setVisible(true);
+        }
     }
 
     /**
-     * Sets the visibility of the history panel
+     * Hides the history dialog
      */
-    public void setVisible(boolean visible) {
-        historyPanel.setVisible(visible);
+    public void hideHistoryDialog() {
+        if (historyDialog != null) {
+            historyDialog.setVisible(false);
+        }
     }
 
     /**
-     * Returns if the history panel is visible
+     * Returns if the history dialog is visible
      */
     public boolean isVisible() {
-        return historyPanel.isVisible();
+        return historyDialog != null && historyDialog.isVisible();
+    }
+
+    /**
+     * Updates the dialog position relative to the parent window
+     */
+    public void updateDialogPosition() {
+        if (historyDialog != null && calculator != null) {
+            historyDialog.setLocationRelativeTo(calculator);
+        }
     }
 }

@@ -16,13 +16,7 @@ public class Taschenrechner extends JFrame {
     private TaschenrechnerKeypad keypad;
     private InputHandler inputHandler;
 
-    // Split panes for adjustable size
-    private JSplitPane mainSplitPane;
-    private JSplitPane verticalSplitPane;
-
     // Status flags
-    private boolean historyVisible = true;
-    private boolean debugVisible = false;
     private boolean neueZahlBegonnen = true;
 
     public Taschenrechner() {
@@ -59,27 +53,9 @@ public class Taschenrechner extends JFrame {
         mainPanel.add(displayField, BorderLayout.NORTH);
         mainPanel.add(keypad.createKeypadPanel(), BorderLayout.CENTER);
 
-        // History sidebar
-        JPanel sidePanel = new JPanel(new BorderLayout());
-        sidePanel.add(historyManager.getHistoryPanel(), BorderLayout.CENTER);
-
-        // Create horizontal JSplitPane for main area and history
-        mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, mainPanel, sidePanel);
-        mainSplitPane.setOneTouchExpandable(true);
-        mainSplitPane.setDividerLocation(400);
-        mainSplitPane.setContinuousLayout(true);
-        mainSplitPane.setResizeWeight(0.7); // Main area gets 70% of the space on resize
-
-        // Create vertical JSplitPane for main area and debug panel
-        verticalSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, mainSplitPane, debugManager.getDebugPanel());
-        verticalSplitPane.setOneTouchExpandable(true);
-        verticalSplitPane.setDividerLocation(400);
-        verticalSplitPane.setContinuousLayout(true);
-        verticalSplitPane.setResizeWeight(0.85); // Main area gets 85% of the space on resize
-
-        // Main layout with SplitPanes
+        // Main layout
         setLayout(new BorderLayout());
-        add(verticalSplitPane, BorderLayout.CENTER);
+        add(mainPanel, BorderLayout.CENTER);
 
         debug("Taschenrechner gestartet");
     }
@@ -88,14 +64,12 @@ public class Taschenrechner extends JFrame {
      * Toggles the history panel visibility
      */
     public void toggleHistory() {
-        historyVisible = !historyVisible;
-        historyManager.setVisible(historyVisible);
-        debug("History-Modus " + (historyVisible ? "aktiviert" : "deaktiviert"));
-
-        if (historyVisible) {
-            mainSplitPane.setDividerLocation(400);
+        if (historyManager.isVisible()) {
+            historyManager.hideHistoryDialog();
+            debug("History-Dialog ausgeblendet");
         } else {
-            mainSplitPane.setDividerLocation(getWidth() - 10);
+            historyManager.showHistoryDialog();
+            debug("History-Dialog angezeigt");
         }
     }
 
@@ -103,14 +77,12 @@ public class Taschenrechner extends JFrame {
      * Toggles the debug panel visibility
      */
     public void toggleDebug() {
-        debugVisible = !debugVisible;
-        debugManager.setVisible(debugVisible);
-        debug("Debug-Modus " + (debugVisible ? "aktiviert" : "deaktiviert"));
-
-        if (debugVisible) {
-            verticalSplitPane.setDividerLocation(getHeight() - 200);
+        if (debugManager.isVisible()) {
+            debugManager.hideDebugDialog();
+            debug("Debug-Dialog ausgeblendet");
         } else {
-            verticalSplitPane.setDividerLocation(getHeight() - 10);
+            debugManager.showDebugDialog();
+            debug("Debug-Dialog angezeigt");
         }
     }
 

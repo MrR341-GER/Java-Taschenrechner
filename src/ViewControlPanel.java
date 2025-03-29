@@ -29,24 +29,53 @@ public class ViewControlPanel {
      * Creates the view centering panel
      */
     public JPanel createViewControlPanel() {
-        JPanel centeringPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel centeringPanel = new JPanel(new GridBagLayout());
         centeringPanel.setBorder(BorderFactory.createTitledBorder("Ansicht zentrieren"));
 
-        centeringPanel.add(new JLabel("X:"));
-        centeringPanel.add(xCenterField);
-        centeringPanel.add(new JLabel("Y:"));
-        centeringPanel.add(yCenterField);
+        // GridBagConstraints für ein responsiveres Layout
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(2, 2, 2, 2);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // X-Koordinate Label und Feld
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.1;
+        centeringPanel.add(new JLabel("x:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.4;
+        centeringPanel.add(xCenterField, gbc);
+
+        // Y-Koordinate Label und Feld
+        gbc.gridx = 2;
+        gbc.weightx = 0.1;
+        centeringPanel.add(new JLabel("y:"), gbc);
+
+        gbc.gridx = 3;
+        gbc.weightx = 0.4;
+        centeringPanel.add(yCenterField, gbc);
+
+        // Buttons in einer zweiten Zeile
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 5, 0));
 
         JButton centerButton = new JButton("Zentrieren");
         centerButton.addActionListener(e -> centerGraphView());
-        centeringPanel.add(centerButton);
 
         JButton resetViewButton = new JButton("Ansicht zurücksetzen");
         resetViewButton.addActionListener(e -> {
             plotter.getGraphPanel().resetView();
             // The centering fields will be updated by the property change listener
         });
-        centeringPanel.add(resetViewButton);
+
+        buttonPanel.add(centerButton);
+        buttonPanel.add(resetViewButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 4;
+        gbc.weightx = 1.0;
+        centeringPanel.add(buttonPanel, gbc);
 
         return centeringPanel;
     }

@@ -1,0 +1,10 @@
+x^2
+sin(x)
+x^3-3*x
+log(x)
+ln(x)
+abs(x)
+exp(x)
+sin(x)+cos(x)
+e^(0.05*x)*sin(x)
+x
