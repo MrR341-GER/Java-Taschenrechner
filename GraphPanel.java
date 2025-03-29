@@ -25,7 +25,7 @@ public class GraphPanel extends JPanel {
     private static final double MIN_PIXELS_PER_UNIT = 10.0; // Mindestpixel pro Einheit für Lesbarkeit
     private static final int MIN_HEIGHT = 200; // Minimale Höhe des Koordinatensystems
     private static final int MIN_WIDTH = 300; // Minimale Breite des Koordinatensystems
-    private static final double MAX_SCREEN_COORDS = 10000.0; // Maximale Bildschirmkoordinaten für Java2D
+    private static final int MAX_PIXEL_JUMP = 100; // Maximaler Pixelsprung zwischen zwei Punkten
 
     // Darstellungsparameter
     private double xMin = -10; // Minimaler X-Wert im sichtbaren Bereich
@@ -635,7 +635,7 @@ public class GraphPanel extends JPanel {
 
         // Funktionen zeichnen
         for (FunctionInfo function : functions) {
-            drawFunction(g2d, function);
+            drawFunctionWithEdges(g2d, function);
         }
 
         // Schnittpunkte zeichnen, wenn aktiviert
@@ -808,199 +808,187 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Zeichnet eine Funktion mit verbesserter Genauigkeit
+     * Zeichnet eine Funktion und verbindet sie korrekt mit den Rändern des
+     * sichtbaren Bereichs
      */
-    private void drawFunction(Graphics2D g2d, FunctionInfo functionInfo) {
+    private void drawFunctionWithEdges(Graphics2D g2d, FunctionInfo functionInfo) {
         g2d.setColor(functionInfo.color);
         g2d.setStroke(new BasicStroke(2f));
 
-        Path2D path = new Path2D.Double();
-        boolean pathStarted = false;
+        // Zeichenbereich
+        int drawingWidth = getWidth() - 2 * AXIS_MARGIN;
+        int drawingHeight = getHeight() - 2 * AXIS_MARGIN;
 
-        // Anzahl der Punkte basierend auf der Bildschirmbreite
-        int numPoints = getWidth() - 2 * AXIS_MARGIN;
-        double step = (xMax - xMin) / numPoints;
+        // Liste von zu zeichnenden Pfaden
+        List<Path2D> paths = new ArrayList<>();
+        Path2D currentPath = null;
 
-        // Speichern des letzten gültigen Punktes, um Linien an den Rändern korrekt zu
-        // zeichnen
-        double lastX = Double.NaN;
-        double lastY = Double.NaN;
+        // Letzte gültige Koordinaten
+        Double lastX = null;
+        Double lastY = null;
+        Integer lastScreenX = null;
+        Integer lastScreenY = null;
 
-        for (int i = 0; i <= numPoints; i++) {
-            double x = xMin + i * step;
+        // Y-Grenzen des sichtbaren Bereichs
+        int topScreenY = yOffset;
+        int bottomScreenY = yOffset + drawingHeight;
+
+        // Berechne punktweise von links nach rechts für jeden Pixel
+        for (int screenX = xOffset; screenX <= xOffset + drawingWidth; screenX++) {
+            // Konvertiere Bildschirm-X zu Welt-X
+            double x = screenToWorldX(screenX);
 
             try {
+                // Berechne Y-Wert
                 double y = functionInfo.function.evaluateAt(x);
 
-                // Prüfen ob der Wert gültig ist
+                // Prüfe auf gültigen Wert
                 if (Double.isNaN(y) || Double.isInfinite(y)) {
-                    // Ungültiger Punkt, neuen Pfad starten
-                    if (pathStarted && !Double.isNaN(lastX) && !Double.isNaN(lastY)) {
-                        // Wenn wir einen gültigen letzten Punkt haben, zeichne bis zur Grenze
-                        if (lastY < yMin) {
-                            // Berechne den Schnittpunkt mit der unteren Grenze
-                            double intersectX = calculateXIntersection(lastX, lastY, x, y, yMin);
-                            if (!Double.isNaN(intersectX)) {
-                                int screenX = worldToScreenX(intersectX);
-                                int screenY = worldToScreenY(yMin);
-                                path.lineTo(screenX, screenY);
-                            }
-                        } else if (lastY > yMax) {
-                            // Berechne den Schnittpunkt mit der oberen Grenze
-                            double intersectX = calculateXIntersection(lastX, lastY, x, y, yMax);
-                            if (!Double.isNaN(intersectX)) {
-                                int screenX = worldToScreenX(intersectX);
-                                int screenY = worldToScreenY(yMax);
-                                path.lineTo(screenX, screenY);
-                            }
-                        }
+                    // Ungültiger Punkt - beende aktuellen Pfad falls nötig
+                    if (currentPath != null) {
+                        paths.add(currentPath);
+                        currentPath = null;
                     }
-
-                    pathStarted = false;
-                    lastX = Double.NaN;
-                    lastY = Double.NaN;
+                    lastX = null;
+                    lastY = null;
+                    lastScreenX = null;
+                    lastScreenY = null;
                     continue;
                 }
 
-                // Speichere den aktuellen Punkt als letzten gültigen Punkt
-                lastX = x;
-                lastY = y;
-
-                // Prüfe, ob der Punkt innerhalb des sichtbaren y-Bereichs liegt
-                boolean inYRange = (y >= yMin && y <= yMax);
-
-                // Berechne die Bildschirmkoordinaten
-                int screenX = worldToScreenX(x);
+                // Berechne Bildschirm-Y
                 int screenY;
 
-                if (inYRange) {
-                    // Normaler Fall: Punkt im sichtbaren Bereich
-                    screenY = worldToScreenY(y);
-                } else {
-                    // Punkt außerhalb des sichtbaren Bereichs, aber wir wollen den Pfad nicht
-                    // unterbrechen
-                    // Stattdessen begrenzen wir den y-Wert, um übermäßige Bildschirmkoordinaten zu
-                    // vermeiden
+                // Bestimme, ob der Punkt im sichtbaren Bereich liegt
+                boolean inVisibleRange = (y >= yMin && y <= yMax);
+
+                // Wenn der Punkt außerhalb des sichtbaren Bereichs liegt,
+                // berechne den Schnittpunkt mit dem Rand
+                if (!inVisibleRange) {
+                    // Berechne den Y-Wert für den Rand
+                    double boundaryY;
+                    int boundaryScreenY;
+
                     if (y < yMin) {
-                        screenY = worldToScreenY(yMin);
+                        boundaryY = yMin;
+                        boundaryScreenY = bottomScreenY; // Unterer Rand
                     } else { // y > yMax
-                        screenY = worldToScreenY(yMax);
+                        boundaryY = yMax;
+                        boundaryScreenY = topScreenY; // Oberer Rand
                     }
-                }
 
-                // Prüfe, ob der vorherige Punkt außerhalb des Bereichs war
-                if (!pathStarted) {
-                    if (i > 0 && inYRange) {
-                        // Wenn wir einen Pfad starten und der vorherige Punkt außerhalb war,
-                        // berechne den Schnittpunkt mit dem Rand
-                        double prevX = xMin + (i - 1) * step;
-                        try {
-                            double prevY = functionInfo.function.evaluateAt(prevX);
+                    // Wenn wir einen vorherigen Punkt haben, können wir den Schnittpunkt berechnen
+                    if (lastX != null && lastY != null &&
+                            ((lastY >= yMin && lastY <= yMax) || // Vorheriger Punkt im Bereich
+                                    (lastY < yMin && y > yMax) || // Übergang von unten nach oben
+                                    (lastY > yMax && y < yMin))) // Übergang von oben nach unten
+                    {
+                        // Berechne den Schnittpunkt mit dem Rand
+                        // Da wir für jeden Pixel arbeiten, ist die Berechnung sehr genau
 
-                            if (!Double.isNaN(prevY) && !Double.isInfinite(prevY)) {
-                                // Berechne den Schnittpunkt mit der Grenze
-                                if (prevY < yMin) {
-                                    // Schnittpunkt mit unterer Grenze
-                                    double intersectX = calculateXIntersection(prevX, prevY, x, y, yMin);
-                                    if (!Double.isNaN(intersectX)) {
-                                        int startX = worldToScreenX(intersectX);
-                                        int startY = worldToScreenY(yMin);
-                                        path.moveTo(startX, startY);
-                                        path.lineTo(screenX, screenY);
-                                        pathStarted = true;
-                                        continue;
-                                    }
-                                } else if (prevY > yMax) {
-                                    // Schnittpunkt mit oberer Grenze
-                                    double intersectX = calculateXIntersection(prevX, prevY, x, y, yMax);
-                                    if (!Double.isNaN(intersectX)) {
-                                        int startX = worldToScreenX(intersectX);
-                                        int startY = worldToScreenY(yMax);
-                                        path.moveTo(startX, startY);
-                                        path.lineTo(screenX, screenY);
-                                        pathStarted = true;
-                                        continue;
-                                    }
-                                }
+                        if (lastY >= yMin && lastY <= yMax) {
+                            // Vorheriger Punkt war im Bereich - Schnittpunkt mit aktuellem Rand
+                            if (currentPath == null) {
+                                currentPath = new Path2D.Double();
+                                currentPath.moveTo(lastScreenX, lastScreenY);
                             }
-                        } catch (Exception e) {
-                            // Fehler bei der Berechnung des vorherigen Punktes, ignorieren
+
+                            // Berechne die exakte X-Position des Schnittpunkts
+                            double t = (boundaryY - lastY) / (y - lastY);
+                            double intersectX = lastX + t * (x - lastX);
+                            int intersectScreenX = worldToScreenX(intersectX);
+
+                            // Zeichne bis zum Rand und beende den Pfad
+                            currentPath.lineTo(intersectScreenX, boundaryScreenY);
+                            paths.add(currentPath);
+                            currentPath = null;
+                        } else if ((lastY < yMin && y > yMax) || (lastY > yMax && y < yMin)) {
+                            // Die Funktion überspringt den gesamten sichtbaren Bereich
+                            // Berechne beide Schnittpunkte und zeichne eine Linie durch den sichtbaren
+                            // Bereich
+
+                            // Schnittpunkt 1 - mit oberem oder unterem Rand
+                            double t1 = (lastY < yMin ? yMin - lastY : yMax - lastY) / (y - lastY);
+                            double intersectX1 = lastX + t1 * (x - lastX);
+                            int intersectScreenX1 = worldToScreenX(intersectX1);
+                            int intersectScreenY1 = lastY < yMin ? bottomScreenY : topScreenY;
+
+                            // Schnittpunkt 2 - mit dem entgegengesetzten Rand
+                            double t2 = (lastY < yMin ? yMax - lastY : yMin - lastY) / (y - lastY);
+                            double intersectX2 = lastX + t2 * (x - lastX);
+                            int intersectScreenX2 = worldToScreenX(intersectX2);
+                            int intersectScreenY2 = lastY < yMin ? topScreenY : bottomScreenY;
+
+                            // Zeichne eine Linie zwischen den beiden Schnittpunkten
+                            Path2D crossPath = new Path2D.Double();
+                            crossPath.moveTo(intersectScreenX1, intersectScreenY1);
+                            crossPath.lineTo(intersectScreenX2, intersectScreenY2);
+                            paths.add(crossPath);
                         }
                     }
 
-                    path.moveTo(screenX, screenY);
-                    pathStarted = true;
+                    // Aktualisiere die letzten Werte
+                    lastX = x;
+                    lastY = y;
+                    lastScreenX = screenX;
+                    lastScreenY = y < yMin ? bottomScreenY : topScreenY;
                 } else {
-                    // Wenn der aktuelle Punkt außerhalb des Bereichs ist, berechne den Schnittpunkt
-                    if (!inYRange) {
-                        if (i > 0) {
-                            double prevX = xMin + (i - 1) * step;
-                            try {
-                                double prevY = functionInfo.function.evaluateAt(prevX);
+                    // Der Punkt ist im sichtbaren Bereich
+                    screenY = worldToScreenY(y);
 
-                                if (!Double.isNaN(prevY) && !Double.isInfinite(prevY) &&
-                                        prevY >= yMin && prevY <= yMax) {
+                    // Wenn wir einen vorherigen Punkt haben, der außerhalb war,
+                    // berechne den Schnittpunkt mit dem Rand
+                    if (lastX != null && lastY != null && (lastY < yMin || lastY > yMax)) {
+                        // Berechne den Rand, mit dem wir uns schneiden
+                        double boundaryY = lastY < yMin ? yMin : yMax;
 
-                                    // Der vorherige Punkt war im Bereich, berechne den Schnittpunkt
-                                    if (y < yMin) {
-                                        // Schnittpunkt mit unterer Grenze
-                                        double intersectX = calculateXIntersection(prevX, prevY, x, y, yMin);
-                                        if (!Double.isNaN(intersectX)) {
-                                            int endX = worldToScreenX(intersectX);
-                                            int endY = worldToScreenY(yMin);
-                                            path.lineTo(endX, endY);
-                                        }
-                                    } else if (y > yMax) {
-                                        // Schnittpunkt mit oberer Grenze
-                                        double intersectX = calculateXIntersection(prevX, prevY, x, y, yMax);
-                                        if (!Double.isNaN(intersectX)) {
-                                            int endX = worldToScreenX(intersectX);
-                                            int endY = worldToScreenY(yMax);
-                                            path.lineTo(endX, endY);
-                                        }
-                                    }
+                        // Berechne die exakte X-Position des Schnittpunkts
+                        double t = (boundaryY - lastY) / (y - lastY);
+                        double intersectX = lastX + t * (x - lastX);
+                        int intersectScreenX = worldToScreenX(intersectX);
+                        int intersectScreenY = lastY < yMin ? bottomScreenY : topScreenY;
 
-                                    // Unterbreche den Pfad für den Teil außerhalb des Bereichs
-                                    pathStarted = false;
-                                    continue;
-                                }
-                            } catch (Exception e) {
-                                // Fehler bei der Berechnung des vorherigen Punktes, ignorieren
-                            }
-                        }
+                        // Beginne einen neuen Pfad am Schnittpunkt
+                        currentPath = new Path2D.Double();
+                        currentPath.moveTo(intersectScreenX, intersectScreenY);
+                        currentPath.lineTo(screenX, screenY);
+                    } else if (currentPath == null) {
+                        // Starte einen neuen Pfad
+                        currentPath = new Path2D.Double();
+                        currentPath.moveTo(screenX, screenY);
+                    } else {
+                        // Füge den Punkt zum bestehenden Pfad hinzu
+                        currentPath.lineTo(screenX, screenY);
                     }
 
-                    // Normaler Fall: lineTo für Punkte innerhalb des Bereichs
-                    path.lineTo(screenX, screenY);
+                    // Aktualisiere die letzten Werte
+                    lastX = x;
+                    lastY = y;
+                    lastScreenX = screenX;
+                    lastScreenY = screenY;
                 }
             } catch (Exception e) {
-                // Bei Fehlern in der Auswertung den Pfad unterbrechen
-                pathStarted = false;
-                lastX = Double.NaN;
-                lastY = Double.NaN;
+                // Fehler bei der Auswertung - beende den aktuellen Pfad
+                if (currentPath != null) {
+                    paths.add(currentPath);
+                    currentPath = null;
+                }
+                lastX = null;
+                lastY = null;
+                lastScreenX = null;
+                lastScreenY = null;
             }
         }
 
-        g2d.draw(path);
-    }
-
-    /**
-     * Berechnet den x-Wert an dem eine Linie eine bestimmte y-Höhe schneidet
-     */
-    private double calculateXIntersection(double x1, double y1, double x2, double y2, double targetY) {
-        // Überprüfe, ob die Linie die Zielhöhe schneidet
-        if ((y1 < targetY && y2 < targetY) || (y1 > targetY && y2 > targetY)) {
-            return Double.NaN; // Kein Schnittpunkt
+        // Füge den letzten Pfad hinzu, falls nötig
+        if (currentPath != null) {
+            paths.add(currentPath);
         }
 
-        // Wenn einer der Punkte genau auf der Zielhöhe liegt, gib diesen x-Wert zurück
-        if (Math.abs(y1 - targetY) < 1e-10)
-            return x1;
-        if (Math.abs(y2 - targetY) < 1e-10)
-            return x2;
-
-        // Lineare Interpolation: x = x1 + (targetY - y1) * (x2 - x1) / (y2 - y1)
-        return x1 + (targetY - y1) * (x2 - x1) / (y2 - y1);
+        // Zeichne alle Pfade
+        for (Path2D path : paths) {
+            g2d.draw(path);
+        }
     }
 
     /**
