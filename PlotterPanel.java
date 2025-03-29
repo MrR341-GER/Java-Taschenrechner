@@ -2,7 +2,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Point2D;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * PlotterPanel ist ein Container-Panel, das GraphPanel und Steuerelemente
@@ -357,6 +361,28 @@ public class PlotterPanel extends JPanel {
     }
 
     /**
+     * Parst einen Dezimalwert aus einer Zeichenkette, unterstützt sowohl Punkt als
+     * auch Komma
+     * als Dezimaltrennzeichen
+     */
+    private double parseDecimal(String text) throws NumberFormatException, ParseException {
+        // Erste Methode: Direktes Parsen (für Punkt als Dezimaltrennzeichen)
+        try {
+            return Double.parseDouble(text);
+        } catch (NumberFormatException e) {
+            // Zweite Methode: Ersetze Komma durch Punkt und versuche erneut
+            String replacedText = text.replace(',', '.');
+            try {
+                return Double.parseDouble(replacedText);
+            } catch (NumberFormatException ex) {
+                // Dritte Methode: Verwende die aktuelle Locale
+                NumberFormat nf = NumberFormat.getNumberInstance(Locale.getDefault());
+                return nf.parse(text).doubleValue();
+            }
+        }
+    }
+
+    /**
      * Zentriert die Ansicht auf die eingegebenen X- und Y-Koordinaten
      */
     private void centerGraphView() {
@@ -373,8 +399,9 @@ public class PlotterPanel extends JPanel {
                 return;
             }
 
-            double xCenter = Double.parseDouble(xText);
-            double yCenter = Double.parseDouble(yText);
+            // Versuche die Werte zu parsen (unterstützt sowohl Punkt als auch Komma)
+            double xCenter = parseDecimal(xText);
+            double yCenter = parseDecimal(yText);
 
             // Rufe die Methode zum Zentrieren im GraphPanel auf
             graphPanel.centerViewAt(xCenter, yCenter);
@@ -384,9 +411,10 @@ public class PlotterPanel extends JPanel {
                 updateIntersectionList();
             }
 
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | ParseException e) {
             JOptionPane.showMessageDialog(this,
-                    "Ungültige Zahlenformate. Bitte geben Sie gültige Zahlen ein.",
+                    "Ungültige Zahlenformate. Bitte geben Sie gültige Zahlen ein." +
+                            "\n(Hinweis: Sowohl Punkt als auch Komma als Dezimaltrennzeichen werden akzeptiert)",
                     "Eingabefehler",
                     JOptionPane.ERROR_MESSAGE);
         }
