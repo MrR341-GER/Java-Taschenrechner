@@ -4,10 +4,12 @@ import java.awt.event.*;
 
 /**
  * Erweiterter grafischer Taschenrechner mit Tab-Interface für verschiedene Modi
+ * Mit 3D-Funktionsplotter Erweiterung
  */
 public class GrafischerTaschenrechner extends Taschenrechner {
     private JTabbedPane tabbedPane;
     private PlotterPanel plotterPanel;
+    private Plot3DPanel plot3DPanel; // Neue Variable für den 3D-Plotter
     private StatisticsPanel statisticsPanel;
     private ConverterPanel converterPanel;
     private ScientificPanel scientificPanel;
@@ -37,6 +39,9 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         // Funktionsplotter erstellen und hinzufügen
         plotterPanel = new PlotterPanel();
 
+        // 3D-Funktionsplotter erstellen und hinzufügen
+        plot3DPanel = new Plot3DPanel(this);
+
         // Statistik-Panel erstellen und hinzufügen
         statisticsPanel = new StatisticsPanel(this);
 
@@ -50,12 +55,14 @@ public class GrafischerTaschenrechner extends Taschenrechner {
             scientificPanel.setDebugManager(debugManager);
             statisticsPanel.setDebugManager(debugManager);
             converterPanel.setDebugManager(debugManager);
+            plot3DPanel.setDebugManager(debugManager); // Neues Panel mit Debug verbinden
             debug("DebugManager mit allen Panels verbunden");
         } else {
             System.out.println("Warnung: DebugManager konnte nicht mit Panels verbunden werden");
         }
 
         tabbedPane.addTab("Funktionsplotter", plotterPanel);
+        tabbedPane.addTab("3D-Funktionsplotter", plot3DPanel); // Neuen Tab für 3D-Plotter hinzufügen
         tabbedPane.addTab("Statistik", statisticsPanel);
         tabbedPane.addTab("Umrechner", converterPanel);
 
@@ -72,13 +79,17 @@ public class GrafischerTaschenrechner extends Taschenrechner {
                 if (showIntersectionsItem != null) {
                     showIntersectionsItem.setSelected(plotterPanel.isShowingIntersections());
                 }
+            } else if (selectedIndex == 3) { // 3D-Funktionsplotter
+                debug("Zu 3D-Funktionsplotter-Tab gewechselt");
+                // Panel neuzeichnen
+                plot3DPanel.repaint();
             } else if (selectedIndex == 1) { // Wissenschaftlich
                 debug("Zu Wissenschaftlich-Tab gewechselt");
                 scientificPanel.refreshDisplay();
-            } else if (selectedIndex == 3) { // Statistik
+            } else if (selectedIndex == 4) { // Statistik
                 debug("Zu Statistik-Tab gewechselt");
                 statisticsPanel.refresh();
-            } else if (selectedIndex == 4) { // Umrechner
+            } else if (selectedIndex == 5) { // Umrechner
                 debug("Zu Umrechner-Tab gewechselt");
                 converterPanel.refresh();
             } else {
@@ -89,8 +100,8 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         // TabbedPane zum Hauptfenster hinzufügen
         contentPane.add(tabbedPane, BorderLayout.CENTER);
 
-        // Fenstergröße anpassen
-        setSize(900, 650);
+        // Fenstergröße anpassen - etwas erhöhen für den 3D-Plotter
+        setSize(950, 700);
         setLocationRelativeTo(null);
 
         // Schaltfläche für Transfer vom Taschenrechner zum Plotter hinzufügen
@@ -119,7 +130,7 @@ public class GrafischerTaschenrechner extends Taschenrechner {
             ((JPanel) mainComponent).add(buttonPanel, BorderLayout.SOUTH);
         }
 
-        debug("Erweiterter grafischer Taschenrechner initialisiert");
+        debug("Erweiterter grafischer Taschenrechner mit 3D-Plotter initialisiert");
     }
 
     /**
@@ -180,11 +191,11 @@ public class GrafischerTaschenrechner extends Taschenrechner {
                 // Implementierung für Plotter-Funktionslöschen
             }
             // In Statistik
-            else if (tabbedPane.getSelectedIndex() == 3) {
+            else if (tabbedPane.getSelectedIndex() == 4) {
                 statisticsPanel.clearData();
             }
             // Im Umrechner
-            else if (tabbedPane.getSelectedIndex() == 4) {
+            else if (tabbedPane.getSelectedIndex() == 5) {
                 converterPanel.clear();
             }
         });
@@ -204,11 +215,15 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         JMenuItem plotterItem = new JMenuItem("Funktionsplotter", KeyEvent.VK_F);
         plotterItem.addActionListener(e -> tabbedPane.setSelectedIndex(2));
 
+        // Neuer Menüpunkt für 3D-Funktionsplotter
+        JMenuItem plot3DItem = new JMenuItem("3D-Funktionsplotter", KeyEvent.VK_D);
+        plot3DItem.addActionListener(e -> tabbedPane.setSelectedIndex(3));
+
         JMenuItem statsItem = new JMenuItem("Statistik", KeyEvent.VK_S);
-        statsItem.addActionListener(e -> tabbedPane.setSelectedIndex(3));
+        statsItem.addActionListener(e -> tabbedPane.setSelectedIndex(4));
 
         JMenuItem converterItem = new JMenuItem("Umrechner", KeyEvent.VK_U);
-        converterItem.addActionListener(e -> tabbedPane.setSelectedIndex(4));
+        converterItem.addActionListener(e -> tabbedPane.setSelectedIndex(5));
 
         JCheckBoxMenuItem showGridItem = new JCheckBoxMenuItem("Koordinatensystem anzeigen");
         showGridItem.setSelected(true);
@@ -221,6 +236,7 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         viewMenu.add(calcItem);
         viewMenu.add(scientificItem);
         viewMenu.add(plotterItem);
+        viewMenu.add(plot3DItem); // Neuen Menüpunkt einfügen
         viewMenu.add(statsItem);
         viewMenu.add(converterItem);
         viewMenu.addSeparator();
@@ -275,8 +291,8 @@ public class GrafischerTaschenrechner extends Taschenrechner {
         JMenuItem aboutItem = new JMenuItem("Über", KeyEvent.VK_U);
         aboutItem.addActionListener(e -> {
             JOptionPane.showMessageDialog(this,
-                    "Wissenschaftlicher Taschenrechner mit Funktionsplotter\n" +
-                            "Version 2.0\n" +
+                    "Wissenschaftlicher Taschenrechner mit Funktionsplotter und 3D-Plotter\n" +
+                            "Version 3.0\n" +
                             "© 2025",
                     "Über",
                     JOptionPane.INFORMATION_MESSAGE);
@@ -310,9 +326,12 @@ public class GrafischerTaschenrechner extends Taschenrechner {
             // Ansicht zurücksetzen
             plotterPanel.getGraphPanel().resetView();
         } else if (selectedTab == 3) {
+            // 3D-Funktionsplotter zurücksetzen (wenn möglich)
+            // Dies erfordert eine entsprechende Methode im Plot3DPanel
+        } else if (selectedTab == 4) {
             // Statistik zurücksetzen
             statisticsPanel.clearData();
-        } else if (selectedTab == 4) {
+        } else if (selectedTab == 5) {
             // Umrechner zurücksetzen
             converterPanel.clear();
         }
@@ -324,7 +343,15 @@ public class GrafischerTaschenrechner extends Taschenrechner {
     private void transferToPlotter() {
         // Aktuellen Ausdruck vom Taschenrechner holen
         String expression = getDisplayText();
-        transferFunctionToPlotter(expression);
+
+        // Entscheide, ob es sich um eine 2D- oder 3D-Funktion handelt
+        if (expression != null && !expression.isEmpty() && expression.contains("y")) {
+            // Vermutlich eine 3D-Funktion (enthält 'y')
+            transferFunctionTo3DPlotter(expression);
+        } else {
+            // Vermutlich eine normale 2D-Funktion
+            transferFunctionToPlotter(expression);
+        }
     }
 
     /**
@@ -359,6 +386,41 @@ public class GrafischerTaschenrechner extends Taschenrechner {
             }
         } else {
             debug("Versuch, leeren Ausdruck zu übertragen");
+            JOptionPane.showMessageDialog(this,
+                    "Bitte zuerst einen Ausdruck im Taschenrechner eingeben.",
+                    "Leerer Ausdruck",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    /**
+     * Überträgt eine Funktion zum 3D-Plotter
+     */
+    public void transferFunctionTo3DPlotter(String expression) {
+        if (expression != null && !expression.isEmpty() && !expression.equals("0")) {
+            // Zum 3D-Plotter-Tab wechseln
+            tabbedPane.setSelectedIndex(3);
+            debug("Ausdruck zum 3D-Plotter übertragen: " + expression);
+
+            // Ausdruck in das Funktionsfeld übertragen
+            try {
+                // Zugriff auf das Funktionsfeld im Plot3DPanel
+                Component[] components = plot3DPanel.getComponents();
+                for (Component comp : components) {
+                    if (comp instanceof JSplitPane) {
+                        JSplitPane splitPane = (JSplitPane) comp;
+                        Component rightComponent = splitPane.getRightComponent();
+                        if (rightComponent instanceof JPanel) {
+                            transferExpressionTo3DTextField((JPanel) rightComponent, expression);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                debug("Fehler beim Übertragen des Ausdrucks zum 3D-Plotter: " + e.getMessage());
+                System.err.println("Fehler beim Übertragen des Ausdrucks zum 3D-Plotter: " + e.getMessage());
+            }
+        } else {
+            debug("Versuch, leeren Ausdruck zum 3D-Plotter zu übertragen");
             JOptionPane.showMessageDialog(this,
                     "Bitte zuerst einen Ausdruck im Taschenrechner eingeben.",
                     "Leerer Ausdruck",
@@ -402,6 +464,51 @@ public class GrafischerTaschenrechner extends Taschenrechner {
                 Component view = scrollPane.getViewport().getView();
                 if (view instanceof JPanel) {
                     if (transferExpressionToTextField((JPanel) view, expression)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Sucht rekursiv nach dem Textfeld im 3D-Plotter und setzt den Ausdruck
+     */
+    private boolean transferExpressionTo3DTextField(JPanel panel, String expression) {
+        Component[] components = panel.getComponents();
+
+        for (Component comp : components) {
+            if (comp instanceof JTextField) {
+                JTextField textField = (JTextField) comp;
+                // Das Erste gefundene TextField nehmen wir als Funktionsfeld an
+                textField.setText(expression);
+                return true;
+            } else if (comp instanceof JPanel) {
+                if (transferExpressionTo3DTextField((JPanel) comp, expression)) {
+                    return true;
+                }
+            } else if (comp instanceof JSplitPane) {
+                JSplitPane splitPane = (JSplitPane) comp;
+                Component left = splitPane.getLeftComponent();
+                Component right = splitPane.getRightComponent();
+
+                if (left instanceof JPanel) {
+                    if (transferExpressionTo3DTextField((JPanel) left, expression)) {
+                        return true;
+                    }
+                }
+                if (right instanceof JPanel) {
+                    if (transferExpressionTo3DTextField((JPanel) right, expression)) {
+                        return true;
+                    }
+                }
+            } else if (comp instanceof JScrollPane) {
+                JScrollPane scrollPane = (JScrollPane) comp;
+                Component view = scrollPane.getViewport().getView();
+                if (view instanceof JPanel) {
+                    if (transferExpressionTo3DTextField((JPanel) view, expression)) {
                         return true;
                     }
                 }

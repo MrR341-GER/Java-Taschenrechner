@@ -502,19 +502,28 @@ public class ScientificPanel extends JPanel {
      * Fragt den Benutzer, ob er die erkannte Funktion oder Konstante plotten möchte
      */
     private void askToPlotFunction(String function) {
-        String message;
-        String title;
-
         // Bestimme, ob es sich um eine Konstante oder Funktion handelt
         boolean isConstant = isConstantExpression(function);
+
+        // Die Variable zur Bestimmung, ob es eine 3D-Funktion sein könnte
+        // Konstanten sind immer 2D, sonst prüfen, ob 'y' im Ausdruck vorkommt
+        final boolean could3D = !isConstant && function.contains("y");
+
+        String message;
+        String title;
 
         if (isConstant) {
             // Für Konstanten angepasste Nachricht
             message = "Die Eingabe \"" + function + "\" ist ein konstanter Wert.\n" +
                     "Möchten Sie diesen Wert als horizontale Linie im Funktionsplotter darstellen?";
             title = "Konstante plotten?";
+        } else if (could3D) {
+            // Für 3D-Funktionen
+            message = "Die Eingabe \"" + function + "\" enthält die Variable y und könnte eine 3D-Funktion sein.\n" +
+                    "Möchten Sie diese Funktion im 3D-Funktionsplotter zeichnen?";
+            title = "3D-Funktion plotten?";
         } else {
-            // Für Funktionen originale Nachricht
+            // Für 2D-Funktionen
             message = "Die Eingabe \"" + function + "\" sieht wie eine Funktion aus.\n" +
                     "Möchten Sie diese Funktion im Funktionsplotter zeichnen?";
             title = "Funktion plotten?";
@@ -532,7 +541,12 @@ public class ScientificPanel extends JPanel {
                 // Wenn der Benutzer zustimmt, Funktion an den Plotter übergeben
                 if (calculator instanceof GrafischerTaschenrechner) {
                     GrafischerTaschenrechner graphCalc = (GrafischerTaschenrechner) calculator;
-                    graphCalc.transferFunctionToPlotter(function);
+
+                    if (could3D) {
+                        graphCalc.transferFunctionTo3DPlotter(function);
+                    } else {
+                        graphCalc.transferFunctionToPlotter(function);
+                    }
                 } else {
                     debug("Konnte Funktion nicht übertragen: Keine Instanz von GrafischerTaschenrechner");
                 }
