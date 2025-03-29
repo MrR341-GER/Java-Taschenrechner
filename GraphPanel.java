@@ -41,8 +41,8 @@ public class GraphPanel extends JPanel {
     // Funktionen, die gezeichnet werden sollen
     private List<FunctionInfo> functions = new ArrayList<>();
 
-    // Formatter für die Achsenbeschriftung
-    private final DecimalFormat axisFormat = new DecimalFormat("0.##");
+    // Formatter für die Achsenbeschriftung - wird dynamisch aktualisiert
+    private DecimalFormat axisFormat;
 
     // Schnittpunkt-Funktionalität
     private boolean showIntersections = false; // Flag, ob Schnittpunkte angezeigt werden sollen
@@ -67,6 +67,9 @@ public class GraphPanel extends JPanel {
 
         // Doppelpuffer für flüssiges Zeichnen aktivieren
         setDoubleBuffered(true);
+
+        // Standardformatierung für die Achsenbeschriftung
+        axisFormat = new DecimalFormat("0.##");
 
         // Maus-Listener für Zoom und Pan
         addMouseListener(new MouseAdapter() {
@@ -214,6 +217,39 @@ public class GraphPanel extends JPanel {
         xMax = centerX + xRange / 2;
 
         repaint();
+    }
+
+    /**
+     * Bestimmt die passende Anzahl der Nachkommastellen basierend auf dem
+     * Zoom-Level
+     */
+    private void updateAxisFormat() {
+        // Berechne den Wertebereich (kleinere Wertebereiche = mehr Nachkommastellen)
+        double xRange = xMax - xMin;
+        double yRange = yMax - yMin;
+
+        // Verwende den kleineren Bereich für die Formatierung
+        double range = Math.min(xRange, yRange);
+
+        // Logarithmische Skalierung für die Anzahl der Nachkommastellen
+        int decimalPlaces = 2; // Minimum 2 Nachkommastellen
+
+        if (range < 0.1) {
+            decimalPlaces = 5;
+        } else if (range < 1) {
+            decimalPlaces = 4;
+        } else if (range < 10) {
+            decimalPlaces = 3;
+        }
+
+        // Formatstring mit variabler Anzahl von Nachkommastellen erstellen
+        StringBuilder pattern = new StringBuilder("0.");
+        for (int i = 0; i < decimalPlaces; i++) {
+            pattern.append("#");
+        }
+
+        // Aktualisiere das Format
+        axisFormat = new DecimalFormat(pattern.toString());
     }
 
     /**
@@ -432,6 +468,10 @@ public class GraphPanel extends JPanel {
         // Berechne den Bereich in X- und Y-Richtung
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
+
+        // Aktualisiere das Format für die Achsenbeschriftung basierend auf dem
+        // Zoom-Level
+        updateAxisFormat();
 
         // Verwende einheitliche Skalierung, um Verzerrung zu vermeiden
         yScale = height / yRange;
@@ -713,10 +753,9 @@ public class GraphPanel extends JPanel {
                 g2d.fillOval(screenX - pointSize / 2, screenY - pointSize / 2,
                         pointSize, pointSize);
 
-                // Zeichne die Koordinaten als Text daneben
+                // Zeichne die Koordinaten als Text daneben mit dynamischer Präzision
                 g2d.setFont(new Font("Arial", Font.PLAIN, 10));
-                DecimalFormat df = new DecimalFormat("0.##");
-                String coords = "(" + df.format(point.x) + ", " + df.format(point.y) + ")";
+                String coords = "(" + axisFormat.format(point.x) + ", " + axisFormat.format(point.y) + ")";
                 g2d.drawString(coords, screenX + pointSize, screenY);
             }
         }
