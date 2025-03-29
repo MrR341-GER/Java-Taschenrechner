@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -51,6 +52,13 @@ public class GraphPanel extends JPanel {
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     /**
+     * Gibt die Liste der aktuell berechneten Schnittpunkte zurück
+     */
+    public List<IntersectionPoint> getIntersectionPoints() {
+        return intersectionPoints;
+    }
+
+    /**
      * Konstruktor - initialisiert das Panel und fügt Maus-Listener hinzu
      */
     public GraphPanel() {
@@ -90,8 +98,11 @@ public class GraphPanel extends JPanel {
 
                     lastMousePos = e.getPoint();
 
-                    // Neu zeichnen
+                    // Neuzeichnen
                     repaint();
+
+                    // Benachrichtige über die Änderung der Ansicht
+                    fireViewChanged();
 
                     // Wenn Schnittpunkte aktiviert sind, dynamisch neu berechnen
                     if (showIntersections) {
@@ -120,7 +131,7 @@ public class GraphPanel extends JPanel {
             // Bereiche anpassen
             double newYRange = oldYRange * factor;
             double centerY = (yMax + yMin) / 2;
-            double aspectRatio = (double)(getWidth() - 2 * AXIS_MARGIN) / (getHeight() - 2 * AXIS_MARGIN);
+            double aspectRatio = (double) (getWidth() - 2 * AXIS_MARGIN) / (getHeight() - 2 * AXIS_MARGIN);
             double newXRange = newYRange * aspectRatio;
             double centerX = (xMax + xMin) / 2;
 
@@ -135,6 +146,9 @@ public class GraphPanel extends JPanel {
             yMax = yMin + newYRange;
 
             repaint();
+
+            // Benachrichtige über die Änderung der Ansicht
+            fireViewChanged();
 
             // Wenn Schnittpunkte aktiviert sind, dynamisch neu berechnen
             if (showIntersections) {
@@ -160,6 +174,7 @@ public class GraphPanel extends JPanel {
         // Initialisiere die Ansicht basierend auf der aktuellen Größe
         resetView();
     }
+
     /**
      * Fügt einen PropertyChangeListener hinzu
      */
@@ -175,13 +190,15 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Passt die X-Werte an, um das korrekte Seitenverhältnis basierend auf der Y-Achse zu erhalten
+     * Passt die X-Werte an, um das korrekte Seitenverhältnis basierend auf der
+     * Y-Achse zu erhalten
      */
     private void adjustViewToMaintainAspectRatio() {
         int width = getWidth() - 2 * AXIS_MARGIN;
         int height = getHeight() - 2 * AXIS_MARGIN;
 
-        if (width <= 0 || height <= 0) return; // Verhindere Division durch Null
+        if (width <= 0 || height <= 0)
+            return; // Verhindere Division durch Null
 
         double yRange = yMax - yMin;
 
@@ -230,8 +247,15 @@ public class GraphPanel extends JPanel {
         yMin = -10;
         yMax = 10;
 
-        // X-Werte werden automatisch angepasst, um das korrekte Seitenverhältnis zu erhalten
+        // X-Werte werden automatisch angepasst, um das korrekte Seitenverhältnis zu
+        // erhalten
         adjustViewToMaintainAspectRatio();
+
+        // Zentriere die Ansicht auf den Ursprung (0,0)
+        centerViewAt(0, 0);
+
+        // Benachrichtige über die Änderung der Ansicht (zusätzlich zu centerViewAt)
+        fireViewChanged();
     }
 
     /**
@@ -250,6 +274,9 @@ public class GraphPanel extends JPanel {
 
         // Neuzeichnen
         repaint();
+
+        // Benachrichtige über die Änderung der Ansicht
+        fireViewChanged();
 
         // Wenn Schnittpunkte aktiviert sind, neu berechnen
         if (showIntersections) {
@@ -323,14 +350,15 @@ public class GraphPanel extends JPanel {
                 FunctionInfo f2 = functions.get(j);
 
                 // Funktionsausdrücke (versuchen, sie aus dem Funktionsobjekt zu extrahieren)
-                String expr1 = "f" + (i+1);
-                String expr2 = "f" + (j+1);
+                String expr1 = "f" + (i + 1);
+                String expr2 = "f" + (j + 1);
 
                 // Suche Schnittpunkte im aktuellen Ansichtsfenster
                 List<Point2D.Double> points = IntersectionFinder.findIntersections(
                         f1.function, f2.function, xMin, xMax);
 
-                // Füge die gefundenen Schnittpunkte als IntersectionPoint-Objekte zur Gesamtliste hinzu
+                // Füge die gefundenen Schnittpunkte als IntersectionPoint-Objekte zur
+                // Gesamtliste hinzu
                 for (Point2D.Double point : points) {
                     IntersectionPoint ip = new IntersectionPoint(
                             point.x, point.y, i, j, expr1, expr2);
@@ -372,10 +400,21 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Gibt die Liste der aktuell berechneten Schnittpunkte zurück
+     * Gibt die Koordinaten der aktuellen Bildmitte zurück
      */
-    public List<IntersectionPoint> getIntersectionPoints() {
-        return intersectionPoints;
+    public Point2D.Double getViewCenter() {
+        double centerX = (xMax + xMin) / 2;
+        double centerY = (yMax + yMin) / 2;
+        return new Point2D.Double(centerX, centerY);
+    }
+
+    /**
+     * Benachrichtigt Listener über Änderungen der Ansicht
+     */
+    private void fireViewChanged() {
+        Point2D.Double oldCenter = null; // Wir brauchen nicht den alten Wert
+        Point2D.Double newCenter = getViewCenter();
+        pcs.firePropertyChange("viewChanged", oldCenter, newCenter);
     }
 
     @Override
@@ -398,7 +437,8 @@ public class GraphPanel extends JPanel {
         yScale = height / yRange;
         xScale = yScale; // Wichtig: Wir verwenden den gleichen Skalierungsfaktor für beide Achsen
 
-        // Da wir einheitliche Skalierung verwenden, werden die Offsets einfach auf die Ränder gesetzt
+        // Da wir einheitliche Skalierung verwenden, werden die Offsets einfach auf die
+        // Ränder gesetzt
         xOffset = AXIS_MARGIN;
         yOffset = AXIS_MARGIN;
 
@@ -430,7 +470,8 @@ public class GraphPanel extends JPanel {
         g2d.setColor(new Color(240, 240, 240)); // Hellgrau
         g2d.setStroke(new BasicStroke(0.5f));
 
-        // Berechne Gitterlinienabstände in Weltkoordinaten - verwende für beide Achsen den Y-Bereich
+        // Berechne Gitterlinienabstände in Weltkoordinaten - verwende für beide Achsen
+        // den Y-Bereich
         double gridSpacing = calculateGridSpacing(yMax - yMin);
 
         // Verfügbarer Zeichenbereich
@@ -526,8 +567,22 @@ public class GraphPanel extends JPanel {
                 if (Math.abs(x) > 1e-10) { // Kleine Werte als Null betrachten
                     String label = axisFormat.format(x);
                     FontMetrics fm = g2d.getFontMetrics();
-                    int labelWidth = fm.stringWidth(label);
-                    g2d.drawString(label, screenX - labelWidth / 2, yAxisPos + TICK_LENGTH + 12);
+
+                    // Speichere den aktuellen Transformationszustand
+                    AffineTransform originalTransform = g2d.getTransform();
+
+                    // Konstanter Abstand für alle Beschriftungen
+                    int yOffset = 5; // Abstand vom Tick-Mark
+
+                    // Positioniere den Text so, dass er UNTERHALB der Achse beginnt
+                    g2d.translate(screenX, yAxisPos + TICK_LENGTH + yOffset);
+                    g2d.rotate(Math.PI / 2); // 90 Grad im Uhrzeigersinn
+
+                    // Zeichne den Text zentriert zur Linie
+                    g2d.drawString(label, 0, 0);
+
+                    // Stelle den ursprünglichen Transformationszustand wieder her
+                    g2d.setTransform(originalTransform);
                 }
             }
             x += gridSpacing;
@@ -655,7 +710,7 @@ public class GraphPanel extends JPanel {
                 int screenY = worldToScreenY(point.y);
 
                 // Zeichne einen ausgefüllten Kreis
-                g2d.fillOval(screenX - pointSize/2, screenY - pointSize/2,
+                g2d.fillOval(screenX - pointSize / 2, screenY - pointSize / 2,
                         pointSize, pointSize);
 
                 // Zeichne die Koordinaten als Text daneben

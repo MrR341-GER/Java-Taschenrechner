@@ -21,6 +21,13 @@ public class PlotterPanel extends JPanel {
     private JList<String> intersectionList;
     private JPanel intersectionPanel;
 
+    // Eingabefelder für Zentrierung
+    private JTextField xCenterField;
+    private JTextField yCenterField;
+
+    // Formatter für Koordinaten
+    private final DecimalFormat coordinateFormat = new DecimalFormat("0.##");
+
     private final Color[] availableColors = {
             Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA,
             Color.ORANGE, Color.CYAN, new Color(128, 0, 128), // Lila
@@ -31,10 +38,6 @@ public class PlotterPanel extends JPanel {
             "Rot", "Blau", "Grün", "Magenta",
             "Orange", "Cyan", "Lila", "Braun"
     };
-
-    // Eingabefelder für Zentrierung
-    private JTextField xCenterField;
-    private JTextField yCenterField;
 
     public PlotterPanel() {
         setLayout(new BorderLayout(5, 5));
@@ -47,6 +50,12 @@ public class PlotterPanel extends JPanel {
             if (showIntersectionsCheckbox.isSelected()) {
                 updateIntersectionList();
             }
+        });
+
+        // Listener für Aktualisierung der Zentrierung-Textfelder bei Änderung der
+        // Ansicht
+        graphPanel.addPropertyChangeListener("viewChanged", evt -> {
+            updateCenteringFields();
         });
 
         // Steuerungsbereich erstellen
@@ -173,7 +182,10 @@ public class PlotterPanel extends JPanel {
             }
         });
 
-        resetViewButton.addActionListener(e -> graphPanel.resetView());
+        resetViewButton.addActionListener(e -> {
+            graphPanel.resetView();
+            // Die Zentrierung-Felder werden durch den PropertyChangeListener aktualisiert
+        });
 
         functionField.addActionListener(e -> addFunction());
 
@@ -212,6 +224,18 @@ public class PlotterPanel extends JPanel {
         // Haupt-Layout
         add(graphPanel, BorderLayout.CENTER);
         add(controlPanel, BorderLayout.SOUTH);
+
+        // Initialisiere die Zentrierung-Felder mit der aktuellen Ansicht
+        updateCenteringFields();
+    }
+
+    /**
+     * Aktualisiert die Zentrierung-Felder mit der aktuellen Ansichtsmitte
+     */
+    private void updateCenteringFields() {
+        Point2D.Double center = graphPanel.getViewCenter();
+        xCenterField.setText(coordinateFormat.format(center.x));
+        yCenterField.setText(coordinateFormat.format(center.y));
     }
 
     private void addFunction() {
@@ -298,12 +322,13 @@ public class PlotterPanel extends JPanel {
         for (int i = 0; i < intersectionPoints.size(); i++) {
             IntersectionPoint point = intersectionPoints.get(i);
 
-            // Extrahiere die Funktionsausdrücke aus der Funktionsliste für eine bessere Anzeige
+            // Extrahiere die Funktionsausdrücke aus der Funktionsliste für eine bessere
+            // Anzeige
             String func1 = getFunctionExpressionByIndex(point.getFunctionIndex1());
             String func2 = getFunctionExpressionByIndex(point.getFunctionIndex2());
 
             // Erstelle einen informativen Listeneintrag
-            String entry = "S" + (i+1) + ": (" + df.format(point.x) + ", " + df.format(point.y) + ") ";
+            String entry = "S" + (i + 1) + ": (" + df.format(point.x) + ", " + df.format(point.y) + ") ";
             entry += "zwischen " + func1 + " und " + func2;
 
             intersectionListModel.addElement(entry);
@@ -315,7 +340,7 @@ public class PlotterPanel extends JPanel {
      */
     private String getFunctionExpressionByIndex(int index) {
         if (index < 0 || index >= functionListModel.size()) {
-            return "f" + (index+1);
+            return "f" + (index + 1);
         }
 
         String entry = functionListModel.get(index);
@@ -327,7 +352,7 @@ public class PlotterPanel extends JPanel {
         if (equalsPos >= 0 && bracketPos > equalsPos) {
             return entry.substring(equalsPos + 1, bracketPos).trim();
         } else {
-            return "f" + (index+1);
+            return "f" + (index + 1);
         }
     }
 
