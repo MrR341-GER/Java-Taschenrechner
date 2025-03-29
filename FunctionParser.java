@@ -1,11 +1,13 @@
 /**
  * Parser für mathematische Funktionen
  * Diese Klasse verwendet Rekursiven Abstieg zum Parsen von Ausdrücken
+ * Unterstützt implizite Multiplikation (2x statt 2*x)
  */
 public class FunctionParser {
     private final String expression;
     private int pos;
     private char ch;
+    private char nextCh; // Speichert das nächste Zeichen für Look-ahead
 
     public FunctionParser(String expression) {
         this.expression = expression.toLowerCase().replaceAll("\\s+", "");
@@ -28,6 +30,8 @@ public class FunctionParser {
 
     private void nextChar() {
         ch = (pos < expression.length()) ? expression.charAt(pos++) : '\0';
+        // Speichere auch das folgende Zeichen (ohne Position zu erhöhen)
+        nextCh = (pos < expression.length()) ? expression.charAt(pos) : '\0';
     }
 
     private boolean eat(char charToEat) {
@@ -65,6 +69,11 @@ public class FunctionParser {
                     throw new ArithmeticException("Division by zero");
                 }
                 result /= divisor;
+            }
+            // Implizite Multiplikation für Fälle wie "2x" oder "2(x+1)" oder "x(y)"
+            else if ((ch >= 'a' && ch <= 'z') || ch == '(') {
+                // Implizite Multiplikation erkannt - multiply mit dem nächsten Faktor
+                result *= parseFactor(x);
             } else
                 return result;
         }
@@ -82,6 +91,11 @@ public class FunctionParser {
         if (eat('(')) {
             result = parseExpression(x);
             eat(')');
+
+            // Nach schließender Klammer prüfen, ob implizite Multiplikation folgt
+            if ((ch >= 'a' && ch <= 'z') || ch == '(') {
+                result *= parseFactor(x);
+            }
         }
         // Zahlen
         else if ((ch >= '0' && ch <= '9') || ch == '.') {
@@ -91,11 +105,21 @@ public class FunctionParser {
                 nextChar();
             }
             result = Double.parseDouble(sb.toString());
+
+            // Nach einer Zahl prüfen, ob implizite Multiplikation folgt
+            if ((ch >= 'a' && ch <= 'z') || ch == '(') {
+                result *= parseFactor(x);
+            }
         }
         // Die Variable x
         else if (ch == 'x') {
             nextChar();
             result = x;
+
+            // Nach 'x' prüfen, ob implizite Multiplikation folgt
+            if ((ch >= 'a' && ch <= 'z' && ch != 'x') || ch == '(') {
+                result *= parseFactor(x);
+            }
         }
         // Funktionen wie sin, cos, etc.
         else if (ch >= 'a' && ch <= 'z') {
@@ -145,6 +169,11 @@ public class FunctionParser {
                     default:
                         throw new RuntimeException("Unknown function: " + name);
                 }
+
+                // Nach einer Funktionsauswertung prüfen, ob implizite Multiplikation folgt
+                if ((ch >= 'a' && ch <= 'z') || ch == '(') {
+                    result *= parseFactor(x);
+                }
             } else {
                 // Mathematische Konstanten
                 switch (name) {
@@ -159,6 +188,11 @@ public class FunctionParser {
                         break;
                     default:
                         throw new RuntimeException("Unknown identifier: " + name);
+                }
+
+                // Nach einer Konstanten prüfen, ob implizite Multiplikation folgt
+                if ((ch >= 'a' && ch <= 'z' && !name.equals("x")) || ch == '(') {
+                    result *= parseFactor(x);
                 }
             }
         } else {
