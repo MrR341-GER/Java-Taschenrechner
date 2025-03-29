@@ -21,18 +21,26 @@ public class GraphPanel extends JPanel {
     private static final int TICK_LENGTH = 5; // Länge der Achsenmarkierungen
     private static final int GRID_SPACING = 50; // Abstand der Gitterlinien in Pixeln
     private static final float ZOOM_FACTOR = 1.2f; // Faktor für Zoom-Operationen
+    private static final double DEFAULT_VIEW_RANGE = 20.0; // Standardbereich (-10 bis +10)
+    private static final double MIN_PIXELS_PER_UNIT = 10.0; // Mindestpixel pro Einheit für Lesbarkeit
+    private static final int MIN_HEIGHT = 200; // Minimale Höhe des Koordinatensystems
+    private static final int MIN_WIDTH = 300; // Minimale Breite des Koordinatensystems
+    private static final double MAX_SCREEN_COORDS = 10000.0; // Maximale Bildschirmkoordinaten für Java2D
 
     // Darstellungsparameter
-    private double xMin = -10; // Minimaler X-Wert im sichtbaren Bereich (wird dynamisch angepasst)
-    private double xMax = 10; // Maximaler X-Wert im sichtbaren Bereich (wird dynamisch angepasst)
-    private double yMin = -10; // Minimaler Y-Wert im sichtbaren Bereich (fest)
-    private double yMax = 10; // Maximaler Y-Wert im sichtbaren Bereich (fest)
+    private double xMin = -10; // Minimaler X-Wert im sichtbaren Bereich
+    private double xMax = 10; // Maximaler X-Wert im sichtbaren Bereich
+    private double yMin = -10; // Minimaler Y-Wert im sichtbaren Bereich
+    private double yMax = 10; // Maximaler Y-Wert im sichtbaren Bereich
     private double xScale; // Skalierungsfaktor für X-Werte (Pixel pro Einheit)
     private double yScale; // Skalierungsfaktor für Y-Werte (Pixel pro Einheit)
 
     // Verschiebungen für zentriertes Koordinatensystem
     private int xOffset;
     private int yOffset;
+
+    // Speichert das Zentrum, um es bei Größenänderungen beizubehalten
+    private Point2D.Double viewCenter = new Point2D.Double(0, 0);
 
     // Maus-Interaktion
     private Point lastMousePos; // Letzte Mausposition (für Pan)
@@ -64,6 +72,7 @@ public class GraphPanel extends JPanel {
     public GraphPanel() {
         setBackground(Color.WHITE);
         setPreferredSize(new Dimension(600, 400));
+        setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
 
         // Doppelpuffer für flüssiges Zeichnen aktivieren
         setDoubleBuffered(true);
@@ -99,6 +108,9 @@ public class GraphPanel extends JPanel {
                     yMin -= dy;
                     yMax -= dy;
 
+                    // Aktualisiere das Zentrum
+                    updateViewCenter();
+
                     lastMousePos = e.getPoint();
 
                     // Neuzeichnen
@@ -133,10 +145,7 @@ public class GraphPanel extends JPanel {
 
             // Bereiche anpassen
             double newYRange = oldYRange * factor;
-            double centerY = (yMax + yMin) / 2;
-            double aspectRatio = (double) (getWidth() - 2 * AXIS_MARGIN) / (getHeight() - 2 * AXIS_MARGIN);
-            double newXRange = newYRange * aspectRatio;
-            double centerX = (xMax + xMin) / 2;
+            double newXRange = oldXRange * factor;
 
             // Bestimme den Punkt, auf den gezoomt werden soll (Position des Mauszeigers)
             double relX = (worldMouseX - xMin) / oldXRange; // Position relativ zur Breite
@@ -147,6 +156,9 @@ public class GraphPanel extends JPanel {
             xMax = xMin + newXRange;
             yMin = worldMouseY - relY * newYRange;
             yMax = yMin + newYRange;
+
+            // Aktualisiere das Zentrum
+            updateViewCenter();
 
             repaint();
 
@@ -163,8 +175,7 @@ public class GraphPanel extends JPanel {
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                // Beim ersten Anzeigen oder nach manueller Größenänderung des Panels
-                // passen wir die Y-Werte automatisch an, um das Seitenverhältnis zu erhalten
+                // Bei Größenänderung die Ansicht anpassen, aber das Zentrum beibehalten
                 adjustViewToMaintainAspectRatio();
 
                 // Wenn Schnittpunkte aktiviert sind, dynamisch neu berechnen
@@ -176,6 +187,14 @@ public class GraphPanel extends JPanel {
 
         // Initialisiere die Ansicht basierend auf der aktuellen Größe
         resetView();
+    }
+
+    /**
+     * Aktualisiert das gespeicherte Zentrum der Ansicht
+     */
+    private void updateViewCenter() {
+        viewCenter.x = (xMax + xMin) / 2;
+        viewCenter.y = (yMax + yMin) / 2;
     }
 
     /**
@@ -193,8 +212,9 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Passt die X-Werte an, um das korrekte Seitenverhältnis basierend auf der
-     * Y-Achse zu erhalten
+     * Passt die Ansicht an, um das korrekte Seitenverhältnis basierend auf der
+     * Panelgröße zu erhalten, und stellt sicher, dass das Koordinatensystem lesbar
+     * bleibt
      */
     private void adjustViewToMaintainAspectRatio() {
         int width = getWidth() - 2 * AXIS_MARGIN;
@@ -203,18 +223,62 @@ public class GraphPanel extends JPanel {
         if (width <= 0 || height <= 0)
             return; // Verhindere Division durch Null
 
-        double yRange = yMax - yMin;
-
         // Berechne das Seitenverhältnis des Panels
         double panelAspectRatio = (double) width / height;
 
-        // Berechne den entsprechenden X-Bereich für das korrekte Seitenverhältnis
-        double centerX = (xMax + xMin) / 2;
-        double xRange = yRange * panelAspectRatio;
+        // Berechne die verfügbaren Pixel pro Einheit
+        double pixelsPerUnitX = width / (xMax - xMin);
+        double pixelsPerUnitY = height / (yMax - yMin);
 
-        // Setze neue X-Werte, zentriert um die aktuelle Mitte
-        xMin = centerX - xRange / 2;
-        xMax = centerX + xRange / 2;
+        // Wenn einer der Werte zu niedrig wird, passe beide Bereiche an
+        if (pixelsPerUnitX < MIN_PIXELS_PER_UNIT || pixelsPerUnitY < MIN_PIXELS_PER_UNIT) {
+            // Bestimme, wie viele Einheiten in jede Richtung basierend auf der
+            // Mindestlesbarkeit dargestellt werden können
+            double maxUnitsX = width / MIN_PIXELS_PER_UNIT;
+            double maxUnitsY = height / MIN_PIXELS_PER_UNIT;
+
+            // Stelle sicher, dass das Seitenverhältnis erhalten bleibt
+            if (maxUnitsX / maxUnitsY < panelAspectRatio) {
+                // X-Richtung ist beschränkend
+                maxUnitsY = maxUnitsX / panelAspectRatio;
+            } else {
+                // Y-Richtung ist beschränkend
+                maxUnitsX = maxUnitsY * panelAspectRatio;
+            }
+
+            // Berechne neue Grenzen basierend auf dem gespeicherten Zentrum
+            double halfX = maxUnitsX / 2;
+            double halfY = maxUnitsY / 2;
+            xMin = viewCenter.x - halfX;
+            xMax = viewCenter.x + halfX;
+            yMin = viewCenter.y - halfY;
+            yMax = viewCenter.y + halfY;
+        } else {
+            // Wenn die Lesbarkeit gewährleistet ist, passe nur die Grenzen an, um das
+            // Seitenverhältnis zu erhalten
+            double xRange = xMax - xMin;
+            double yRange = yMax - yMin;
+            double currentAspectRatio = xRange / yRange;
+
+            if (Math.abs(currentAspectRatio - panelAspectRatio) > 0.01) { // Toleranz für Fließkommavergleich
+                if (currentAspectRatio < panelAspectRatio) {
+                    // X-Bereich muss vergrößert werden
+                    double newXRange = yRange * panelAspectRatio;
+                    double halfDeltaX = (newXRange - xRange) / 2;
+                    xMin -= halfDeltaX;
+                    xMax += halfDeltaX;
+                } else {
+                    // Y-Bereich muss vergrößert werden
+                    double newYRange = xRange / panelAspectRatio;
+                    double halfDeltaY = (newYRange - yRange) / 2;
+                    yMin -= halfDeltaY;
+                    yMax += halfDeltaY;
+                }
+
+                // Aktualisiere das Zentrum
+                updateViewCenter();
+            }
+        }
 
         repaint();
     }
@@ -279,18 +343,51 @@ public class GraphPanel extends JPanel {
      * Setzt die Ansicht auf Standardwerte zurück
      */
     public void resetView() {
-        // Feste Y-Werte
-        yMin = -10;
-        yMax = 10;
+        // Setze das Zentrum auf den Ursprung
+        viewCenter.x = 0;
+        viewCenter.y = 0;
 
-        // X-Werte werden automatisch angepasst, um das korrekte Seitenverhältnis zu
-        // erhalten
+        // Berechne eine passende Ansicht basierend auf der Fenstergröße
+        int width = getWidth() - 2 * AXIS_MARGIN;
+        int height = getHeight() - 2 * AXIS_MARGIN;
+
+        if (width <= 0 || height <= 0) {
+            // Wenn das Panel noch keine Größe hat, verwende Standardwerte
+            xMin = -10;
+            xMax = 10;
+            yMin = -10;
+            yMax = 10;
+        } else {
+            // Berechne, wie viele Einheiten bei Mindestlesbarkeit dargestellt werden können
+            double maxUnitsX = width / MIN_PIXELS_PER_UNIT;
+            double maxUnitsY = height / MIN_PIXELS_PER_UNIT;
+
+            // Verwende das Minimum oder die Standardansicht
+            double halfX = Math.min(maxUnitsX, DEFAULT_VIEW_RANGE) / 2;
+            double halfY = Math.min(maxUnitsY, DEFAULT_VIEW_RANGE) / 2;
+
+            // Stelle sicher, dass das Seitenverhältnis erhalten bleibt
+            double panelAspectRatio = (double) width / height;
+            if (halfX / halfY < panelAspectRatio) {
+                halfY = halfX / panelAspectRatio;
+            } else {
+                halfX = halfY * panelAspectRatio;
+            }
+
+            // Setze die Grenzen
+            xMin = -halfX;
+            xMax = halfX;
+            yMin = -halfY;
+            yMax = halfY;
+        }
+
+        // Stelle sicher, dass die Ansicht richtig angepasst wird
         adjustViewToMaintainAspectRatio();
 
-        // Zentriere die Ansicht auf den Ursprung (0,0)
-        centerViewAt(0, 0);
+        // Neuzeichnen
+        repaint();
 
-        // Benachrichtige über die Änderung der Ansicht (zusätzlich zu centerViewAt)
+        // Benachrichtige über die Änderung der Ansicht
         fireViewChanged();
     }
 
@@ -298,6 +395,10 @@ public class GraphPanel extends JPanel {
      * Zentriert die Ansicht auf den angegebenen Punkt
      */
     public void centerViewAt(double xCenter, double yCenter) {
+        // Speichere das neue Zentrum
+        viewCenter.x = xCenter;
+        viewCenter.y = yCenter;
+
         // Berechne den aktuellen Bereich
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
@@ -385,6 +486,11 @@ public class GraphPanel extends JPanel {
                 FunctionInfo f1 = functions.get(i);
                 FunctionInfo f2 = functions.get(j);
 
+                // Prüfe, ob die Funktionen identisch sind
+                if (areFunctionsIdentical(f1.function, f2.function)) {
+                    continue; // Überspringe identische Funktionen
+                }
+
                 // Funktionsausdrücke (versuchen, sie aus dem Funktionsobjekt zu extrahieren)
                 String expr1 = "f" + (i + 1);
                 String expr2 = "f" + (j + 1);
@@ -436,12 +542,51 @@ public class GraphPanel extends JPanel {
     }
 
     /**
+     * Prüft, ob zwei Funktionen identisch sind, indem mehrere Stichproben
+     * verglichen werden
+     */
+    private boolean areFunctionsIdentical(FunctionParser f1, FunctionParser f2) {
+        // Anzahl der Testpunkte
+        final int NUM_TEST_POINTS = 10;
+
+        // Bereich für die Testpunkte (aktueller sichtbarer Bereich)
+        double min = xMin;
+        double max = xMax;
+        double step = (max - min) / (NUM_TEST_POINTS - 1);
+
+        // Teste mehrere Punkte im aktuellen Bereich
+        for (int i = 0; i < NUM_TEST_POINTS; i++) {
+            double x = min + i * step;
+            try {
+                double y1 = f1.evaluateAt(x);
+                double y2 = f2.evaluateAt(x);
+
+                // Wenn ein y-Wert NaN oder unendlich ist, überspringe diesen Punkt
+                if (Double.isNaN(y1) || Double.isInfinite(y1) ||
+                        Double.isNaN(y2) || Double.isInfinite(y2)) {
+                    continue;
+                }
+
+                // Wenn y-Werte unterschiedlich sind, sind die Funktionen nicht identisch
+                if (Math.abs(y1 - y2) > 1e-10) {
+                    return false;
+                }
+            } catch (Exception e) {
+                // Bei Fehlern in der Auswertung gilt einer der Punkte als unterschiedlich
+                return false;
+            }
+        }
+
+        // Wenn alle Stichproben identisch sind, gehen wir davon aus, dass die
+        // Funktionen gleich sind
+        return true;
+    }
+
+    /**
      * Gibt die Koordinaten der aktuellen Bildmitte zurück
      */
     public Point2D.Double getViewCenter() {
-        double centerX = (xMax + xMin) / 2;
-        double centerY = (yMax + yMin) / 2;
-        return new Point2D.Double(centerX, centerY);
+        return new Point2D.Double(viewCenter.x, viewCenter.y);
     }
 
     /**
@@ -473,9 +618,9 @@ public class GraphPanel extends JPanel {
         // Zoom-Level
         updateAxisFormat();
 
-        // Verwende einheitliche Skalierung, um Verzerrung zu vermeiden
+        // Berechne Skalierungsfaktoren
+        xScale = width / xRange;
         yScale = height / yRange;
-        xScale = yScale; // Wichtig: Wir verwenden den gleichen Skalierungsfaktor für beide Achsen
 
         // Da wir einheitliche Skalierung verwenden, werden die Offsets einfach auf die
         // Ränder gesetzt
@@ -663,7 +808,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Zeichnet eine Funktion
+     * Zeichnet eine Funktion mit verbesserter Genauigkeit
      */
     private void drawFunction(Graphics2D g2d, FunctionInfo functionInfo) {
         g2d.setColor(functionInfo.color);
@@ -676,7 +821,10 @@ public class GraphPanel extends JPanel {
         int numPoints = getWidth() - 2 * AXIS_MARGIN;
         double step = (xMax - xMin) / numPoints;
 
-        Double lastY = null;
+        // Speichern des letzten gültigen Punktes, um Linien an den Rändern korrekt zu
+        // zeichnen
+        double lastX = Double.NaN;
+        double lastY = Double.NaN;
 
         for (int i = 0; i <= numPoints; i++) {
             double x = xMin + i * step;
@@ -687,45 +835,172 @@ public class GraphPanel extends JPanel {
                 // Prüfen ob der Wert gültig ist
                 if (Double.isNaN(y) || Double.isInfinite(y)) {
                     // Ungültiger Punkt, neuen Pfad starten
+                    if (pathStarted && !Double.isNaN(lastX) && !Double.isNaN(lastY)) {
+                        // Wenn wir einen gültigen letzten Punkt haben, zeichne bis zur Grenze
+                        if (lastY < yMin) {
+                            // Berechne den Schnittpunkt mit der unteren Grenze
+                            double intersectX = calculateXIntersection(lastX, lastY, x, y, yMin);
+                            if (!Double.isNaN(intersectX)) {
+                                int screenX = worldToScreenX(intersectX);
+                                int screenY = worldToScreenY(yMin);
+                                path.lineTo(screenX, screenY);
+                            }
+                        } else if (lastY > yMax) {
+                            // Berechne den Schnittpunkt mit der oberen Grenze
+                            double intersectX = calculateXIntersection(lastX, lastY, x, y, yMax);
+                            if (!Double.isNaN(intersectX)) {
+                                int screenX = worldToScreenX(intersectX);
+                                int screenY = worldToScreenY(yMax);
+                                path.lineTo(screenX, screenY);
+                            }
+                        }
+                    }
+
                     pathStarted = false;
-                    lastY = null;
+                    lastX = Double.NaN;
+                    lastY = Double.NaN;
                     continue;
                 }
 
-                // Sprunghafte Änderungen erkennen und Linien unterbrechen
-                if (lastY != null) {
-                    double deltaY = Math.abs(y - lastY);
-                    double deltaYRelative = deltaY / (yMax - yMin);
-
-                    // Wenn die relative Änderung zu groß ist, neuen Pfad starten
-                    if (deltaYRelative > 0.2) {
-                        pathStarted = false;
-                    }
-                }
+                // Speichere den aktuellen Punkt als letzten gültigen Punkt
+                lastX = x;
                 lastY = y;
 
-                // Nur zeichnen, wenn im sichtbaren Bereich
-                if (y >= yMin && y <= yMax) {
-                    int screenX = worldToScreenX(x);
-                    int screenY = worldToScreenY(y);
+                // Prüfe, ob der Punkt innerhalb des sichtbaren y-Bereichs liegt
+                boolean inYRange = (y >= yMin && y <= yMax);
 
-                    if (!pathStarted) {
-                        path.moveTo(screenX, screenY);
-                        pathStarted = true;
-                    } else {
-                        path.lineTo(screenX, screenY);
-                    }
+                // Berechne die Bildschirmkoordinaten
+                int screenX = worldToScreenX(x);
+                int screenY;
+
+                if (inYRange) {
+                    // Normaler Fall: Punkt im sichtbaren Bereich
+                    screenY = worldToScreenY(y);
                 } else {
-                    // Punkt außerhalb des sichtbaren Bereichs
-                    pathStarted = false;
+                    // Punkt außerhalb des sichtbaren Bereichs, aber wir wollen den Pfad nicht
+                    // unterbrechen
+                    // Stattdessen begrenzen wir den y-Wert, um übermäßige Bildschirmkoordinaten zu
+                    // vermeiden
+                    if (y < yMin) {
+                        screenY = worldToScreenY(yMin);
+                    } else { // y > yMax
+                        screenY = worldToScreenY(yMax);
+                    }
+                }
+
+                // Prüfe, ob der vorherige Punkt außerhalb des Bereichs war
+                if (!pathStarted) {
+                    if (i > 0 && inYRange) {
+                        // Wenn wir einen Pfad starten und der vorherige Punkt außerhalb war,
+                        // berechne den Schnittpunkt mit dem Rand
+                        double prevX = xMin + (i - 1) * step;
+                        try {
+                            double prevY = functionInfo.function.evaluateAt(prevX);
+
+                            if (!Double.isNaN(prevY) && !Double.isInfinite(prevY)) {
+                                // Berechne den Schnittpunkt mit der Grenze
+                                if (prevY < yMin) {
+                                    // Schnittpunkt mit unterer Grenze
+                                    double intersectX = calculateXIntersection(prevX, prevY, x, y, yMin);
+                                    if (!Double.isNaN(intersectX)) {
+                                        int startX = worldToScreenX(intersectX);
+                                        int startY = worldToScreenY(yMin);
+                                        path.moveTo(startX, startY);
+                                        path.lineTo(screenX, screenY);
+                                        pathStarted = true;
+                                        continue;
+                                    }
+                                } else if (prevY > yMax) {
+                                    // Schnittpunkt mit oberer Grenze
+                                    double intersectX = calculateXIntersection(prevX, prevY, x, y, yMax);
+                                    if (!Double.isNaN(intersectX)) {
+                                        int startX = worldToScreenX(intersectX);
+                                        int startY = worldToScreenY(yMax);
+                                        path.moveTo(startX, startY);
+                                        path.lineTo(screenX, screenY);
+                                        pathStarted = true;
+                                        continue;
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Fehler bei der Berechnung des vorherigen Punktes, ignorieren
+                        }
+                    }
+
+                    path.moveTo(screenX, screenY);
+                    pathStarted = true;
+                } else {
+                    // Wenn der aktuelle Punkt außerhalb des Bereichs ist, berechne den Schnittpunkt
+                    if (!inYRange) {
+                        if (i > 0) {
+                            double prevX = xMin + (i - 1) * step;
+                            try {
+                                double prevY = functionInfo.function.evaluateAt(prevX);
+
+                                if (!Double.isNaN(prevY) && !Double.isInfinite(prevY) &&
+                                        prevY >= yMin && prevY <= yMax) {
+
+                                    // Der vorherige Punkt war im Bereich, berechne den Schnittpunkt
+                                    if (y < yMin) {
+                                        // Schnittpunkt mit unterer Grenze
+                                        double intersectX = calculateXIntersection(prevX, prevY, x, y, yMin);
+                                        if (!Double.isNaN(intersectX)) {
+                                            int endX = worldToScreenX(intersectX);
+                                            int endY = worldToScreenY(yMin);
+                                            path.lineTo(endX, endY);
+                                        }
+                                    } else if (y > yMax) {
+                                        // Schnittpunkt mit oberer Grenze
+                                        double intersectX = calculateXIntersection(prevX, prevY, x, y, yMax);
+                                        if (!Double.isNaN(intersectX)) {
+                                            int endX = worldToScreenX(intersectX);
+                                            int endY = worldToScreenY(yMax);
+                                            path.lineTo(endX, endY);
+                                        }
+                                    }
+
+                                    // Unterbreche den Pfad für den Teil außerhalb des Bereichs
+                                    pathStarted = false;
+                                    continue;
+                                }
+                            } catch (Exception e) {
+                                // Fehler bei der Berechnung des vorherigen Punktes, ignorieren
+                            }
+                        }
+                    }
+
+                    // Normaler Fall: lineTo für Punkte innerhalb des Bereichs
+                    path.lineTo(screenX, screenY);
                 }
             } catch (Exception e) {
                 // Bei Fehlern in der Auswertung den Pfad unterbrechen
                 pathStarted = false;
+                lastX = Double.NaN;
+                lastY = Double.NaN;
             }
         }
 
         g2d.draw(path);
+    }
+
+    /**
+     * Berechnet den x-Wert an dem eine Linie eine bestimmte y-Höhe schneidet
+     */
+    private double calculateXIntersection(double x1, double y1, double x2, double y2, double targetY) {
+        // Überprüfe, ob die Linie die Zielhöhe schneidet
+        if ((y1 < targetY && y2 < targetY) || (y1 > targetY && y2 > targetY)) {
+            return Double.NaN; // Kein Schnittpunkt
+        }
+
+        // Wenn einer der Punkte genau auf der Zielhöhe liegt, gib diesen x-Wert zurück
+        if (Math.abs(y1 - targetY) < 1e-10)
+            return x1;
+        if (Math.abs(y2 - targetY) < 1e-10)
+            return x2;
+
+        // Lineare Interpolation: x = x1 + (targetY - y1) * (x2 - x1) / (y2 - y1)
+        return x1 + (targetY - y1) * (x2 - x1) / (y2 - y1);
     }
 
     /**

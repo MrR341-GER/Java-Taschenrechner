@@ -65,10 +65,7 @@ public class PlotterPanel extends JPanel {
         // Steuerungsbereich erstellen
         JPanel controlPanel = new JPanel(new BorderLayout(5, 5));
 
-        // Oberes Panel für Eingabe und Buttons
-        JPanel topControlPanel = new JPanel(new BorderLayout(5, 5));
-
-        // Funktionseingabefeld
+        // Funktionseingabefeld Panel
         JPanel functionPanel = new JPanel(new BorderLayout(5, 5));
         functionPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
@@ -84,22 +81,32 @@ public class PlotterPanel extends JPanel {
         colorComboBox.setPreferredSize(new Dimension(100, functionField.getPreferredSize().height));
         functionPanel.add(colorComboBox, BorderLayout.EAST);
 
-        // Funktionsliste
-        functionListModel = new DefaultListModel<>();
-        functionList = new JList<>(functionListModel);
-        JScrollPane listScrollPane = new JScrollPane(functionList);
-        listScrollPane.setPreferredSize(new Dimension(300, 100));
-
-        // Button-Panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        // Panel für die Button-Zeile
+        JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
 
         JButton addButton = new JButton("Hinzufügen");
         JButton removeButton = new JButton("Entfernen");
         JButton clearButton = new JButton("Alle löschen");
         JButton resetViewButton = new JButton("Ansicht zurücksetzen");
 
+        actionButtonPanel.add(addButton);
+        actionButtonPanel.add(removeButton);
+        actionButtonPanel.add(clearButton);
+
+        // Panel für die Funktionsliste
+        JPanel functionsPanel = new JPanel(new BorderLayout(5, 5));
+        functionsPanel.setBorder(BorderFactory.createTitledBorder("Funktionen"));
+
+        // Funktionsliste mit scrollbarem Bereich
+        functionListModel = new DefaultListModel<>();
+        functionList = new JList<>(functionListModel);
+        JScrollPane listScrollPane = new JScrollPane(functionList);
+        listScrollPane.setPreferredSize(new Dimension(300, 100));
+        listScrollPane.setMinimumSize(new Dimension(100, 50));
+        functionsPanel.add(listScrollPane, BorderLayout.CENTER);
+
         // Panel für die Zentrierung
-        JPanel centeringPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        JPanel centeringPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         centeringPanel.setBorder(BorderFactory.createTitledBorder("Ansicht zentrieren"));
 
         xCenterField = new JTextField(5);
@@ -113,12 +120,7 @@ public class PlotterPanel extends JPanel {
         JButton centerButton = new JButton("Zentrieren");
         centerButton.addActionListener(e -> centerGraphView());
         centeringPanel.add(centerButton);
-
-        buttonPanel.add(addButton);
-        buttonPanel.add(removeButton);
-        buttonPanel.add(clearButton);
-        buttonPanel.add(resetViewButton);
-        buttonPanel.add(centeringPanel);
+        centeringPanel.add(resetViewButton);
 
         // Checkbox für Schnittpunkte
         showIntersectionsCheckbox = new JCheckBox("Schnittpunkte anzeigen");
@@ -137,8 +139,9 @@ public class PlotterPanel extends JPanel {
             }
         });
 
-        // Füge die Checkbox dem buttonPanel hinzu
-        buttonPanel.add(showIntersectionsCheckbox);
+        // Panel für zusätzliche Optionen
+        JPanel optionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        optionsPanel.add(showIntersectionsCheckbox);
 
         // Schnittpunktliste erstellen
         intersectionListModel = new DefaultListModel<>();
@@ -146,6 +149,7 @@ public class PlotterPanel extends JPanel {
         intersectionList.setFont(new Font("Monospaced", Font.PLAIN, 12));
         JScrollPane intersectionScrollPane = new JScrollPane(intersectionList);
         intersectionScrollPane.setPreferredSize(new Dimension(300, 100));
+        intersectionScrollPane.setMinimumSize(new Dimension(100, 50));
 
         // Panel für Schnittpunktliste
         intersectionPanel = new JPanel(new BorderLayout(5, 5));
@@ -153,12 +157,6 @@ public class PlotterPanel extends JPanel {
         intersectionPanel.add(intersectionScrollPane, BorderLayout.CENTER);
         intersectionPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         intersectionPanel.setVisible(false); // Standardmäßig ausgeblendet
-
-        // Funktionsliste und Buttons zusammenfügen
-        JPanel listAndButtonsPanel = new JPanel(new BorderLayout(5, 5));
-        listAndButtonsPanel.add(listScrollPane, BorderLayout.CENTER);
-        listAndButtonsPanel.add(buttonPanel, BorderLayout.SOUTH);
-        listAndButtonsPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
 
         // Event-Handling
         addButton.addActionListener(e -> addFunction());
@@ -193,20 +191,6 @@ public class PlotterPanel extends JPanel {
 
         functionField.addActionListener(e -> addFunction());
 
-        // Split Pane für Funktionen und Schnittpunkte
-        JSplitPane functionAndIntersectionSplitPane = new JSplitPane(
-                JSplitPane.VERTICAL_SPLIT,
-                listAndButtonsPanel,
-                intersectionPanel);
-        functionAndIntersectionSplitPane.setResizeWeight(0.7); // Mehr Platz für Funktionen
-        functionAndIntersectionSplitPane.setContinuousLayout(true);
-
-        // Alles zusammenfügen
-        topControlPanel.add(functionPanel, BorderLayout.NORTH);
-        topControlPanel.add(functionAndIntersectionSplitPane, BorderLayout.CENTER);
-
-        controlPanel.add(topControlPanel, BorderLayout.NORTH);
-
         // Beispiele als Hilfe
         JPanel examplesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
         examplesPanel.setBorder(BorderFactory.createTitledBorder("Beispiele"));
@@ -223,11 +207,44 @@ public class PlotterPanel extends JPanel {
             examplesPanel.add(exampleButton);
         }
 
+        // Erstelle eine Box für das Anordnen der Kontrollpanels
+        Box controlBox = Box.createVerticalBox();
+        controlBox.add(functionPanel);
+        controlBox.add(actionButtonPanel);
+        controlBox.add(functionsPanel);
+        controlBox.add(Box.createVerticalStrut(5));
+        controlBox.add(centeringPanel);
+        controlBox.add(Box.createVerticalStrut(5));
+        controlBox.add(optionsPanel);
+
+        // Füge Kontrollbox zum Kontrollpanel hinzu
+        controlPanel.add(controlBox, BorderLayout.NORTH);
         controlPanel.add(examplesPanel, BorderLayout.SOUTH);
 
+        // Konfiguriere ein Split-Pane für Kontrollelemente und Schnittpunkte
+        JSplitPane controlSplitPane = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                controlPanel,
+                intersectionPanel);
+        controlSplitPane.setResizeWeight(0.7);
+        controlSplitPane.setContinuousLayout(true);
+        controlSplitPane.setOneTouchExpandable(true);
+
+        // Hauptfenster mit anpassbarer Größe für Control-Panel
+        JSplitPane mainSplitPane = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                graphPanel,
+                controlSplitPane);
+        mainSplitPane.setResizeWeight(1.0); // Das Graphpanel erhält den meisten Platz bei Größenänderung
+        mainSplitPane.setOneTouchExpandable(true); // Ein-Klick-Verschieben aktivieren
+        mainSplitPane.setContinuousLayout(true);
+
+        // Bei Start eine angemessene Position einstellen (70% für Graph, 30% für
+        // Kontrollelemente)
+        mainSplitPane.setDividerLocation(0.7);
+
         // Haupt-Layout
-        add(graphPanel, BorderLayout.CENTER);
-        add(controlPanel, BorderLayout.SOUTH);
+        add(mainSplitPane, BorderLayout.CENTER);
 
         // Initialisiere die Zentrierung-Felder mit der aktuellen Ansicht
         updateCenteringFields();
