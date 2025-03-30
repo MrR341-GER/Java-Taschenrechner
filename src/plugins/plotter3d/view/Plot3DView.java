@@ -27,6 +27,7 @@ public class Plot3DView {
     private boolean showCoordinateSystem = true;
     private boolean showGrid = true;
     private boolean showHelperLines = true;
+    private boolean useSolidSurface = false;
 
     // Farbmodus
     private boolean useHeatmap = true; // Standardmäßig Heatmap verwenden
@@ -52,6 +53,22 @@ public class Plot3DView {
         this.rotationX = 30;
         this.rotationY = 0;
         this.rotationZ = 30;
+    }
+
+    /**
+     * Aktiviert oder deaktiviert die undurchsichtige Oberflächendarstellung mit
+     * Schattierung
+     */
+    public void setUseSolidSurface(boolean useSolidSurface) {
+        this.useSolidSurface = useSolidSurface;
+    }
+
+    /**
+     * Gibt zurück, ob die undurchsichtige Oberflächendarstellung mit Schattierung
+     * aktiviert ist
+     */
+    public boolean isUseSolidSurface() {
+        return useSolidSurface;
     }
 
     /**

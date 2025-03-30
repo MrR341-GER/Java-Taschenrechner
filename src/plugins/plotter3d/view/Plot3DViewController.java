@@ -51,6 +51,7 @@ public class Plot3DViewController {
     private boolean showCoordinateSystem = true;
     private boolean showGrid = true;
     private boolean showHelperLines = true;
+    private boolean useSolidSurface = false;
 
     // Debug-Referenz
     private DebugManager debugManager;
@@ -69,6 +70,37 @@ public class Plot3DViewController {
         renderer.setShowCoordinateSystem(showCoordinateSystem);
         renderer.setShowGrid(showGrid);
         renderer.setShowHelperLines(showHelperLines);
+    }
+
+    /**
+     * Aktiviert oder deaktiviert die undurchsichtige Oberflächendarstellung mit
+     * Schattierung
+     */
+    public void setUseSolidSurface(boolean useSolidSurface) {
+        this.useSolidSurface = useSolidSurface;
+
+        if (renderer != null) {
+            renderer.setUseSolidSurface(useSolidSurface);
+
+            // Explizites Neuzeichnen, wenn verfügbar
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
+        }
+
+        debug("Undurchsichtige Darstellung mit Schattierung: " +
+                (useSolidSurface ? "aktiviert" : "deaktiviert"));
+    }
+
+    /**
+     * Gibt zurück, ob die undurchsichtige Oberflächendarstellung mit Schattierung
+     * aktiviert ist
+     */
+    public boolean isUseSolidSurface() {
+        if (renderer != null) {
+            return renderer.isUseSolidSurface();
+        }
+        return useSolidSurface;
     }
 
     /**

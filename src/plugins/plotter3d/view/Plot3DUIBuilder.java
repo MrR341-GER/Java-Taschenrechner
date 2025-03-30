@@ -37,6 +37,7 @@ public class Plot3DUIBuilder {
     private JCheckBox showGridCheckbox;
     private JCheckBox showHelperLinesCheckbox;
     private JCheckBox useHeatmapCheckbox;
+    private JCheckBox useSolidSurfaceCheckbox;
 
     /**
      * Konstruktor für den UI-Builder
@@ -383,10 +384,19 @@ public class Plot3DUIBuilder {
             mainPanel.debug("Heatmap-Farben " + (useHeatmapCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
         });
 
+        // Neue Checkbox für undurchsichtige Darstellung
+        useSolidSurfaceCheckbox = new JCheckBox("Undurchsichtige Oberflächen mit Schattierung", false);
+        useSolidSurfaceCheckbox.addActionListener(e -> {
+            viewController.setUseSolidSurface(useSolidSurfaceCheckbox.isSelected());
+            mainPanel.debug("Undurchsichtige Darstellung " +
+                    (useSolidSurfaceCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
+        });
+
         displayOptionsPanel.add(showCoordinateSystemCheckbox);
         displayOptionsPanel.add(showGridCheckbox);
         displayOptionsPanel.add(showHelperLinesCheckbox);
         displayOptionsPanel.add(useHeatmapCheckbox);
+        displayOptionsPanel.add(useSolidSurfaceCheckbox);
 
         return displayOptionsPanel;
     }
@@ -395,7 +405,7 @@ public class Plot3DUIBuilder {
      * Erstellt das Panel für die Rotationssteuerung
      */
     private JPanel createRotationPanel() {
-        JPanel rotationPanel = new JPanel(new GridLayout(3, 1, 5, 5));
+        JPanel rotationPanel = new JPanel(new GridLayout(5, 1, 5, 5));
         rotationPanel.setBorder(BorderFactory.createTitledBorder("Rotation"));
 
         // X-Rotation

@@ -22,67 +22,216 @@ public class Plot3DFunctionRenderer {
     }
 
     /**
-     * Draws all functions in the model
+     * Zeichnet alle Funktionen im Modell
      * 
-     * @param g2d          Graphics context
-     * @param model        Data model with functions
-     * @param view         View parameters
-     * @param displayScale Scale factor for display
-     * @param xOffset      X offset for display
-     * @param yOffset      Y offset for display
-     * @param useHeatmap   Whether to use heatmap coloring
+     * @param g2d          Grafikkontext
+     * @param model        Datenmodell mit Funktionen
+     * @param view         Ansichtsparameter
+     * @param displayScale Skalierungsfaktor für die Anzeige
+     * @param xOffset      X-Versatz für die Anzeige
+     * @param yOffset      Y-Versatz für die Anzeige
+     * @param useHeatmap   Ob Heatmap-Farben verwendet werden sollen
      */
     public void drawFunctions(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
-        // Draw each function in the model
+        // Jede Funktion im Modell zeichnen
         for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
-            drawFunctionGrid(g2d, functionInfo, model, displayScale, xOffset, yOffset, useHeatmap);
+            drawFunctionGrid(g2d, functionInfo, model, displayScale, xOffset, yOffset,
+                    useHeatmap, view.isUseSolidSurface());
         }
     }
 
     /**
-     * Draws a single function as a wireframe grid
+     * Zeichnet eine einzelne Funktion als Gitter oder als undurchsichtige
+     * Oberfläche mit Schattierung
      */
     private void drawFunctionGrid(Graphics2D g2d, Plot3DModel.Function3DInfo functionInfo,
-            Plot3DModel model, double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
-        // Set line style for the grid
+            Plot3DModel model, double displayScale, int xOffset, int yOffset,
+            boolean useHeatmap, boolean useSolidSurface) {
+
+        // Stil für das Gitter setzen
         g2d.setStroke(new BasicStroke(1.0f));
 
-        // Get the grid resolution
+        // Gitterpunkte holen
         Plot3DPoint[][][] gridPoints = functionInfo.getGridPoints();
         if (gridPoints == null)
             return;
 
         int resolution = gridPoints.length;
 
-        // Store original transform to restore later
+        // Originalen Zeichenstil speichern
         Stroke originalStroke = g2d.getStroke();
 
-        // Draw horizontal lines (along X-axis)
+        // Bei undurchsichtiger Darstellung zunächst die Dreiecke/Polygone zeichnen
+        if (useSolidSurface) {
+            // Der Lichtquelle für die Schattierung (normalisierter Vektor)
+            double[] lightSource = { 0.5, 0.5, 1.0 };
+            double lightMagnitude = Math.sqrt(lightSource[0] * lightSource[0] +
+                    lightSource[1] * lightSource[1] +
+                    lightSource[2] * lightSource[2]);
+            lightSource[0] /= lightMagnitude;
+            lightSource[1] /= lightMagnitude;
+            lightSource[2] /= lightMagnitude;
+
+            // Undurchsichtige Oberfläche als Dreiecke zeichnen
+            for (int i = 0; i < resolution - 1; i++) {
+                for (int j = 0; j < resolution - 1; j++) {
+                    // Vier Punkte, die ein Quadrat bilden
+                    Plot3DPoint p1 = gridPoints[i][j][0]; // Original-Punkt für Z-Wert
+                    Plot3DPoint p2 = gridPoints[i + 1][j][0];
+                    Plot3DPoint p3 = gridPoints[i + 1][j + 1][0];
+                    Plot3DPoint p4 = gridPoints[i][j + 1][0];
+
+                    // Transformierte/projizierte Punkte für die Bildschirmposition
+                    Plot3DPoint p1t = gridPoints[i][j][2];
+                    Plot3DPoint p2t = gridPoints[i + 1][j][2];
+                    Plot3DPoint p3t = gridPoints[i + 1][j + 1][2];
+                    Plot3DPoint p4t = gridPoints[i][j + 1][2];
+
+                    // Bildschirmkoordinaten berechnen
+                    int[] s1 = transformer.projectToScreen(p1t, displayScale, xOffset, yOffset);
+                    int[] s2 = transformer.projectToScreen(p2t, displayScale, xOffset, yOffset);
+                    int[] s3 = transformer.projectToScreen(p3t, displayScale, xOffset, yOffset);
+                    int[] s4 = transformer.projectToScreen(p4t, displayScale, xOffset, yOffset);
+
+                    // Normale für das erste Dreieck (p1, p2, p3) berechnen
+                    double[] v1 = { p2.getX() - p1.getX(), p2.getY() - p1.getY(), p2.getZ() - p1.getZ() };
+                    double[] v2 = { p3.getX() - p1.getX(), p3.getY() - p1.getY(), p3.getZ() - p1.getZ() };
+
+                    double[] normal = {
+                            v1[1] * v2[2] - v1[2] * v2[1], // Nx = Uy*Vz - Uz*Vy
+                            v1[2] * v2[0] - v1[0] * v2[2], // Ny = Uz*Vx - Ux*Vz
+                            v1[0] * v2[1] - v1[1] * v2[0] // Nz = Ux*Vy - Uy*Vx
+                    };
+
+                    // Normale normalisieren
+                    double normalMagnitude = Math.sqrt(normal[0] * normal[0] +
+                            normal[1] * normal[1] +
+                            normal[2] * normal[2]);
+                    if (normalMagnitude > 0) {
+                        normal[0] /= normalMagnitude;
+                        normal[1] /= normalMagnitude;
+                        normal[2] /= normalMagnitude;
+                    }
+
+                    // Farbe basierend auf Z-Wert und Beleuchtung berechnen
+                    Color baseColor;
+                    if (useHeatmap) {
+                        // Normalisierter Z-Wert für die Farbskala
+                        double normalizedZ = (p1.getZ() - model.getZMin()) /
+                                (model.getZMax() - model.getZMin());
+                        normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+                        baseColor = colorScheme.getColorForValue(normalizedZ);
+                    } else {
+                        baseColor = functionInfo.getColor();
+                    }
+
+                    // Skalarprodukt zwischen Normale und Lichtquelle berechnen (Lambertsche
+                    // Beleuchtung)
+                    double dotProduct = normal[0] * lightSource[0] +
+                            normal[1] * lightSource[1] +
+                            normal[2] * lightSource[2];
+
+                    // Sicherstellen, dass das Skalarprodukt positiv ist (sonst andere Seite der
+                    // Fläche)
+                    dotProduct = Math.abs(dotProduct);
+
+                    // Farbe basierend auf der Beleuchtung anpassen
+                    int red = (int) (baseColor.getRed() * (0.4 + 0.6 * dotProduct));
+                    int green = (int) (baseColor.getGreen() * (0.4 + 0.6 * dotProduct));
+                    int blue = (int) (baseColor.getBlue() * (0.4 + 0.6 * dotProduct));
+
+                    // Farbwerte begrenzen
+                    red = Math.max(0, Math.min(255, red));
+                    green = Math.max(0, Math.min(255, green));
+                    blue = Math.max(0, Math.min(255, blue));
+
+                    Color shadedColor = new Color(red, green, blue);
+                    g2d.setColor(shadedColor);
+
+                    // Erstes Dreieck (p1, p2, p3) zeichnen
+                    int[] xPoints1 = { s1[0], s2[0], s3[0] };
+                    int[] yPoints1 = { s1[1], s2[1], s3[1] };
+                    g2d.fillPolygon(xPoints1, yPoints1, 3);
+
+                    // Normale für das zweite Dreieck (p1, p3, p4) berechnen
+                    double[] v3 = { p3.getX() - p1.getX(), p3.getY() - p1.getY(), p3.getZ() - p1.getZ() };
+                    double[] v4 = { p4.getX() - p1.getX(), p4.getY() - p1.getY(), p4.getZ() - p1.getZ() };
+
+                    double[] normal2 = {
+                            v3[1] * v4[2] - v3[2] * v4[1],
+                            v3[2] * v4[0] - v3[0] * v4[2],
+                            v3[0] * v4[1] - v3[1] * v4[0]
+                    };
+
+                    // Normale normalisieren
+                    double normal2Magnitude = Math.sqrt(normal2[0] * normal2[0] +
+                            normal2[1] * normal2[1] +
+                            normal2[2] * normal2[2]);
+                    if (normal2Magnitude > 0) {
+                        normal2[0] /= normal2Magnitude;
+                        normal2[1] /= normal2Magnitude;
+                        normal2[2] /= normal2Magnitude;
+                    }
+
+                    // Zweites Dreieck (p1, p3, p4) zeichnen
+                    int[] xPoints2 = { s1[0], s3[0], s4[0] };
+                    int[] yPoints2 = { s1[1], s3[1], s4[1] };
+                    g2d.fillPolygon(xPoints2, yPoints2, 3);
+                }
+            }
+        }
+
+        // Gitterlinien zeichnen (bei undurchsichtiger Darstellung optional als Overlay)
+        g2d.setStroke(new BasicStroke(useSolidSurface ? 0.5f : 1.0f));
+
+        // Horizontale Linien (entlang der X-Achse)
         for (int j = 0; j < resolution; j++) {
             Path2D path = new Path2D.Double();
             boolean started = false;
 
             for (int i = 0; i < resolution; i++) {
-                // Use the original and projected point
+                // Original und projizierter Punkt
                 Plot3DPoint original = gridPoints[i][j][0];
                 Plot3DPoint projected = gridPoints[i][j][2];
 
-                // Calculate screen coordinates
+                // Bildschirmkoordinaten berechnen
                 int[] screenPos = transformer.projectToScreen(projected, displayScale, xOffset, yOffset);
 
-                // Set color based on Z value if using heatmap
+                // Farbe basierend auf Z-Wert setzen, falls Heatmap verwendet wird
                 if (useHeatmap) {
-                    // Normalize Z value to range 0-1 for color mapping
+                    // Z-Wert auf 0-1 Bereich normalisieren
                     double normalizedZ = (original.getZ() - model.getZMin()) /
                             (model.getZMax() - model.getZMin());
-                    // Clamp value to 0-1 range
+                    // Auf 0-1 begrenzen
                     normalizedZ = Math.max(0, Math.min(1, normalizedZ));
-                    // Get color from scheme
-                    g2d.setColor(colorScheme.getColorForValue(normalizedZ));
+                    // Farbe aus der Farbskala holen
+                    Color color = colorScheme.getColorForValue(normalizedZ);
+
+                    // Bei undurchsichtiger Darstellung eine dunklere Farbe für die Gitterlinien
+                    // verwenden
+                    if (useSolidSurface) {
+                        color = new Color(
+                                Math.max(0, color.getRed() - 50),
+                                Math.max(0, color.getGreen() - 50),
+                                Math.max(0, color.getBlue() - 50));
+                    }
+
+                    g2d.setColor(color);
                 } else {
-                    // Use function's fixed color
-                    g2d.setColor(functionInfo.getColor());
+                    // Funktionsfarbe verwenden
+                    Color color = functionInfo.getColor();
+
+                    // Bei undurchsichtiger Darstellung eine dunklere Farbe für die Gitterlinien
+                    // verwenden
+                    if (useSolidSurface) {
+                        color = new Color(
+                                Math.max(0, color.getRed() - 50),
+                                Math.max(0, color.getGreen() - 50),
+                                Math.max(0, color.getBlue() - 50));
+                    }
+
+                    g2d.setColor(color);
                 }
 
                 if (!started) {
@@ -90,40 +239,62 @@ public class Plot3DFunctionRenderer {
                     started = true;
                 } else {
                     path.lineTo(screenPos[0], screenPos[1]);
-                    // Draw the segment with current color
+                    // Segment mit aktueller Farbe zeichnen
                     g2d.draw(path);
-                    // Start a new path from this point
+                    // Neuen Pfad bei diesem Punkt beginnen
                     path.reset();
                     path.moveTo(screenPos[0], screenPos[1]);
                 }
             }
         }
 
-        // Draw vertical lines (along Y-axis)
+        // Vertikale Linien (entlang der Y-Achse)
         for (int i = 0; i < resolution; i++) {
             Path2D path = new Path2D.Double();
             boolean started = false;
 
             for (int j = 0; j < resolution; j++) {
-                // Use the original and projected point
+                // Original und projizierter Punkt
                 Plot3DPoint original = gridPoints[i][j][0];
                 Plot3DPoint projected = gridPoints[i][j][2];
 
-                // Calculate screen coordinates
+                // Bildschirmkoordinaten berechnen
                 int[] screenPos = transformer.projectToScreen(projected, displayScale, xOffset, yOffset);
 
-                // Set color based on Z value if using heatmap
+                // Farbe basierend auf Z-Wert setzen, falls Heatmap verwendet wird
                 if (useHeatmap) {
-                    // Normalize Z value to range 0-1 for color mapping
+                    // Z-Wert auf 0-1 Bereich normalisieren
                     double normalizedZ = (original.getZ() - model.getZMin()) /
                             (model.getZMax() - model.getZMin());
-                    // Clamp value to 0-1 range
+                    // Auf 0-1 begrenzen
                     normalizedZ = Math.max(0, Math.min(1, normalizedZ));
-                    // Get color from scheme
-                    g2d.setColor(colorScheme.getColorForValue(normalizedZ));
+                    // Farbe aus der Farbskala holen
+                    Color color = colorScheme.getColorForValue(normalizedZ);
+
+                    // Bei undurchsichtiger Darstellung eine dunklere Farbe für die Gitterlinien
+                    // verwenden
+                    if (useSolidSurface) {
+                        color = new Color(
+                                Math.max(0, color.getRed() - 50),
+                                Math.max(0, color.getGreen() - 50),
+                                Math.max(0, color.getBlue() - 50));
+                    }
+
+                    g2d.setColor(color);
                 } else {
-                    // Use function's fixed color
-                    g2d.setColor(functionInfo.getColor());
+                    // Funktionsfarbe verwenden
+                    Color color = functionInfo.getColor();
+
+                    // Bei undurchsichtiger Darstellung eine dunklere Farbe für die Gitterlinien
+                    // verwenden
+                    if (useSolidSurface) {
+                        color = new Color(
+                                Math.max(0, color.getRed() - 50),
+                                Math.max(0, color.getGreen() - 50),
+                                Math.max(0, color.getBlue() - 50));
+                    }
+
+                    g2d.setColor(color);
                 }
 
                 if (!started) {
@@ -131,16 +302,16 @@ public class Plot3DFunctionRenderer {
                     started = true;
                 } else {
                     path.lineTo(screenPos[0], screenPos[1]);
-                    // Draw the segment with current color
+                    // Segment mit aktueller Farbe zeichnen
                     g2d.draw(path);
-                    // Start a new path from this point
+                    // Neuen Pfad bei diesem Punkt beginnen
                     path.reset();
                     path.moveTo(screenPos[0], screenPos[1]);
                 }
             }
         }
 
-        // Restore original stroke
+        // Originalen Zeichenstil wiederherstellen
         g2d.setStroke(originalStroke);
     }
 

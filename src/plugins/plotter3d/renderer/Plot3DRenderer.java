@@ -20,6 +20,7 @@ public class Plot3DRenderer {
     private final Plot3DFunctionRenderer functionRenderer;
     private final Plot3DColorScheme colorScheme;
     private boolean useHeatmap = true;
+    private boolean useSolidSurface = false;
 
     /**
      * Creates a new 3D renderer with the specified bounds and resolution
@@ -32,6 +33,22 @@ public class Plot3DRenderer {
         this.gridRenderer = new Plot3DGridRenderer(transformer);
         this.functionRenderer = new Plot3DFunctionRenderer(transformer);
         this.colorScheme = Plot3DColorScheme.createDefault();
+    }
+
+    /**
+     * Aktiviert oder deaktiviert die undurchsichtige Oberflächendarstellung mit
+     * Schattierung
+     */
+    public void setUseSolidSurface(boolean useSolidSurface) {
+        this.useSolidSurface = useSolidSurface;
+    }
+
+    /**
+     * Gibt zurück, ob die undurchsichtige Oberflächendarstellung mit Schattierung
+     * aktiviert ist
+     */
+    public boolean isUseSolidSurface() {
+        return useSolidSurface;
     }
 
     /**
