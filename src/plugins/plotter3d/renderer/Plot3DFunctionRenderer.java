@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.renderer;
 
 import java.awt.*;
@@ -14,9 +13,12 @@ import plugins.plotter3d.view.Plot3DView;
 public class Plot3DFunctionRenderer {
     // Transformer for coordinate conversion
     private final Plot3DTransformer transformer;
+    // Color scheme for heatmap mode
+    private final Plot3DColorScheme colorScheme;
 
     public Plot3DFunctionRenderer(Plot3DTransformer transformer) {
         this.transformer = transformer;
+        this.colorScheme = Plot3DColorScheme.createDefault();
     }
 
     /**
@@ -28,12 +30,13 @@ public class Plot3DFunctionRenderer {
      * @param displayScale Scale factor for display
      * @param xOffset      X offset for display
      * @param yOffset      Y offset for display
+     * @param useHeatmap   Whether to use heatmap coloring
      */
     public void drawFunctions(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
         // Draw each function in the model
         for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
-            drawFunctionGrid(g2d, functionInfo, displayScale, xOffset, yOffset, useHeatmap);
+            drawFunctionGrid(g2d, functionInfo, model, displayScale, xOffset, yOffset, useHeatmap);
         }
     }
 
@@ -41,18 +44,9 @@ public class Plot3DFunctionRenderer {
      * Draws a single function as a wireframe grid
      */
     private void drawFunctionGrid(Graphics2D g2d, Plot3DModel.Function3DInfo functionInfo,
-            double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
+            Plot3DModel model, double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
         // Set line style for the grid
         g2d.setStroke(new BasicStroke(1.0f));
-
-        // Die Farbwahl hängt nun vom useHeatmap-Parameter ab
-        if (useHeatmap) {
-            // Heatmap-Modus: Farbe basierend auf Z-Wert
-            // Bestehende Logik für Heatmap-Darstellung...
-        } else {
-            // Feste Farbe verwenden
-            g2d.setColor(functionInfo.getColor());
-        }
 
         // Get the grid resolution
         Plot3DPoint[][][] gridPoints = functionInfo.getGridPoints();
@@ -61,28 +55,48 @@ public class Plot3DFunctionRenderer {
 
         int resolution = gridPoints.length;
 
+        // Store original transform to restore later
+        Stroke originalStroke = g2d.getStroke();
+
         // Draw horizontal lines (along X-axis)
         for (int j = 0; j < resolution; j++) {
             Path2D path = new Path2D.Double();
             boolean started = false;
 
             for (int i = 0; i < resolution; i++) {
-                // Use the projected point (phase 2)
+                // Use the original and projected point
+                Plot3DPoint original = gridPoints[i][j][0];
                 Plot3DPoint projected = gridPoints[i][j][2];
 
                 // Calculate screen coordinates
                 int[] screenPos = transformer.projectToScreen(projected, displayScale, xOffset, yOffset);
+
+                // Set color based on Z value if using heatmap
+                if (useHeatmap) {
+                    // Normalize Z value to range 0-1 for color mapping
+                    double normalizedZ = (original.getZ() - model.getZMin()) /
+                            (model.getZMax() - model.getZMin());
+                    // Clamp value to 0-1 range
+                    normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+                    // Get color from scheme
+                    g2d.setColor(colorScheme.getColorForValue(normalizedZ));
+                } else {
+                    // Use function's fixed color
+                    g2d.setColor(functionInfo.getColor());
+                }
 
                 if (!started) {
                     path.moveTo(screenPos[0], screenPos[1]);
                     started = true;
                 } else {
                     path.lineTo(screenPos[0], screenPos[1]);
+                    // Draw the segment with current color
+                    g2d.draw(path);
+                    // Start a new path from this point
+                    path.reset();
+                    path.moveTo(screenPos[0], screenPos[1]);
                 }
             }
-
-            // Draw the path
-            g2d.draw(path);
         }
 
         // Draw vertical lines (along Y-axis)
@@ -91,23 +105,43 @@ public class Plot3DFunctionRenderer {
             boolean started = false;
 
             for (int j = 0; j < resolution; j++) {
-                // Use the projected point (phase 2)
+                // Use the original and projected point
+                Plot3DPoint original = gridPoints[i][j][0];
                 Plot3DPoint projected = gridPoints[i][j][2];
 
                 // Calculate screen coordinates
                 int[] screenPos = transformer.projectToScreen(projected, displayScale, xOffset, yOffset);
+
+                // Set color based on Z value if using heatmap
+                if (useHeatmap) {
+                    // Normalize Z value to range 0-1 for color mapping
+                    double normalizedZ = (original.getZ() - model.getZMin()) /
+                            (model.getZMax() - model.getZMin());
+                    // Clamp value to 0-1 range
+                    normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+                    // Get color from scheme
+                    g2d.setColor(colorScheme.getColorForValue(normalizedZ));
+                } else {
+                    // Use function's fixed color
+                    g2d.setColor(functionInfo.getColor());
+                }
 
                 if (!started) {
                     path.moveTo(screenPos[0], screenPos[1]);
                     started = true;
                 } else {
                     path.lineTo(screenPos[0], screenPos[1]);
+                    // Draw the segment with current color
+                    g2d.draw(path);
+                    // Start a new path from this point
+                    path.reset();
+                    path.moveTo(screenPos[0], screenPos[1]);
                 }
             }
-
-            // Draw the path
-            g2d.draw(path);
         }
+
+        // Restore original stroke
+        g2d.setStroke(originalStroke);
     }
 
     /**

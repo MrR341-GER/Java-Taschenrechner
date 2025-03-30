@@ -37,7 +37,7 @@ public class Plot3DFunctionManager {
 
     /**
      * Konstruktor für den Funktionsmanager
-     * 
+     *
      * @param renderer       Der Plot3DRenderer
      * @param viewController Der View-Controller
      */
@@ -105,7 +105,7 @@ public class Plot3DFunctionManager {
 
     /**
      * Öffnet einen Dialog zum Bearbeiten der ausgewählten Funktion
-     * (Angepasste Version mit verbessertem Dialog)
+     * (Verbesserte Version mit ColorPicker Dialog ähnlich dem 2D-Plotter)
      */
     public void editSelectedFunction() {
         int selectedIndex = functionList.getSelectedIndex();
@@ -123,37 +123,34 @@ public class Plot3DFunctionManager {
             // Finde das Hauptfenster als Parent für den Dialog
             Frame parentFrame = JOptionPane.getFrameForComponent(functionList);
 
-            // Dialog zum Bearbeiten erstellen (ähnlich wie im 2D-Plotter)
-            JPanel panel = new JPanel(new BorderLayout(10, 10));
+            // Bestimme die aktuelle Farbe
+            Color currentColor = ColorChooser.getColorByName(colorName);
 
-            JPanel functionPanel = new JPanel(new BorderLayout(5, 5));
-            functionPanel.add(new JLabel("Funktion:"), BorderLayout.WEST);
-            JTextField functionField = new JTextField(function, 20);
-            functionPanel.add(functionField, BorderLayout.CENTER);
+            // Verwende den verbesserten Dialog zum Bearbeiten
+            Plot3DFunctionEditDialog.FunctionEditResult result = Plot3DFunctionEditDialog.showDialog(
+                    parentFrame, function, currentColor);
 
-            // Farbauswahl als ComboBox
-            JPanel colorPanel = new JPanel(new BorderLayout(5, 5));
-            colorPanel.add(new JLabel("Farbe:"), BorderLayout.WEST);
-            JComboBox<String> colorBox = new JComboBox<>(ColorChooser.getColorNames());
-            colorBox.setSelectedItem(colorName);
-            colorPanel.add(colorBox, BorderLayout.CENTER);
+            // Wenn Dialog bestätigt wurde
+            if (result != null) {
+                String newFunction = result.getFunction();
+                Color newColor = result.getColor();
 
-            panel.add(functionPanel, BorderLayout.NORTH);
-            panel.add(colorPanel, BorderLayout.CENTER);
+                debug("Dialog bestätigt. Neue Funktion: '" + newFunction + "'");
 
-            // Dialog anzeigen
-            int result = JOptionPane.showConfirmDialog(
-                    parentFrame, panel, "Funktion bearbeiten",
-                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-            // Wenn OK, Funktion aktualisieren
-            if (result == JOptionPane.OK_OPTION) {
-                String newFunction = functionField.getText().trim();
-                String newColorName = (String) colorBox.getSelectedItem();
-
-                if (!newFunction.isEmpty() && newColorName != null) {
-                    updateFunction(selectedIndex, newFunction, newColorName);
+                // Wenn Zufallsfarbe gewählt wurde, generiere eine neue
+                if (result.isUsingRandomColor()) {
+                    newColor = ColorChooser.generateRandomColor();
+                    debug("Neue Zufallsfarbe generiert");
                 }
+
+                // Farbname bestimmen (immer konkreten Farbnamen speichern, nie "Zufällig")
+                String newColorName = ColorChooser.getColorName(newColor);
+                debug("Neue Farbe: '" + newColorName + "'");
+
+                // Funktion aktualisieren
+                updateFunction(selectedIndex, newFunction, newColorName);
+            } else {
+                debug("Bearbeitung abgebrochen");
             }
         }
     }
