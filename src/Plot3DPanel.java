@@ -3,6 +3,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Locale;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -24,6 +27,7 @@ public class Plot3DPanel extends JPanel {
     private JButton renderButton;
     private JCheckBox showCoordinateSystemCheckbox;
     private JCheckBox showGridCheckbox;
+    private JCheckBox showHelperLinesCheckbox; // Neue Checkbox für Hilfslinien
 
     // Standardwerte
     private static final double DEFAULT_MIN = -5.0;
@@ -33,11 +37,18 @@ public class Plot3DPanel extends JPanel {
 
     // Interaktionsstatus
     private boolean isDragging = false;
+    private boolean isPanning = false; // Flag zum Unterscheiden zwischen Rotation und Panning
     private Point lastMousePos;
     private double currentRotationX = 30;
     private double currentRotationY = 0;
     private double currentRotationZ = 30;
     private double currentScale = 1.0;
+
+    // Aktuelle Wertebereiche
+    private double currentXMin = DEFAULT_MIN;
+    private double currentXMax = DEFAULT_MAX;
+    private double currentYMin = DEFAULT_MIN;
+    private double currentYMax = DEFAULT_MAX;
 
     // Debug-Referenz
     private DebugManager debugManager;
@@ -57,6 +68,12 @@ public class Plot3DPanel extends JPanel {
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Speichere die initialen Wertebereiche
+        currentXMin = DEFAULT_MIN;
+        currentXMax = DEFAULT_MAX;
+        currentYMin = DEFAULT_MIN;
+        currentYMax = DEFAULT_MAX;
 
         // UI-Komponenten erstellen
         createUI();
@@ -204,7 +221,7 @@ public class Plot3DPanel extends JPanel {
         resolutionPanel.add(resolutionLabel, BorderLayout.SOUTH);
 
         // 4. Anzeigeoptionen
-        JPanel displayOptionsPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+        JPanel displayOptionsPanel = new JPanel(new GridLayout(3, 1, 5, 5));
         displayOptionsPanel.setBorder(BorderFactory.createTitledBorder("Anzeigeoptionen"));
 
         showCoordinateSystemCheckbox = new JCheckBox("Koordinatensystem anzeigen", true);
@@ -219,8 +236,17 @@ public class Plot3DPanel extends JPanel {
             plotPanel.repaint();
         });
 
+        // Neue Checkbox für Hilfslinien
+        showHelperLinesCheckbox = new JCheckBox("Hilfslinien anzeigen", true);
+        showHelperLinesCheckbox.addActionListener(e -> {
+            renderer.setShowHelperLines(showHelperLinesCheckbox.isSelected());
+            plotPanel.repaint();
+            debug("Hilfslinien " + (showHelperLinesCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
+        });
+
         displayOptionsPanel.add(showCoordinateSystemCheckbox);
         displayOptionsPanel.add(showGridCheckbox);
+        displayOptionsPanel.add(showHelperLinesCheckbox);
 
         // 5. Rotationssteuerung
         JPanel rotationPanel = new JPanel(new GridLayout(3, 1, 5, 5));
@@ -297,6 +323,17 @@ public class Plot3DPanel extends JPanel {
         resetViewButton = new JButton("Ansicht zurücksetzen");
         resetViewButton.addActionListener(e -> resetView());
 
+        // Steuerungshinweis
+        JPanel instructionPanel = new JPanel(new BorderLayout());
+        instructionPanel.setBorder(BorderFactory.createTitledBorder("Steuerung"));
+        JTextArea instructionText = new JTextArea(
+                "Rotation: Mausziehen\n" +
+                        "Verschieben: Shift + Mausziehen\n" +
+                        "Zoom: Mausrad");
+        instructionText.setEditable(false);
+        instructionText.setBackground(panel.getBackground());
+        instructionPanel.add(instructionText, BorderLayout.CENTER);
+
         // Beispiel-Funktionen
         JPanel examplesPanel = createExamplesPanel();
 
@@ -310,6 +347,8 @@ public class Plot3DPanel extends JPanel {
         panel.add(displayOptionsPanel);
         panel.add(Box.createVerticalStrut(10));
         panel.add(rotationPanel);
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(instructionPanel);
         panel.add(Box.createVerticalStrut(10));
         panel.add(resetViewButton);
         panel.add(Box.createVerticalStrut(10));
@@ -379,6 +418,10 @@ public class Plot3DPanel extends JPanel {
             public void mousePressed(MouseEvent e) {
                 lastMousePos = e.getPoint();
                 isDragging = true;
+
+                // Shift-Taste gedrückt = Panning, sonst Rotation
+                isPanning = e.isShiftDown();
+                debug("Interaktion gestartet: " + (isPanning ? "Panning" : "Rotation"));
             }
 
             @Override
@@ -395,24 +438,56 @@ public class Plot3DPanel extends JPanel {
                     int dx = e.getX() - lastMousePos.x;
                     int dy = e.getY() - lastMousePos.y;
 
-                    // Skaliere die Rotation basierend auf der Panelgröße
-                    double rotationScale = 0.5;
+                    if (isPanning) {
+                        // Pan-Modus: Verschiebe den Wertebereich
+                        // Berechne die Verschiebung im Wertebereich
+                        // Die Verschiebung ist umgekehrt zur Mausbewegung, daher negativ
+                        double xRange = currentXMax - currentXMin;
+                        double yRange = currentYMax - currentYMin;
 
-                    // Rotation um X-Achse (vertikale Bewegung)
-                    currentRotationX += dy * rotationScale;
-                    // Rotation um Z-Achse (horizontale Bewegung)
-                    currentRotationZ += dx * rotationScale;
+                        // Skaliere die Verschiebung relativ zur Größe des Wertebereichs
+                        // und der Größe des Anzeigebereichs
+                        double viewWidth = plotPanel.getWidth();
+                        double viewHeight = plotPanel.getHeight();
 
-                    // Begrenze Rotation auf 0-360 Grad
-                    currentRotationX = (currentRotationX + 360) % 360;
-                    currentRotationZ = (currentRotationZ + 360) % 360;
+                        double deltaX = -dx * (xRange / viewWidth);
+                        double deltaY = dy * (yRange / viewHeight); // Y-Achse ist invertiert
 
-                    // UI-Elemente aktualisieren
-                    rotationXSlider.setValue((int) currentRotationX);
-                    rotationZSlider.setValue((int) currentRotationZ);
+                        // Aktualisiere die Wertebereiche
+                        currentXMin += deltaX;
+                        currentXMax += deltaX;
+                        currentYMin += deltaY;
+                        currentYMax += deltaY;
 
-                    // Aktualisiere Rotation im Renderer
-                    updateRotation();
+                        // Update the fields
+                        DecimalFormat df = new DecimalFormat("0.##");
+                        xMinField.setText(df.format(currentXMin));
+                        xMaxField.setText(df.format(currentXMax));
+                        yMinField.setText(df.format(currentYMin));
+                        yMaxField.setText(df.format(currentYMax));
+
+                        // Neuen Plot mit verschobenem Wertebereich zeichnen
+                        renderPlot();
+
+                        debug("Wertebereich verschoben nach: x=[" + currentXMin + "," + currentXMax +
+                                "], y=[" + currentYMin + "," + currentYMax + "]");
+                    } else {
+                        // Rotations-Modus
+                        double rotationScale = 0.5;
+                        currentRotationX += dy * rotationScale;
+                        currentRotationZ += dx * rotationScale;
+
+                        // Begrenze Rotation auf 0-360 Grad
+                        currentRotationX = (currentRotationX + 360) % 360;
+                        currentRotationZ = (currentRotationZ + 360) % 360;
+
+                        // UI-Elemente aktualisieren
+                        rotationXSlider.setValue((int) currentRotationX);
+                        rotationZSlider.setValue((int) currentRotationZ);
+
+                        // Aktualisiere Rotation im Renderer
+                        updateRotation();
+                    }
 
                     lastMousePos = e.getPoint();
                 }
@@ -422,11 +497,11 @@ public class Plot3DPanel extends JPanel {
         // Mouse-Wheel-Listener für Wertebereichsänderung (wie im 2D-Plotter)
         plotPanel.addMouseWheelListener(e -> {
             try {
-                // Aktuelle Wertebereiche holen
-                double xMin = Double.parseDouble(xMinField.getText().trim());
-                double xMax = Double.parseDouble(xMaxField.getText().trim());
-                double yMin = Double.parseDouble(yMinField.getText().trim());
-                double yMax = Double.parseDouble(yMaxField.getText().trim());
+                // Aktuelle Wertebereiche holen (mit verbessertem Parsen)
+                double xMin = parseDecimal(xMinField.getText().trim());
+                double xMax = parseDecimal(xMaxField.getText().trim());
+                double yMin = parseDecimal(yMinField.getText().trim());
+                double yMax = parseDecimal(yMaxField.getText().trim());
 
                 // Bereichsgröße berechnen
                 double xRange = xMax - xMin;
@@ -456,6 +531,12 @@ public class Plot3DPanel extends JPanel {
                 yMinField.setText(df.format(newYMin));
                 yMaxField.setText(df.format(newYMax));
 
+                // Aktualisiere die aktuellen Wertebereiche
+                currentXMin = newXMin;
+                currentXMax = newXMax;
+                currentYMin = newYMin;
+                currentYMax = newYMax;
+
                 // Neu rendern
                 renderPlot();
 
@@ -475,30 +556,14 @@ public class Plot3DPanel extends JPanel {
      */
     private void updateRangeFields() {
         try {
-            // Aktuelle Methode mit Reflection erhalten
-            java.lang.reflect.Method getXMinMethod = renderer.getClass().getDeclaredMethod("getXMin");
-            java.lang.reflect.Method getXMaxMethod = renderer.getClass().getDeclaredMethod("getXMax");
-            java.lang.reflect.Method getYMinMethod = renderer.getClass().getDeclaredMethod("getYMin");
-            java.lang.reflect.Method getYMaxMethod = renderer.getClass().getDeclaredMethod("getYMax");
-
-            getXMinMethod.setAccessible(true);
-            getXMaxMethod.setAccessible(true);
-            getYMinMethod.setAccessible(true);
-            getYMaxMethod.setAccessible(true);
-
             // Felder aktualisieren
             DecimalFormat df = new DecimalFormat("0.##");
-            double xMin = (double) getXMinMethod.invoke(renderer);
-            double xMax = (double) getXMaxMethod.invoke(renderer);
-            double yMin = (double) getYMinMethod.invoke(renderer);
-            double yMax = (double) getYMaxMethod.invoke(renderer);
-
-            xMinField.setText(df.format(xMin));
-            xMaxField.setText(df.format(xMax));
-            yMinField.setText(df.format(yMin));
-            yMaxField.setText(df.format(yMax));
+            xMinField.setText(df.format(currentXMin));
+            xMaxField.setText(df.format(currentXMax));
+            yMinField.setText(df.format(currentYMin));
+            yMaxField.setText(df.format(currentYMax));
         } catch (Exception ex) {
-            // Wenn Reflection nicht funktioniert, Felder unverändert lassen
+            // Wenn es Probleme gibt, Felder unverändert lassen
             debug("Konnte Bereichsfelder nicht aktualisieren: " + ex.getMessage());
         }
     }
@@ -521,11 +586,11 @@ public class Plot3DPanel extends JPanel {
                 return;
             }
 
-            // Bereichsangaben parsen
-            double xMin = Double.parseDouble(xMinField.getText().trim());
-            double xMax = Double.parseDouble(xMaxField.getText().trim());
-            double yMin = Double.parseDouble(yMinField.getText().trim());
-            double yMax = Double.parseDouble(yMaxField.getText().trim());
+            // Bereichsangaben parsen mit verbesserter Methode
+            double xMin = parseDecimal(xMinField.getText().trim());
+            double xMax = parseDecimal(xMaxField.getText().trim());
+            double yMin = parseDecimal(yMinField.getText().trim());
+            double yMax = parseDecimal(yMaxField.getText().trim());
 
             // Bereichsgültigkeiten überprüfen
             if (xMin >= xMax || yMin >= yMax) {
@@ -541,6 +606,12 @@ public class Plot3DPanel extends JPanel {
             debug("Rendere Funktion: " + functionExpr + " im Bereich x=[" + xMin + "," + xMax + "], y=[" + yMin + ","
                     + yMax + "]");
 
+            // Speichere die aktuellen Wertebereiche
+            currentXMin = xMin;
+            currentXMax = xMax;
+            currentYMin = yMin;
+            currentYMax = yMax;
+
             // Auflösung aus Slider holen
             int resolution = resolutionSlider.getValue();
 
@@ -553,12 +624,14 @@ public class Plot3DPanel extends JPanel {
                 renderer.setScale(currentScale);
                 renderer.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
                 renderer.setShowGrid(showGridCheckbox.isSelected());
+                renderer.setShowHelperLines(showHelperLinesCheckbox.isSelected());
             } else {
                 renderer = new Plot3DRenderer(functionExpr, xMin, xMax, yMin, yMax, resolution);
                 renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
                 renderer.setScale(currentScale);
                 renderer.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
                 renderer.setShowGrid(showGridCheckbox.isSelected());
+                renderer.setShowHelperLines(showHelperLinesCheckbox.isSelected());
             }
 
             // Plot neu zeichnen
@@ -578,6 +651,27 @@ public class Plot3DPanel extends JPanel {
                     "Fehler beim Rendern der Funktion: " + e.getMessage(),
                     "Fehler",
                     JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Parst einen Dezimalwert aus einem String, unterstützt sowohl Punkt als auch
+     * Komma als Dezimaltrennzeichen
+     */
+    private double parseDecimal(String text) throws NumberFormatException, ParseException {
+        // Erst direkt parsen versuchen (für Punkt als Dezimaltrennzeichen)
+        try {
+            return Double.parseDouble(text);
+        } catch (NumberFormatException e) {
+            // Falls fehlgeschlagen, Komma durch Punkt ersetzen und erneut versuchen
+            String replacedText = text.replace(',', '.');
+            try {
+                return Double.parseDouble(replacedText);
+            } catch (NumberFormatException ex) {
+                // Als letzten Versuch die aktuelle Locale verwenden
+                NumberFormat nf = NumberFormat.getNumberInstance(Locale.getDefault());
+                return nf.parse(text).doubleValue();
+            }
         }
     }
 
@@ -606,6 +700,12 @@ public class Plot3DPanel extends JPanel {
         rotationYSlider.setValue((int) currentRotationY);
         rotationZSlider.setValue((int) currentRotationZ);
 
+        // Wertebereiche auf Standardwerte zurücksetzen
+        currentXMin = DEFAULT_MIN;
+        currentXMax = DEFAULT_MAX;
+        currentYMin = DEFAULT_MIN;
+        currentYMax = DEFAULT_MAX;
+
         // Bereichsfelder auf Originalwerte zurücksetzen
         xMinField.setText(String.valueOf(DEFAULT_MIN));
         xMaxField.setText(String.valueOf(DEFAULT_MAX));
@@ -620,6 +720,7 @@ public class Plot3DPanel extends JPanel {
             // Rotation und Skalierung aktualisieren
             renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
             renderer.setScale(currentScale);
+
             plotPanel.repaint();
 
             debug("Ansicht auf Standardwerte zurückgesetzt");

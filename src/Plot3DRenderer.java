@@ -10,6 +10,7 @@ import java.util.List;
  * Implementiert ein richtiges Koordinatensystem mit Achsen, Teilstrichen und
  * Beschriftungen
  * Passt den Wertebereich beim Zoomen automatisch an
+ * Enthält erweiterte Hilfslinien für bessere räumliche Orientierung
  */
 public class Plot3DRenderer {
     private Function3DParser function;
@@ -20,14 +21,18 @@ public class Plot3DRenderer {
     private double rotationY; // Rotation um die Y-Achse in Grad
     private double rotationZ; // Rotation um die Z-Achse in Grad
     private double scale; // Skalierungsfaktor
+    private double panX = 0.0; // Horizontale Verschiebung
+    private double panY = 0.0; // Vertikale Verschiebung
     private double zMin, zMax; // Automatisch berechnete Z-Grenzen
     private Point3D[][][] gridPoints; // [x][y][3] - Speichert originale, transformierte und projizierte Koordinaten
 
     // Eigenschaften des Koordinatensystems
     private boolean showCoordinateSystem = true;
     private boolean showGrid = true;
+    private boolean showHelperLines = true; // Neue Eigenschaft für erweiterte Hilfslinien
     private static final double AXIS_EXTENSION = 1.3; // Achsen über Datengrenzen hinaus verlängern
     private static final int NUM_TICKS = 5; // Anzahl der Teilstriche pro Achse
+    private static final int NUM_HELPER_LINES = 10; // Anzahl der Hilfslinien pro Raumrichtung
 
     // Farbschema
     private Color gridColor = new Color(200, 200, 200, 100); // Halbtransparentes Gitter
@@ -35,6 +40,7 @@ public class Plot3DRenderer {
     private Color tickColor = Color.BLACK;
     private Color labelColor = Color.BLACK;
     private Color gridLineColor = new Color(220, 220, 220, 80); // Noch transparentere Gitterlinien
+    private Color helperLineColor = new Color(0, 0, 0, 100); // Transparente Hilfslinien
     private GradientColorScheme colorScheme;
 
     // Konstanten
@@ -163,6 +169,10 @@ public class Plot3DRenderer {
         double maxRange = Math.max(xRange, Math.max(yRange, zRange));
         double factor = 1.0 / maxRange;
 
+        // Pan-Werte für die aktuelle Transformation anpassen
+        double adjustedPanX = panX * scale;
+        double adjustedPanY = panY * scale;
+
         // Jeden Punkt transformieren und projizieren
         for (int i = 0; i < resolution; i++) {
             for (int j = 0; j < resolution; j++) {
@@ -196,6 +206,10 @@ public class Plot3DRenderer {
                 y = tempY;
                 z = tempZ;
 
+                // Panning anwenden (nach allen Rotationen)
+                x += adjustedPanX;
+                y += adjustedPanY;
+
                 // Transformierten Punkt speichern
                 gridPoints[i][j][TRANSFORMED] = new Point3D(x, y, z);
 
@@ -223,6 +237,10 @@ public class Plot3DRenderer {
             if (showGrid) {
                 drawCoordinateGrid(g2d, displayScale, xOffset, yOffset);
             }
+            // Erweiterte Hilfslinien zeichnen, wenn aktiviert
+            if (showHelperLines) {
+                drawHelperLines(g2d, displayScale, xOffset, yOffset);
+            }
             drawAxes(g2d, displayScale, xOffset, yOffset);
             drawTicksAndLabels(g2d, displayScale, xOffset, yOffset);
         }
@@ -242,14 +260,15 @@ public class Plot3DRenderer {
         g2d.setStroke(new BasicStroke(0.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                 10.0f, new float[] { 2.0f, 2.0f }, 0.0f));
 
-        // Teilstrichabstände berechnen
+        // Wertebereiche
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
         double zRange = zMax - zMin;
 
-        double xStep = xRange / (NUM_TICKS - 1);
-        double yStep = yRange / (NUM_TICKS - 1);
-        double zStep = zRange / (NUM_TICKS - 1);
+        // Berechne geeignete Abstände für die Gitterlinien
+        double xStep = calculateGridSpacing(xRange);
+        double yStep = calculateGridSpacing(yRange);
+        double zStep = calculateGridSpacing(zRange);
 
         // Transformationsmatrizen erhalten (vereinfacht als einzelne Transformationen)
         double angleX = Math.toRadians(rotationX);
@@ -274,28 +293,22 @@ public class Plot3DRenderer {
         double zCenter = (zMax + zMin) / 2;
 
         // Gitterlinien auf der XY-Ebene zeichnen (Z = zMin)
-        for (int i = 0; i < NUM_TICKS; i++) {
-            // X-Gitterlinien
-            double x1 = xMin;
-            double x2 = xMax;
-            double y = yMin + i * yStep;
-            double z = zMin;
-
+        // X-Gitterlinien bei verschiedenen Y-Positionen
+        double yStart = Math.ceil(yMin / yStep) * yStep; // Start bei einem "schönen" Wert
+        for (double y = yStart; y <= yMax; y += yStep) {
             // X-Linie an dieser Y-Position zeichnen
-            drawTransformedLine(g2d, x1, y, z, x2, y, z,
+            drawTransformedLine(g2d, xMin, y, zMin, xMax, y, zMin,
                     xCenter, yCenter, zCenter,
                     factor, scale,
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
                     displayScale, xOffset, yOffset);
+        }
 
-            // Y-Gitterlinien
-            double y1 = yMin;
-            double y2 = yMax;
-            double x = xMin + i * xStep;
-            z = zMin;
-
+        // Y-Gitterlinien bei verschiedenen X-Positionen
+        double xStart = Math.ceil(xMin / xStep) * xStep; // Start bei einem "schönen" Wert
+        for (double x = xStart; x <= xMax; x += xStep) {
             // Y-Linie an dieser X-Position zeichnen
-            drawTransformedLine(g2d, x, y1, z, x, y2, z,
+            drawTransformedLine(g2d, x, yMin, zMin, x, yMax, zMin,
                     xCenter, yCenter, zCenter,
                     factor, scale,
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -303,28 +316,21 @@ public class Plot3DRenderer {
         }
 
         // Gitterlinien auf der XZ-Ebene zeichnen (Y = yMin)
-        for (int i = 0; i < NUM_TICKS; i++) {
-            // X-Gitterlinien
-            double x1 = xMin;
-            double x2 = xMax;
-            double y = yMin;
-            double z = zMin + i * zStep;
-
+        // X-Gitterlinien bei verschiedenen Z-Positionen
+        double zStart = Math.ceil(zMin / zStep) * zStep; // Start bei einem "schönen" Wert
+        for (double z = zStart; z <= zMax; z += zStep) {
             // X-Linie an dieser Z-Position zeichnen
-            drawTransformedLine(g2d, x1, y, z, x2, y, z,
+            drawTransformedLine(g2d, xMin, yMin, z, xMax, yMin, z,
                     xCenter, yCenter, zCenter,
                     factor, scale,
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
                     displayScale, xOffset, yOffset);
+        }
 
-            // Z-Gitterlinien
-            double z1 = zMin;
-            double z2 = zMax;
-            double x = xMin + i * xStep;
-            y = yMin;
-
+        // Z-Gitterlinien bei verschiedenen X-Positionen
+        for (double x = xStart; x <= xMax; x += xStep) {
             // Z-Linie an dieser X-Position zeichnen
-            drawTransformedLine(g2d, x, y, z1, x, y, z2,
+            drawTransformedLine(g2d, x, yMin, zMin, x, yMin, zMax,
                     xCenter, yCenter, zCenter,
                     factor, scale,
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -332,32 +338,133 @@ public class Plot3DRenderer {
         }
 
         // Gitterlinien auf der YZ-Ebene zeichnen (X = xMin)
-        for (int i = 0; i < NUM_TICKS; i++) {
-            // Y-Gitterlinien
-            double y1 = yMin;
-            double y2 = yMax;
-            double x = xMin;
-            double z = zMin + i * zStep;
-
+        // Y-Gitterlinien bei verschiedenen Z-Positionen
+        for (double z = zStart; z <= zMax; z += zStep) {
             // Y-Linie an dieser Z-Position zeichnen
-            drawTransformedLine(g2d, x, y1, z, x, y2, z,
+            drawTransformedLine(g2d, xMin, yMin, z, xMin, yMax, z,
                     xCenter, yCenter, zCenter,
                     factor, scale,
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
                     displayScale, xOffset, yOffset);
+        }
 
-            // Z-Gitterlinien
-            double z1 = zMin;
-            double z2 = zMax;
-            x = xMin;
-            double y = yMin + i * yStep;
-
+        // Z-Gitterlinien bei verschiedenen Y-Positionen
+        for (double y = yStart; y <= yMax; y += yStep) {
             // Z-Linie an dieser Y-Position zeichnen
-            drawTransformedLine(g2d, x, y, z1, x, y, z2,
+            drawTransformedLine(g2d, xMin, y, zMin, xMin, y, zMax,
                     xCenter, yCenter, zCenter,
                     factor, scale,
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
                     displayScale, xOffset, yOffset);
+        }
+    }
+
+    /**
+     * Zeichnet erweiterte Hilfslinien für eine bessere räumliche Orientierung
+     */
+    private void drawHelperLines(Graphics2D g2d, double displayScale, int xOffset, int yOffset) {
+        // Spezielle Einstellungen für die Hilfslinien
+        g2d.setColor(helperLineColor);
+        g2d.setStroke(new BasicStroke(0.7f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                10.0f, new float[] { 1.0f, 2.0f }, 0.0f));
+
+        // Teilstrichabstände berechnen
+        double xRange = xMax - xMin;
+        double yRange = yMax - yMin;
+        double zRange = zMax - zMin;
+
+        double xStep = xRange / (NUM_HELPER_LINES - 1);
+        double yStep = yRange / (NUM_HELPER_LINES - 1);
+        double zStep = zRange / (NUM_HELPER_LINES - 1);
+
+        // Transformationsparameter
+        double angleX = Math.toRadians(rotationX);
+        double angleY = Math.toRadians(rotationY);
+        double angleZ = Math.toRadians(rotationZ);
+
+        // Sinus- und Kosinuswerte vorberechnen
+        double sinX = Math.sin(angleX);
+        double cosX = Math.cos(angleX);
+        double sinY = Math.sin(angleY);
+        double cosY = Math.cos(angleY);
+        double sinZ = Math.sin(angleZ);
+        double cosZ = Math.cos(angleZ);
+
+        // Normalisierungsfaktor
+        double maxRange = Math.max(xRange, Math.max(yRange, zRange));
+        double factor = 1.0 / maxRange;
+
+        // Mittelpunkte für die Zentrierung berechnen
+        double xCenter = (xMax + xMin) / 2;
+        double yCenter = (yMax + yMin) / 2;
+        double zCenter = (zMax + zMin) / 2;
+
+        // Z-Höhenlinien (X-Y-Ebenen bei verschiedenen Z-Werten)
+        for (int k = 1; k < NUM_HELPER_LINES - 1; k++) {
+            double z = zMin + k * zStep;
+
+            // Gitter an dieser Z-Position zeichnen
+            for (int i = 0; i < NUM_HELPER_LINES; i += 2) {
+                // X-Linien
+                double x1 = xMin;
+                double x2 = xMax;
+                double y = yMin + i * yStep;
+
+                // Linie zeichnen
+                drawTransformedLine(g2d, x1, y, z, x2, y, z,
+                        xCenter, yCenter, zCenter,
+                        factor, scale,
+                        sinX, cosX, sinY, cosY, sinZ, cosZ,
+                        displayScale, xOffset, yOffset);
+            }
+
+            for (int j = 0; j < NUM_HELPER_LINES; j += 2) {
+                // Y-Linien
+                double y1 = yMin;
+                double y2 = yMax;
+                double x = xMin + j * xStep;
+
+                // Linie zeichnen
+                drawTransformedLine(g2d, x, y1, z, x, y2, z,
+                        xCenter, yCenter, zCenter,
+                        factor, scale,
+                        sinX, cosX, sinY, cosY, sinZ, cosZ,
+                        displayScale, xOffset, yOffset);
+            }
+        }
+
+        // X-Y-Linien durch den 3D-Raum (bei verschiedenen Y-Werten)
+        for (int j = 2; j < NUM_HELPER_LINES - 2; j += 2) {
+            double y = yMin + j * yStep;
+
+            // Vertikale Linien bei dieser Y-Position
+            for (int i = 2; i < NUM_HELPER_LINES - 2; i += 2) {
+                double x = xMin + i * xStep;
+
+                // Z-Linie zeichnen
+                drawTransformedLine(g2d, x, y, zMin, x, y, zMax,
+                        xCenter, yCenter, zCenter,
+                        factor, scale,
+                        sinX, cosX, sinY, cosY, sinZ, cosZ,
+                        displayScale, xOffset, yOffset);
+            }
+        }
+
+        // X-Z-Linien (Vertikale Linien an bestimmten X-Positionen)
+        for (int i = 2; i < NUM_HELPER_LINES - 2; i += 2) {
+            double x = xMin + i * xStep;
+
+            // Linien bei verschiedenen Z-Positionen
+            for (int k = 1; k < NUM_HELPER_LINES - 1; k += 2) {
+                double z = zMin + k * zStep;
+
+                // Y-Linie zeichnen
+                drawTransformedLine(g2d, x, yMin, z, x, yMax, z,
+                        xCenter, yCenter, zCenter,
+                        factor, scale,
+                        sinX, cosX, sinY, cosY, sinZ, cosZ,
+                        displayScale, xOffset, yOffset);
+            }
         }
     }
 
@@ -394,6 +501,10 @@ public class Plot3DRenderer {
         ty1 = tempY;
         tz1 = tempZ;
 
+        // Panning auf Punkt 1 anwenden
+        tx1 += panX * scale;
+        ty1 += panY * scale;
+
         // Punkt 2 transformieren
         double tx2 = (x2 - xCenter) * factor * scale;
         double ty2 = (y2 - yCenter) * factor * scale;
@@ -414,6 +525,10 @@ public class Plot3DRenderer {
         tempZ = ty2 * sinX + tz2 * cosX;
         ty2 = tempY;
         tz2 = tempZ;
+
+        // Panning auf Punkt 2 anwenden
+        tx2 += panX * scale;
+        ty2 += panY * scale;
 
         // Auf Bildschirmkoordinaten projizieren
         int screenX1 = xOffset + (int) (tx1 * displayScale);
@@ -491,6 +606,12 @@ public class Plot3DRenderer {
 
     /**
      * Zeichnet die Koordinatenachsen durch den gesamten sichtbaren Bereich
+     * Mit verbesserter Behandlung für Achsen, die den sichtbaren Bereich verlassen
+     * würden
+     */
+    /**
+     * Zeichnet die Koordinatenachsen durch den gesamten sichtbaren Bereich
+     * Mit korrektem Einrasten an den Grenzen des sichtbaren Bereichs
      */
     private void drawAxes(Graphics2D g2d, double displayScale, int xOffset, int yOffset) {
         g2d.setStroke(new BasicStroke(2.0f));
@@ -523,46 +644,75 @@ public class Plot3DRenderer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // X-Achse durch den gesamten sichtbaren Bereich zeichnen
-        double x1 = xMin;
-        double y1 = 0; // X-Achse verläuft bei y=0
-        double z1 = 0; // X-Achse verläuft bei z=0
-        double x2 = xMax;
-        double y2 = 0;
-        double z2 = 0;
+        // *** X-Achse ***
+        double yPos = 0, zPos = 0;
+
+        // Wenn 0 nicht im Bereich y liegt, X-Achse am entsprechenden Rand positionieren
+        if (yMin > 0) {
+            yPos = yMin; // Unten halten
+        } else if (yMax < 0) {
+            yPos = yMax; // Oben halten
+        }
+
+        // Wenn 0 nicht im Bereich z liegt, X-Achse am entsprechenden Rand positionieren
+        if (zMin > 0) {
+            zPos = zMin; // Vorne halten
+        } else if (zMax < 0) {
+            zPos = zMax; // Hinten halten
+        }
 
         // X-Achse transformieren und zeichnen
-        drawTransformedLine(g2d, x1, y1, z1, x2, y2, z2,
+        drawTransformedLine(g2d, xMin, yPos, zPos, xMax, yPos, zPos,
                 xCenter, yCenter, zCenter,
                 factor, scale,
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 displayScale, xOffset, yOffset);
 
-        // Y-Achse durch den gesamten sichtbaren Bereich zeichnen
-        x1 = 0; // Y-Achse verläuft bei x=0
-        y1 = yMin;
-        z1 = 0; // Y-Achse verläuft bei z=0
-        x2 = 0;
-        y2 = yMax;
-        z2 = 0;
+        // *** Y-Achse ***
+        double xPos = 0;
+        zPos = 0; // Reset für Z-Position
+
+        // Wenn 0 nicht im Bereich x liegt, Y-Achse am entsprechenden Rand positionieren
+        if (xMin > 0) {
+            xPos = xMin; // Links halten
+        } else if (xMax < 0) {
+            xPos = xMax; // Rechts halten
+        }
+
+        // Wenn 0 nicht im Bereich z liegt, Y-Achse am entsprechenden Rand positionieren
+        if (zMin > 0) {
+            zPos = zMin; // Vorne halten
+        } else if (zMax < 0) {
+            zPos = zMax; // Hinten halten
+        }
 
         // Y-Achse transformieren und zeichnen
-        drawTransformedLine(g2d, x1, y1, z1, x2, y2, z2,
+        drawTransformedLine(g2d, xPos, yMin, zPos, xPos, yMax, zPos,
                 xCenter, yCenter, zCenter,
                 factor, scale,
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 displayScale, xOffset, yOffset);
 
-        // Z-Achse durch den gesamten sichtbaren Bereich zeichnen
-        x1 = 0; // Z-Achse verläuft bei x=0
-        y1 = 0; // Z-Achse verläuft bei y=0
-        z1 = zMin;
-        x2 = 0;
-        y2 = 0;
-        z2 = zMax;
+        // *** Z-Achse ***
+        xPos = 0; // Reset für X-Position
+        yPos = 0; // Reset für Y-Position
+
+        // Wenn 0 nicht im Bereich x liegt, Z-Achse am entsprechenden Rand positionieren
+        if (xMin > 0) {
+            xPos = xMin; // Links halten
+        } else if (xMax < 0) {
+            xPos = xMax; // Rechts halten
+        }
+
+        // Wenn 0 nicht im Bereich y liegt, Z-Achse am entsprechenden Rand positionieren
+        if (yMin > 0) {
+            yPos = yMin; // Unten halten
+        } else if (yMax < 0) {
+            yPos = yMax; // Oben halten
+        }
 
         // Z-Achse transformieren und zeichnen
-        drawTransformedLine(g2d, x1, y1, z1, x2, y2, z2,
+        drawTransformedLine(g2d, xPos, yPos, zMin, xPos, yPos, zMax,
                 xCenter, yCenter, zCenter,
                 factor, scale,
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -572,11 +722,122 @@ public class Plot3DRenderer {
         Font originalFont = g2d.getFont();
         g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
 
-        // Transformiere Endpunkte der Achsen für Beschriftungen
-        // X-Achse Endpunkt
+        // *** Achsenbeschriftungen platzieren ***
+
+        // X-Achse beschriften - am Ende der Achse
         double tx = (xMax - xCenter) * factor * scale;
-        double ty = (0 - yCenter) * factor * scale;
-        double tz = (0 - zCenter) * factor * scale;
+        double ty = (yPos - yCenter) * factor * scale;
+        double tz = (zPos - zCenter) * factor * scale;
+
+        // Transformationen anwenden (Rotation)
+        double tempX = tx * cosZ - ty * sinZ;
+        double tempY = tx * sinZ + ty * cosZ;
+        tx = tempX;
+        ty = tempY;
+
+        tempX = tx * cosY + tz * sinY;
+        double tempZ = -tx * sinY + tz * cosY;
+        tx = tempX;
+        tz = tempZ;
+
+        tempY = ty * cosX - tz * sinX;
+        tempZ = ty * sinX + tz * cosX;
+        ty = tempY;
+
+        // Achsenlabel "X" zeichnen (mit leichtem Offset für bessere Sichtbarkeit)
+        int xLabelX = xOffset + (int) (tx * displayScale) + 10;
+        int xLabelY = yOffset - (int) (ty * displayScale);
+        g2d.drawString("X", xLabelX, xLabelY);
+
+        // Y-Achse beschriften - am Ende der Achse
+        tx = (xPos - xCenter) * factor * scale;
+        ty = (yMax - yCenter) * factor * scale;
+        tz = (zPos - zCenter) * factor * scale;
+
+        // Transformationen anwenden (Rotation)
+        tempX = tx * cosZ - ty * sinZ;
+        tempY = tx * sinZ + ty * cosZ;
+        tx = tempX;
+        ty = tempY;
+
+        tempX = tx * cosY + tz * sinY;
+        tempZ = -tx * sinY + tz * cosY;
+        tx = tempX;
+        tz = tempZ;
+
+        tempY = ty * cosX - tz * sinX;
+        tempZ = ty * sinX + tz * cosX;
+        ty = tempY;
+
+        // Achsenlabel "Y" zeichnen (mit leichtem Offset für bessere Sichtbarkeit)
+        int yLabelX = xOffset + (int) (tx * displayScale);
+        int yLabelY = yOffset - (int) (ty * displayScale) - 10;
+        g2d.drawString("Y", yLabelX, yLabelY);
+
+        // Z-Achse beschriften - am Ende der Achse
+        tx = (xPos - xCenter) * factor * scale;
+        ty = (yPos - yCenter) * factor * scale;
+        tz = (zMax - zCenter) * factor * scale;
+
+        // Transformationen anwenden (Rotation)
+        tempX = tx * cosZ - ty * sinZ;
+        tempY = tx * sinZ + ty * cosZ;
+        tx = tempX;
+        ty = tempY;
+
+        tempX = tx * cosY + tz * sinY;
+        tempZ = -tx * sinY + tz * cosY;
+        tx = tempX;
+        tz = tempZ;
+
+        tempY = ty * cosX - tz * sinX;
+        tempZ = ty * sinX + tz * cosX;
+        ty = tempY;
+
+        // Achsenlabel "Z" zeichnen (mit leichtem Offset für bessere Sichtbarkeit)
+        int zLabelX = xOffset + (int) (tx * displayScale);
+        int zLabelY = yOffset - (int) (ty * displayScale);
+        g2d.drawString("Z", zLabelX, zLabelY);
+
+        // Ursprungsschriftart wiederherstellen
+        g2d.setFont(originalFont);
+    }
+
+    /**
+     * Zeichnet die Achsenbeschriftungen (X, Y, Z)
+     */
+    private void drawAxisLabels(Graphics2D g2d, double displayScale, int xOffset, int yOffset,
+            double xCenter, double yCenter, double zCenter, double factor,
+            double sinX, double cosX, double sinY, double cosY, double sinZ, double cosZ) {
+
+        Font originalFont = g2d.getFont();
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
+
+        // X-Achsen-Beschriftung
+        double labelX, labelY, labelZ;
+
+        // X-Achsen-Position für die Beschriftung - Prüfe ob im Bereich
+        if (xMin <= 0 && xMax >= 0) {
+            // X-Achse geht durch den Ursprung
+            labelX = xMax;
+            labelY = 0;
+            labelZ = 0;
+        } else if (xMax < 0) {
+            // X-Achse liegt vollständig im negativen Bereich
+            labelX = xMax;
+            labelY = yMin;
+            labelZ = 0;
+        } else { // xMin > 0
+            // X-Achse liegt vollständig im positiven Bereich
+            labelX = xMax;
+            labelY = yMax;
+            labelZ = 0;
+        }
+
+        // X-Beschriftung transformieren und positionieren
+        double tx = (labelX - xCenter) * factor * scale;
+        double ty = (labelY - yCenter) * factor * scale;
+        double tz = (labelZ - zCenter) * factor * scale;
 
         double tempX = tx * cosZ - ty * sinZ;
         double tempY = tx * sinZ + ty * cosZ;
@@ -596,10 +857,28 @@ public class Plot3DRenderer {
         int xLabelY = yOffset - (int) (ty * displayScale);
         g2d.drawString("X", xLabelX, xLabelY);
 
-        // Y-Achse Endpunkt
-        tx = (0 - xCenter) * factor * scale;
-        ty = (yMax - yCenter) * factor * scale;
-        tz = (0 - zCenter) * factor * scale;
+        // Y-Achsen-Position für die Beschriftung - Prüfe ob im Bereich
+        if (yMin <= 0 && yMax >= 0) {
+            // Y-Achse geht durch den Ursprung
+            labelX = 0;
+            labelY = yMax;
+            labelZ = 0;
+        } else if (yMax < 0) {
+            // Y-Achse liegt vollständig im negativen Bereich
+            labelX = xMin;
+            labelY = yMax;
+            labelZ = 0;
+        } else { // yMin > 0
+            // Y-Achse liegt vollständig im positiven Bereich
+            labelX = xMax;
+            labelY = yMax;
+            labelZ = 0;
+        }
+
+        // Y-Beschriftung transformieren und positionieren
+        tx = (labelX - xCenter) * factor * scale;
+        ty = (labelY - yCenter) * factor * scale;
+        tz = (labelZ - zCenter) * factor * scale;
 
         tempX = tx * cosZ - ty * sinZ;
         tempY = tx * sinZ + ty * cosZ;
@@ -619,10 +898,28 @@ public class Plot3DRenderer {
         int yLabelY = yOffset - (int) (ty * displayScale) - 10;
         g2d.drawString("Y", yLabelX, yLabelY);
 
-        // Z-Achse Endpunkt
-        tx = (0 - xCenter) * factor * scale;
-        ty = (0 - yCenter) * factor * scale;
-        tz = (zMax - zCenter) * factor * scale;
+        // Z-Achsen-Position für die Beschriftung - Prüfe ob im Bereich
+        if (zMin <= 0 && zMax >= 0) {
+            // Z-Achse geht durch den Ursprung
+            labelX = 0;
+            labelY = 0;
+            labelZ = zMax;
+        } else if (zMax < 0) {
+            // Z-Achse liegt vollständig im negativen Bereich
+            labelX = xMin;
+            labelY = yMin;
+            labelZ = zMax;
+        } else { // zMin > 0
+            // Z-Achse liegt vollständig im positiven Bereich
+            labelX = xMax;
+            labelY = yMax;
+            labelZ = zMax;
+        }
+
+        // Z-Beschriftung transformieren und positionieren
+        tx = (labelX - xCenter) * factor * scale;
+        ty = (labelY - yCenter) * factor * scale;
+        tz = (labelZ - zCenter) * factor * scale;
 
         tempX = tx * cosZ - ty * sinZ;
         tempY = tx * sinZ + ty * cosZ;
@@ -647,6 +944,30 @@ public class Plot3DRenderer {
     }
 
     /**
+     * Berechnet einen geeigneten Abstand für Gitterlinien und Achsenbeschriftungen
+     * basierend auf dem Wertebereich
+     */
+    private double calculateGridSpacing(double range) {
+        // Ziel: Etwa 5-10 Gitterlinien im sichtbaren Bereich
+        double targetSteps = 6;
+        double rawSpacing = range / targetSteps;
+
+        // Auf "schöne" Werte normalisieren (1, 2, 5, 10, 20, 50, ...)
+        double exponent = Math.floor(Math.log10(rawSpacing));
+        double mantissa = rawSpacing / Math.pow(10, exponent);
+
+        // Runde auf "schöne" Werte: 1, 2, 5, 10
+        if (mantissa < 1.5)
+            return Math.pow(10, exponent);
+        else if (mantissa < 3.5)
+            return 2 * Math.pow(10, exponent);
+        else if (mantissa < 7.5)
+            return 5 * Math.pow(10, exponent);
+        else
+            return 10 * Math.pow(10, exponent);
+    }
+
+    /**
      * Zeichnet Teilstriche und Beschriftungen auf den Achsen
      */
     private void drawTicksAndLabels(Graphics2D g2d, double displayScale, int xOffset, int yOffset) {
@@ -656,15 +977,26 @@ public class Plot3DRenderer {
         // Format für Teilstrichbeschriftungen
         DecimalFormat df = new DecimalFormat("0.##");
 
-        // Anzahl der Teilstriche pro Achse
-        int numTicks = NUM_TICKS;
+        // Mittelpunkte für die Zentrierung berechnen
+        double xCenter = (xMax + xMin) / 2;
+        double yCenter = (yMax + yMin) / 2;
+        double zCenter = (zMax + zMin) / 2;
 
-        // Teilstrichabstände berechnen
-        double xStep = (xMax - xMin) / (numTicks - 1);
-        double yStep = (yMax - yMin) / (numTicks - 1);
-        double zStep = (zMax - zMin) / (numTicks - 1);
+        // Wertebereiche
+        double xRange = xMax - xMin;
+        double yRange = yMax - yMin;
+        double zRange = zMax - zMin;
 
-        // Transformationsparameter (wie bei den Achsen)
+        // Berechne geeignete Abstände für die Gitterlinien
+        double xSpacing = calculateGridSpacing(xRange);
+        double ySpacing = calculateGridSpacing(yRange);
+        double zSpacing = calculateGridSpacing(zRange);
+
+        // Normalisierungsfaktor
+        double maxRange = Math.max(xRange, Math.max(yRange, zRange));
+        double factor = 1.0 / maxRange;
+
+        // Transformationsparameter
         double angleX = Math.toRadians(rotationX);
         double angleY = Math.toRadians(rotationY);
         double angleZ = Math.toRadians(rotationZ);
@@ -676,141 +1008,187 @@ public class Plot3DRenderer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // Mittelpunkte für die Zentrierung berechnen
-        double xCenter = (xMax + xMin) / 2;
-        double yCenter = (yMax + yMin) / 2;
-        double zCenter = (zMax + zMin) / 2;
+        // Determine actual axis positions (same as in drawAxes)
+        // *** X-Axis position (uses yPos and zPos) ***
+        double yPosX = 0, zPosX = 0;
 
-        // Normalisierungsfaktor
-        double xRange = xMax - xMin;
-        double yRange = yMax - yMin;
-        double zRange = zMax - zMin;
-        double maxRange = Math.max(xRange, Math.max(yRange, zRange));
-        double factor = 1.0 / maxRange;
+        // If 0 is not in the y range, position X-axis at the corresponding edge
+        if (yMin > 0) {
+            yPosX = yMin; // Keep at bottom
+        } else if (yMax < 0) {
+            yPosX = yMax; // Keep at top
+        }
 
-        // Teilstriche und Beschriftungen auf der X-Achse zeichnen
-        for (int i = 0; i < numTicks; i++) {
-            double tickValue = xMin + i * xStep;
+        // If 0 is not in the z range, position X-axis at the corresponding edge
+        if (zMin > 0) {
+            zPosX = zMin; // Keep at front
+        } else if (zMax < 0) {
+            zPosX = zMax; // Keep at back
+        }
 
-            // Normalisierte und skalierte Position berechnen
-            double x = (tickValue - xCenter) * factor * scale;
-            double y = 0;
-            double z = 0;
+        // *** Y-Axis position (uses xPos and zPos) ***
+        double xPosY = 0, zPosY = 0;
 
-            // Rotationen anwenden
-            double tx = x * cosZ - y * sinZ;
-            double ty = x * sinZ + y * cosZ;
+        // If 0 is not in the x range, position Y-axis at the corresponding edge
+        if (xMin > 0) {
+            xPosY = xMin; // Keep at left
+        } else if (xMax < 0) {
+            xPosY = xMax; // Keep at right
+        }
 
-            double tempX = tx * cosY + z * sinY;
-            double tempZ = -tx * sinY + z * cosY;
+        // If 0 is not in the z range, position Y-axis at the corresponding edge
+        if (zMin > 0) {
+            zPosY = zMin; // Keep at front
+        } else if (zMax < 0) {
+            zPosY = zMax; // Keep at back
+        }
+
+        // *** Z-Axis position (uses xPos and yPos) ***
+        double xPosZ = 0, yPosZ = 0;
+
+        // If 0 is not in the x range, position Z-axis at the corresponding edge
+        if (xMin > 0) {
+            xPosZ = xMin; // Keep at left
+        } else if (xMax < 0) {
+            xPosZ = xMax; // Keep at right
+        }
+
+        // If 0 is not in the y range, position Z-axis at the corresponding edge
+        if (yMin > 0) {
+            yPosZ = yMin; // Keep at bottom
+        } else if (yMax < 0) {
+            yPosZ = yMax; // Keep at top
+        }
+
+        // X-Achse Teilstriche und Beschriftungen
+        // Ersten schönen Wert finden, der größer/gleich xMin ist
+        double xStart = Math.ceil(xMin / xSpacing) * xSpacing;
+        for (double tickValue = xStart; tickValue <= xMax; tickValue += xSpacing) {
+            // Position auf der X-Achse - USE THE CORRECT Y AND Z POSITIONS
+            double x = tickValue;
+            double y = yPosX; // Use the actual X-axis y-position
+            double z = zPosX; // Use the actual X-axis z-position
+
+            // Normalisiere die Position relativ zum Mittelpunkt
+            double nx = (x - xCenter) * factor * scale;
+            double ny = (y - yCenter) * factor * scale;
+            double nz = (z - zCenter) * factor * scale;
+
+            // Wende Rotationen an
+            double tx = nx * cosZ - ny * sinZ;
+            double ty = nx * sinZ + ny * cosZ;
+
+            double tempX = tx * cosY + nz * sinY;
+            double tempZ = -tx * sinY + nz * cosY;
             tx = tempX;
 
             double tempY = ty * cosX - tempZ * sinX;
             ty = tempY;
 
-            // In Bildschirmkoordinaten umrechnen
+            // Panning anwenden
+            tx += panX * scale;
+            ty += panY * scale;
+
+            // Auf Bildschirmkoordinaten projizieren
             int screenX = xOffset + (int) (tx * displayScale);
             int screenY = yOffset - (int) (ty * displayScale);
 
-            // Teilstrich senkrecht zur Achse zeichnen
+            // Teilstrich zeichnen
             g2d.setColor(tickColor);
-
-            // Senkrechte Richtung berechnen (vereinfacht)
-            int perpX = -TICK_LENGTH / 2;
-            int perpY = -TICK_LENGTH / 2;
-
-            g2d.drawLine(screenX - perpX, screenY - perpY, screenX + perpX, screenY + perpY);
+            g2d.drawLine(screenX - 2, screenY - 2, screenX + 2, screenY + 2);
 
             // Beschriftung zeichnen
             g2d.setColor(labelColor);
             String label = df.format(tickValue);
             FontMetrics fm = g2d.getFontMetrics();
             int labelWidth = fm.stringWidth(label);
-
-            g2d.drawString(label, screenX - labelWidth / 2, screenY + TICK_LENGTH + fm.getAscent());
+            g2d.drawString(label, screenX - labelWidth / 2, screenY + 15);
         }
 
-        // Teilstriche und Beschriftungen auf der Y-Achse zeichnen
-        for (int i = 0; i < numTicks; i++) {
-            double tickValue = yMin + i * yStep;
+        // Y-Achse Teilstriche und Beschriftungen
+        // Ersten schönen Wert finden, der größer/gleich yMin ist
+        double yStart = Math.ceil(yMin / ySpacing) * ySpacing;
+        for (double tickValue = yStart; tickValue <= yMax; tickValue += ySpacing) {
+            // Position auf der Y-Achse - USE THE CORRECT X AND Z POSITIONS
+            double x = xPosY; // Use the actual Y-axis x-position
+            double y = tickValue;
+            double z = zPosY; // Use the actual Y-axis z-position
 
-            // Normalisierte und skalierte Position berechnen
-            double x = 0;
-            double y = (tickValue - yCenter) * factor * scale;
-            double z = 0;
+            // Normalisiere die Position relativ zum Mittelpunkt
+            double nx = (x - xCenter) * factor * scale;
+            double ny = (y - yCenter) * factor * scale;
+            double nz = (z - zCenter) * factor * scale;
 
-            // Rotationen anwenden
-            double tx = x * cosZ - y * sinZ;
-            double ty = x * sinZ + y * cosZ;
+            // Wende Rotationen an
+            double tx = nx * cosZ - ny * sinZ;
+            double ty = nx * sinZ + ny * cosZ;
 
-            double tempX = tx * cosY + z * sinY;
-            double tempZ = -tx * sinY + z * cosY;
+            double tempX = tx * cosY + nz * sinY;
+            double tempZ = -tx * sinY + nz * cosY;
             tx = tempX;
 
             double tempY = ty * cosX - tempZ * sinX;
             ty = tempY;
 
-            // In Bildschirmkoordinaten umrechnen
+            // Panning anwenden
+            tx += panX * scale;
+            ty += panY * scale;
+
+            // Auf Bildschirmkoordinaten projizieren
             int screenX = xOffset + (int) (tx * displayScale);
             int screenY = yOffset - (int) (ty * displayScale);
 
             // Teilstrich zeichnen
             g2d.setColor(tickColor);
-
-            // Senkrechte Richtung berechnen (vereinfacht)
-            int perpX = TICK_LENGTH / 2;
-            int perpY = -TICK_LENGTH / 2;
-
-            g2d.drawLine(screenX - perpX, screenY - perpY, screenX + perpX, screenY + perpY);
+            g2d.drawLine(screenX - 2, screenY - 2, screenX + 2, screenY + 2);
 
             // Beschriftung zeichnen
             g2d.setColor(labelColor);
             String label = df.format(tickValue);
-
-            g2d.drawString(label, screenX + TICK_LENGTH, screenY);
+            g2d.drawString(label, screenX + 5, screenY + 4);
         }
 
-        // Teilstriche und Beschriftungen auf der Z-Achse zeichnen
-        for (int i = 0; i < numTicks; i++) {
-            double tickValue = zMin + i * zStep;
+        // Z-Achse Teilstriche und Beschriftungen
+        // Ersten schönen Wert finden, der größer/gleich zMin ist
+        double zStart = Math.ceil(zMin / zSpacing) * zSpacing;
+        for (double tickValue = zStart; tickValue <= zMax; tickValue += zSpacing) {
+            // Position auf der Z-Achse - USE THE CORRECT X AND Y POSITIONS
+            double x = xPosZ; // Use the actual Z-axis x-position
+            double y = yPosZ; // Use the actual Z-axis y-position
+            double z = tickValue;
 
-            // Normalisierte und skalierte Position berechnen
-            double x = 0;
-            double y = 0;
-            double z = (tickValue - zCenter) * factor * scale;
+            // Normalisiere die Position relativ zum Mittelpunkt
+            double nx = (x - xCenter) * factor * scale;
+            double ny = (y - yCenter) * factor * scale;
+            double nz = (z - zCenter) * factor * scale;
 
-            // Rotationen anwenden
-            double tx = x * cosZ - y * sinZ;
-            double ty = x * sinZ + y * cosZ;
+            // Wende Rotationen an
+            double tx = nx * cosZ - ny * sinZ;
+            double ty = nx * sinZ + ny * cosZ;
 
-            double tempX = tx * cosY + z * sinY;
-            double tempZ = -tx * sinY + z * cosY;
+            double tempX = tx * cosY + nz * sinY;
+            double tempZ = -tx * sinY + nz * cosY;
             tx = tempX;
-            z = tempZ;
 
-            double tempY = ty * cosX - z * sinX;
-            z = ty * sinX + z * cosX;
+            double tempY = ty * cosX - tempZ * sinX;
             ty = tempY;
 
-            // In Bildschirmkoordinaten umrechnen
+            // Panning anwenden
+            tx += panX * scale;
+            ty += panY * scale;
+
+            // Auf Bildschirmkoordinaten projizieren
             int screenX = xOffset + (int) (tx * displayScale);
             int screenY = yOffset - (int) (ty * displayScale);
 
             // Teilstrich zeichnen
             g2d.setColor(tickColor);
-
-            // Senkrechte Richtung berechnen (vereinfacht)
-            int perpX = TICK_LENGTH / 2;
-            int perpY = TICK_LENGTH / 2;
-
-            g2d.drawLine(screenX - perpX, screenY - perpY, screenX + perpX, screenY + perpY);
+            g2d.drawLine(screenX - 2, screenY - 2, screenX + 2, screenY + 2);
 
             // Beschriftung zeichnen
             g2d.setColor(labelColor);
             String label = df.format(tickValue);
-            FontMetrics fm = g2d.getFontMetrics();
-
-            g2d.drawString(label, screenX + TICK_LENGTH, screenY - TICK_LENGTH);
+            g2d.drawString(label, screenX + 5, screenY - 5);
         }
     }
 
@@ -891,6 +1269,26 @@ public class Plot3DRenderer {
      */
     public void setScale(double scale) {
         this.scale = Math.max(0.1, Math.min(10.0, scale)); // Skalierung begrenzen
+        transformAndProjectPoints();
+    }
+
+    /**
+     * Setzt die Pan-Werte für die Verschiebung der Ansicht
+     */
+    public void setPan(double panX, double panY) {
+        this.panX = panX;
+        this.panY = panY;
+        // Punkte mit neuen Werten transformieren
+        transformAndProjectPoints();
+    }
+
+    /**
+     * Erhöht die Pan-Werte um die angegebenen Deltas
+     */
+    public void addPan(double deltaPanX, double deltaPanY) {
+        this.panX += deltaPanX;
+        this.panY += deltaPanY;
+        // Punkte mit neuen Werten transformieren
         transformAndProjectPoints();
     }
 
@@ -994,6 +1392,13 @@ public class Plot3DRenderer {
      */
     public void setShowGrid(boolean show) {
         this.showGrid = show;
+    }
+
+    /**
+     * Schaltet die Anzeige der erweiterten Hilfslinien ein/aus
+     */
+    public void setShowHelperLines(boolean show) {
+        this.showHelperLines = show;
     }
 
     /**
