@@ -55,6 +55,10 @@ public class Plot3DPanel extends JPanel {
         // UI-Komponenten erstellen
         createUI();
 
+        // Wichtig: Referenzen auf dieses Panel setzen
+        viewController.setParentPanel(this);
+        functionManager.setParentPanel(this);
+
         // Textfelder aus dem UI-Builder in den ViewController übertragen
         viewController.setXMinField(uiBuilder.getXMinField());
         viewController.setXMaxField(uiBuilder.getXMaxField());
@@ -132,10 +136,19 @@ public class Plot3DPanel extends JPanel {
             }
 
             // Bereichsangaben parsen und Renderer aktualisieren
-            viewController.updateViewBounds();
+            renderer.setBounds(
+                    viewController.getCurrentXMin(),
+                    viewController.getCurrentXMax(),
+                    viewController.getCurrentYMin(),
+                    viewController.getCurrentYMax());
 
-            // Plot neu zeichnen
-            plotPanel.repaint();
+            // Plot neu zeichnen - wichtig: beide aufrufen!
+            if (plotPanel != null) {
+                plotPanel.repaint();
+                plotPanel.revalidate();
+            }
+
+            debug("3D-Plot neu gezeichnet");
 
         } catch (Exception e) {
             debug("Fehler beim Rendern: " + e.getMessage());

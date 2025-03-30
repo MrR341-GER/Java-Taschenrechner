@@ -90,7 +90,10 @@ public class Plot3DUIBuilder {
 
         // 7. Ansicht zurücksetzen Button
         resetViewButton = new JButton("Ansicht zurücksetzen");
-        resetViewButton.addActionListener(e -> viewController.resetView());
+        resetViewButton.addActionListener(e -> {
+            viewController.resetView();
+            // Explizites Neuzeichnen wird nun in resetView() ausgeführt
+        });
 
         // Steuerungshinweis
         JPanel instructionPanel = createInstructionPanel();
@@ -299,7 +302,7 @@ public class Plot3DUIBuilder {
             viewController.setYMinField(yMinField);
             viewController.setYMaxField(yMaxField);
             viewController.updateViewBounds();
-            mainPanel.renderPlot();
+            // Explizites Neuzeichnen wird nun in updateViewBounds() ausgeführt
         });
         rangePanel.add(applyRangeButton, c);
 
@@ -329,7 +332,7 @@ public class Plot3DUIBuilder {
             // Nur neu rendern, wenn nicht mehr am Schieben
             if (!resolutionSlider.getValueIsAdjusting()) {
                 viewController.setResolution(value);
-                mainPanel.renderPlot();
+                // Explizites Neuzeichnen wird nun in setResolution() ausgeführt
             }
         });
 
@@ -349,20 +352,20 @@ public class Plot3DUIBuilder {
         showCoordinateSystemCheckbox = new JCheckBox("Koordinatensystem anzeigen", true);
         showCoordinateSystemCheckbox.addActionListener(e -> {
             viewController.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
-            mainPanel.getPlotPanel().repaint();
+            // Explizites Neuzeichnen wird nun in setShowCoordinateSystem() ausgeführt
         });
 
         showGridCheckbox = new JCheckBox("Gitter anzeigen", true);
         showGridCheckbox.addActionListener(e -> {
             viewController.setShowGrid(showGridCheckbox.isSelected());
-            mainPanel.getPlotPanel().repaint();
+            // Explizites Neuzeichnen wird nun in setShowGrid() ausgeführt
         });
 
         // Checkbox für Hilfslinien
         showHelperLinesCheckbox = new JCheckBox("Hilfslinien anzeigen", true);
         showHelperLinesCheckbox.addActionListener(e -> {
             viewController.setShowHelperLines(showHelperLinesCheckbox.isSelected());
-            mainPanel.getPlotPanel().repaint();
+            // Explizites Neuzeichnen wird nun in setShowHelperLines() ausgeführt
             mainPanel.debug("Hilfslinien " + (showHelperLinesCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
         });
 
@@ -394,7 +397,7 @@ public class Plot3DUIBuilder {
 
             if (!rotationXSlider.getValueIsAdjusting()) {
                 viewController.updateRotation();
-                mainPanel.getPlotPanel().repaint();
+                mainPanel.renderPlot();
             }
         });
 
@@ -416,7 +419,7 @@ public class Plot3DUIBuilder {
 
             if (!rotationYSlider.getValueIsAdjusting()) {
                 viewController.updateRotation();
-                mainPanel.getPlotPanel().repaint();
+                mainPanel.renderPlot();
             }
         });
 
@@ -438,7 +441,7 @@ public class Plot3DUIBuilder {
 
             if (!rotationZSlider.getValueIsAdjusting()) {
                 viewController.updateRotation();
-                mainPanel.getPlotPanel().repaint();
+                mainPanel.renderPlot();
             }
         });
 

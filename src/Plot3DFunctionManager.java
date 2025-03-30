@@ -11,6 +11,9 @@ public class Plot3DFunctionManager {
     private final Plot3DRenderer renderer;
     private final Plot3DViewController viewController;
 
+    // Referenz auf das übergeordnete Panel
+    private Plot3DPanel parentPanel;
+
     // Funktionslisten-Komponenten
     private DefaultListModel<String> functionListModel;
     private JList<String> functionList;
@@ -42,6 +45,13 @@ public class Plot3DFunctionManager {
 
         // Doppelklick-Listener für Bearbeitung
         setupListListeners();
+    }
+
+    /**
+     * Setzt die Referenz auf das übergeordnete Panel
+     */
+    public void setParentPanel(Plot3DPanel parentPanel) {
+        this.parentPanel = parentPanel;
     }
 
     /**
@@ -164,6 +174,11 @@ public class Plot3DFunctionManager {
             // Funktion im Renderer aktualisieren
             renderer.addFunction(function, color);
             debug("Funktion aktualisiert: " + function);
+
+            // Explizites Neuzeichnen
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(
                     functionList,
@@ -209,6 +224,12 @@ public class Plot3DFunctionManager {
             // Funktion zum Renderer hinzufügen
             renderer.addFunction(function, color);
             debug("Funktion hinzugefügt: " + function);
+
+            // Explizites Neuzeichnen
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
+
         } catch (Exception e) {
             // Fehler behandeln - Eintrag wieder entfernen
             functionListModel.removeElement(entry);
@@ -240,6 +261,11 @@ public class Plot3DFunctionManager {
         renderer.removeFunction(selectedIndex);
 
         debug("Funktion an Position " + selectedIndex + " entfernt");
+
+        // Explizites Neuzeichnen
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     /**
@@ -264,6 +290,11 @@ public class Plot3DFunctionManager {
             renderer.clearFunctions();
 
             debug("Alle Funktionen gelöscht");
+
+            // Explizites Neuzeichnen
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
         }
     }
 

@@ -13,6 +13,9 @@ import javax.swing.JTextField;
 public class Plot3DViewController {
     private final Plot3DRenderer renderer;
 
+    // Referenz auf das übergeordnete Panel
+    private Plot3DPanel parentPanel;
+
     // Standardwerte für die Ansicht
     public static final double DEFAULT_MIN = -5.0;
     public static final double DEFAULT_MAX = 5.0;
@@ -62,6 +65,13 @@ public class Plot3DViewController {
     }
 
     /**
+     * Setzt die Referenz auf das übergeordnete Panel
+     */
+    public void setParentPanel(Plot3DPanel panel) {
+        this.parentPanel = panel;
+    }
+
+    /**
      * Aktualisiert die Rotation im Renderer
      */
     public void updateRotation() {
@@ -97,6 +107,12 @@ public class Plot3DViewController {
 
             // Grenzen im Renderer setzen
             renderer.setBounds(xMin, xMax, yMin, yMax);
+
+            // Explizites Neuzeichnen, wenn verfügbar
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
+
         } catch (ParseException e) {
             debug("Fehler beim Parsen der Bereichsangaben: " + e.getMessage());
             throw new IllegalArgumentException("Bitte geben Sie gültige Zahlen für die Bereiche ein.");
@@ -109,6 +125,11 @@ public class Plot3DViewController {
     public void setResolution(int resolution) {
         renderer.setResolution(resolution);
         debug("Auflösung geändert auf " + resolution);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     /**
@@ -147,6 +168,12 @@ public class Plot3DViewController {
             renderer.setScale(currentScale);
 
             debug("Ansicht auf Standardwerte zurückgesetzt");
+
+            // Explizites Neuzeichnen, wenn verfügbar
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
+
         } catch (Exception e) {
             debug("Fehler beim Zurücksetzen der Ansicht: " + e.getMessage());
         }
@@ -224,34 +251,69 @@ public class Plot3DViewController {
     public void setCurrentScale(double scale) {
         this.currentScale = scale;
         renderer.setScale(scale);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void setPan(double panX, double panY) {
         renderer.setPan(panX, panY);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void addPan(double deltaPanX, double deltaPanY) {
         renderer.addPan(deltaPanX, deltaPanY);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void zoom(double factor) {
         currentScale *= factor;
         renderer.zoom(factor);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void setShowCoordinateSystem(boolean show) {
         this.showCoordinateSystem = show;
         renderer.setShowCoordinateSystem(show);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void setShowGrid(boolean show) {
         this.showGrid = show;
         renderer.setShowGrid(show);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void setShowHelperLines(boolean show) {
         this.showHelperLines = show;
         renderer.setShowHelperLines(show);
+
+        // Explizites Neuzeichnen, wenn verfügbar
+        if (parentPanel != null) {
+            parentPanel.renderPlot();
+        }
     }
 
     public void setXMinField(JTextField field) {

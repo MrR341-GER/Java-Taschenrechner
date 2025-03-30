@@ -11,32 +11,32 @@ public class Plot3DInteractionHandler {
     private final JPanel plotPanel;
     private final Plot3DViewController viewController;
     private final Plot3DPanel mainPanel;
-    
+
     // Mouse-Interaktionsparameter
     private Point lastMousePos;
     private boolean isDragging = false;
     private boolean isPanning = false;
-    
+
     // Debug-Referenz
     private DebugManager debugManager;
-    
+
     /**
      * Konstruktor für den Interaktions-Handler
      * 
-     * @param plotPanel Das Plot-Panel, auf dem gezeichnet wird
+     * @param plotPanel      Das Plot-Panel, auf dem gezeichnet wird
      * @param viewController Der View-Controller
-     * @param mainPanel Das Hauptpanel des 3D-Plotters
+     * @param mainPanel      Das Hauptpanel des 3D-Plotters
      */
-    public Plot3DInteractionHandler(JPanel plotPanel, Plot3DViewController viewController, 
-                                   Plot3DPanel mainPanel) {
+    public Plot3DInteractionHandler(JPanel plotPanel, Plot3DViewController viewController,
+            Plot3DPanel mainPanel) {
         this.plotPanel = plotPanel;
         this.viewController = viewController;
         this.mainPanel = mainPanel;
-        
+
         // Mouse-Listener einrichten
         setupMouseListeners();
     }
-    
+
     /**
      * Richtet die Maus-Listener für Interaktionen ein
      */
@@ -87,7 +87,7 @@ public class Plot3DInteractionHandler {
             }
         });
     }
-    
+
     /**
      * Verarbeitet die Rotation des 3D-Plots
      * 
@@ -110,11 +110,16 @@ public class Plot3DInteractionHandler {
 
         // Aktualisiere Rotation im Renderer
         viewController.updateRotation();
-        
+
         // Plot neu zeichnen
         plotPanel.repaint();
+
+        // Sicherstellen, dass das Panel vollständig aktualisiert wird
+        if (mainPanel != null) {
+            mainPanel.renderPlot();
+        }
     }
-    
+
     /**
      * Verarbeitet das Verschieben der Ansicht
      * 
@@ -154,7 +159,7 @@ public class Plot3DInteractionHandler {
         debug("Wertebereich verschoben nach: x=[" + newXMin + "," + newXMax +
                 "], y=[" + newYMin + "," + newYMax + "]");
     }
-    
+
     /**
      * Verarbeitet Zoom-Operationen
      * 
@@ -201,7 +206,7 @@ public class Plot3DInteractionHandler {
                 "[" + formatDouble(newXMin) + ", " + formatDouble(newXMax) + "] x " +
                 "[" + formatDouble(newYMin) + ", " + formatDouble(newYMax) + "]");
     }
-    
+
     /**
      * Formatiert eine Dezimalzahl für Debug-Ausgaben
      */
@@ -209,14 +214,14 @@ public class Plot3DInteractionHandler {
         DecimalFormat df = new DecimalFormat("0.##");
         return df.format(value);
     }
-    
+
     /**
      * Setzt den DebugManager für Logging
      */
     public void setDebugManager(DebugManager debugManager) {
         this.debugManager = debugManager;
     }
-    
+
     /**
      * Schreibt Debug-Informationen in das Debug-Fenster
      */
