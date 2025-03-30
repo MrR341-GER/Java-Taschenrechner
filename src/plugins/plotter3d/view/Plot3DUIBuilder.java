@@ -357,8 +357,8 @@ public class Plot3DUIBuilder {
      * Erstellt das Panel für die Anzeigeoptionen
      */
     private JPanel createDisplayOptionsPanel() {
-        // Anzahl der Zeilen erhöhen (von 3 auf 4)
-        JPanel displayOptionsPanel = new JPanel(new GridLayout(4, 1, 5, 5));
+        // Anzahl der Zeilen erhöhen (von 4 auf 5 für die neue Schnittlinien-Option)
+        JPanel displayOptionsPanel = new JPanel(new GridLayout(5, 1, 5, 5));
         displayOptionsPanel.setBorder(BorderFactory.createTitledBorder("Anzeigeoptionen"));
 
         showCoordinateSystemCheckbox = new JCheckBox("Koordinatensystem anzeigen", true);
@@ -377,14 +377,14 @@ public class Plot3DUIBuilder {
             mainPanel.debug("Hilfslinien " + (showHelperLinesCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
         });
 
-        // Neue Checkbox für Heatmap-Modus
+        // Checkbox für Heatmap-Modus
         useHeatmapCheckbox = new JCheckBox("Heatmap-Farben verwenden", true);
         useHeatmapCheckbox.addActionListener(e -> {
             viewController.setUseHeatmap(useHeatmapCheckbox.isSelected());
             mainPanel.debug("Heatmap-Farben " + (useHeatmapCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
         });
 
-        // Neue Checkbox für undurchsichtige Darstellung
+        // Checkbox für undurchsichtige Darstellung
         useSolidSurfaceCheckbox = new JCheckBox("Undurchsichtige Oberflächen mit Schattierung", false);
         useSolidSurfaceCheckbox.addActionListener(new ActionListener() {
             @Override
@@ -408,11 +408,33 @@ public class Plot3DUIBuilder {
             }
         });
 
+        // NEUE Checkbox für Schnittlinien
+        JCheckBox showIntersectionsCheckbox = new JCheckBox("Schnittlinien zwischen Funktionen anzeigen", true);
+        showIntersectionsCheckbox.addActionListener(e -> {
+            boolean isSelected = showIntersectionsCheckbox.isSelected();
+
+            // Direkt den Renderer aktualisieren
+            if (mainPanel != null && mainPanel.getRenderer() != null) {
+                mainPanel.getRenderer().setShowIntersections(isSelected);
+                mainPanel.debug("Schnittlinien direkt auf Renderer gesetzt: " +
+                        (isSelected ? "aktiviert" : "deaktiviert"));
+            }
+
+            // Auch über ViewController setzen
+            viewController.setShowIntersections(isSelected);
+            mainPanel.debug("Schnittlinien über ViewController gesetzt: " +
+                    (isSelected ? "aktiviert" : "deaktiviert"));
+
+            // Explizit neu zeichnen
+            mainPanel.renderPlot();
+        });
+
         displayOptionsPanel.add(showCoordinateSystemCheckbox);
         displayOptionsPanel.add(showGridCheckbox);
         displayOptionsPanel.add(showHelperLinesCheckbox);
         displayOptionsPanel.add(useHeatmapCheckbox);
         displayOptionsPanel.add(useSolidSurfaceCheckbox);
+        displayOptionsPanel.add(showIntersectionsCheckbox);
 
         return displayOptionsPanel;
     }

@@ -1,10 +1,11 @@
-
 package plugins.plotter3d.renderer;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.List;
 
 import plugins.plotter3d.model.Plot3DModel;
+import plugins.plotter3d.model.Plot3DPoint;
 import plugins.plotter3d.view.Plot3DView;
 
 /**
@@ -21,6 +22,7 @@ public class Plot3DRenderer {
     private final Plot3DColorScheme colorScheme;
     private boolean useHeatmap = true;
     private boolean useSolidSurface = false;
+    private boolean showIntersections = true; // Neue Option für Schnittlinien
 
     /**
      * Creates a new 3D renderer with the specified bounds and resolution
@@ -33,6 +35,20 @@ public class Plot3DRenderer {
         this.gridRenderer = new Plot3DGridRenderer(transformer);
         this.functionRenderer = new Plot3DFunctionRenderer(transformer);
         this.colorScheme = Plot3DColorScheme.createDefault();
+    }
+
+    /**
+     * Aktiviert oder deaktiviert die Anzeige von Schnittlinien zwischen Funktionen
+     */
+    public void setShowIntersections(boolean showIntersections) {
+        this.showIntersections = showIntersections;
+    }
+
+    /**
+     * Gibt zurück, ob Schnittlinien angezeigt werden
+     */
+    public boolean isShowIntersections() {
+        return showIntersections;
     }
 
     /**
@@ -222,11 +238,105 @@ public class Plot3DRenderer {
         // Funktionen zeichnen - mit allen Parametern
         functionRenderer.drawFunctions(g2d, model, view, displayScale, xOffset, yOffset, useHeatmap, useSolidSurface);
 
+        // Schnittlinien zwischen Funktionen zeichnen, wenn aktiviert
+        if (showIntersections && model.getFunctions().size() >= 2) {
+            drawIntersectionCurves(g2d, displayScale, xOffset, yOffset);
+        }
+
         // Informationslabels zeichnen
         gridRenderer.drawInfoLabels(g2d, model, view, width, height);
 
         // Farbskala zeichnen
         gridRenderer.drawColorScale(g2d, model, colorScheme, width - 30, 50, 20, height - 100);
+    }
+
+    /**
+     * Zeichnet die berechneten Schnittlinien zwischen den Funktionen
+     */
+    private void drawIntersectionCurves(Graphics2D g2d, double displayScale, int xOffset, int yOffset) {
+        // Transformationsparameter für den Transformator berechnen
+        double xCenter = (view.getXMax() + view.getXMin()) / 2;
+        double yCenter = (view.getYMax() + view.getYMin()) / 2;
+        double zCenter = (model.getZMax() + model.getZMin()) / 2;
+
+        // Berechne den Normalisierungsfaktor für die Koordinaten
+        double xRange = view.getXMax() - view.getXMin();
+        double yRange = view.getYMax() - view.getYMin();
+        double zRange = model.getZMax() - model.getZMin();
+        double maxRange = Math.max(xRange, Math.max(yRange, zRange));
+        double factor = 1.0 / maxRange;
+
+        // Rotationswinkel in Bogenmaß umrechnen
+        double angleX = Math.toRadians(view.getRotationX());
+        double angleY = Math.toRadians(view.getRotationY());
+        double angleZ = Math.toRadians(view.getRotationZ());
+
+        // Sinus und Kosinus der Rotationswinkel berechnen
+        double sinX = Math.sin(angleX);
+        double cosX = Math.cos(angleX);
+        double sinY = Math.sin(angleY);
+        double cosY = Math.cos(angleY);
+        double sinZ = Math.sin(angleZ);
+        double cosZ = Math.cos(angleZ);
+
+        // Alle Schnittkurven analytisch berechnen
+        List<List<Plot3DPoint>> allIntersections = Plot3DIntersectionCalculator.calculateAllIntersections(
+                model, view.getXMin(), view.getXMax(), view.getYMin(), view.getYMax());
+
+        // Original-Strich speichern
+        Stroke originalStroke = g2d.getStroke();
+
+        // Farbe und Strich für Schnittlinien setzen
+        g2d.setColor(Plot3DIntersectionCalculator.getIntersectionColor());
+        g2d.setStroke(new BasicStroke(2.0f));
+
+        // Alle Schnittlinien zeichnen
+        for (List<Plot3DPoint> intersectionCurve : allIntersections) {
+            if (intersectionCurve.size() < 2)
+                continue;
+
+            Plot3DPoint lastPoint = null;
+
+            for (Plot3DPoint point : intersectionCurve) {
+                // NaN-Punkt als Separator für getrennte Kurven
+                if (Double.isNaN(point.getX()) || Double.isNaN(point.getY()) || Double.isNaN(point.getZ())) {
+                    lastPoint = null;
+                    continue;
+                }
+
+                // Punkt transformieren
+                Plot3DPoint transformedPoint = transformer.transformPoint(
+                        point.getX(), point.getY(), point.getZ(),
+                        xCenter, yCenter, zCenter, factor, view.getScale(),
+                        sinX, cosX, sinY, cosY, sinZ, cosZ,
+                        view.getPanX(), view.getPanY());
+
+                // Projektion auf die 2D-Ebene
+                int[] screenPos = transformer.projectToScreen(transformedPoint, displayScale, xOffset, yOffset);
+
+                // Wenn es einen vorherigen Punkt gibt, zeichne eine Linie
+                if (lastPoint != null) {
+                    // Letzten Punkt ebenfalls transformieren
+                    Plot3DPoint transformedLastPoint = transformer.transformPoint(
+                            lastPoint.getX(), lastPoint.getY(), lastPoint.getZ(),
+                            xCenter, yCenter, zCenter, factor, view.getScale(),
+                            sinX, cosX, sinY, cosY, sinZ, cosZ,
+                            view.getPanX(), view.getPanY());
+
+                    // Projektion des letzten Punktes
+                    int[] lastScreenPos = transformer.projectToScreen(
+                            transformedLastPoint, displayScale, xOffset, yOffset);
+
+                    // Linie zwischen den Punkten zeichnen
+                    g2d.drawLine(lastScreenPos[0], lastScreenPos[1], screenPos[0], screenPos[1]);
+                }
+
+                lastPoint = point;
+            }
+        }
+
+        // Original-Strich wiederherstellen
+        g2d.setStroke(originalStroke);
     }
 
     /**

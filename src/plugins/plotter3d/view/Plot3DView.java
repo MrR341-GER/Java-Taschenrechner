@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.view;
 
 /**
@@ -28,6 +27,7 @@ public class Plot3DView {
     private boolean showGrid = true;
     private boolean showHelperLines = true;
     private boolean useSolidSurface = false;
+    private boolean showIntersections = true; // Neue Option für Schnittlinien
 
     // Farbmodus
     private boolean useHeatmap = true; // Standardmäßig Heatmap verwenden
@@ -53,6 +53,20 @@ public class Plot3DView {
         this.rotationX = 30;
         this.rotationY = 0;
         this.rotationZ = 30;
+    }
+
+    /**
+     * Aktiviert oder deaktiviert die Anzeige von Schnittlinien zwischen Funktionen
+     */
+    public void setShowIntersections(boolean showIntersections) {
+        this.showIntersections = showIntersections;
+    }
+
+    /**
+     * Gibt zurück, ob Schnittlinien angezeigt werden
+     */
+    public boolean isShowIntersections() {
+        return showIntersections;
     }
 
     /**

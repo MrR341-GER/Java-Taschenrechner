@@ -15,4 +15,4 @@ REM Create the JAR file with the core.GrafischerTaschenrechner as the main class
 jar cvfe GrafischerTaschenrechner.jar core.GrafischerTaschenrechner -C bin .
 
 REM Run the application directly with the main class to ensure initialization methods are called
-java -cp GrafischerTaschenrechner.jar core.GrafischerTaschenrechner
+java -Xmx4G -cp GrafischerTaschenrechner.jar core.GrafischerTaschenrechner

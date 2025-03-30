@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.view;
 
 import java.awt.Color;
@@ -52,6 +51,7 @@ public class Plot3DViewController {
     private boolean showGrid = true;
     private boolean showHelperLines = true;
     private boolean useSolidSurface = false;
+    private boolean showIntersections = true; // Neue Option für Schnittlinien
 
     // Debug-Referenz
     private DebugManager debugManager;
@@ -70,6 +70,36 @@ public class Plot3DViewController {
         renderer.setShowCoordinateSystem(showCoordinateSystem);
         renderer.setShowGrid(showGrid);
         renderer.setShowHelperLines(showHelperLines);
+        renderer.setShowIntersections(showIntersections); // Initialwert für Schnittlinien setzen
+    }
+
+    /**
+     * Aktiviert oder deaktiviert die Anzeige von Schnittlinien zwischen Funktionen
+     */
+    public void setShowIntersections(boolean showIntersections) {
+        this.showIntersections = showIntersections;
+
+        if (renderer != null) {
+            renderer.setShowIntersections(showIntersections);
+
+            // Explizites Neuzeichnen, wenn verfügbar
+            if (parentPanel != null) {
+                parentPanel.renderPlot();
+            }
+        }
+
+        debug("Schnittlinien zwischen Funktionen: " +
+                (showIntersections ? "aktiviert" : "deaktiviert"));
+    }
+
+    /**
+     * Gibt zurück, ob Schnittlinien angezeigt werden
+     */
+    public boolean isShowIntersections() {
+        if (renderer != null) {
+            return renderer.isShowIntersections();
+        }
+        return showIntersections;
     }
 
     /**
