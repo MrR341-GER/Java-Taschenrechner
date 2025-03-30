@@ -162,7 +162,7 @@ public class Plot3DInteractionHandler {
         double zSpeedFactor = 0.8 + 0.4 * distanceX; // 0.8-1.2x Geschwindigkeit
 
         // Rotationsänderungen berechnen
-        double deltaRotationX = dy * rotationSensitivity * xSpeedFactor;
+        double deltaRotationX = -dy * rotationSensitivity * xSpeedFactor;
         double deltaRotationZ = dx * rotationSensitivity * zSpeedFactor * zRotationDirection;
 
         // Neue Rotationswerte berechnen und normalisieren (0-360 Grad)

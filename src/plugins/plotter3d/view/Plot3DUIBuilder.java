@@ -386,10 +386,26 @@ public class Plot3DUIBuilder {
 
         // Neue Checkbox für undurchsichtige Darstellung
         useSolidSurfaceCheckbox = new JCheckBox("Undurchsichtige Oberflächen mit Schattierung", false);
-        useSolidSurfaceCheckbox.addActionListener(e -> {
-            viewController.setUseSolidSurface(useSolidSurfaceCheckbox.isSelected());
-            mainPanel.debug("Undurchsichtige Darstellung " +
-                    (useSolidSurfaceCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
+        useSolidSurfaceCheckbox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                boolean isSelected = useSolidSurfaceCheckbox.isSelected();
+
+                // Direkt den Renderer aktualisieren
+                if (mainPanel != null && mainPanel.getRenderer() != null) {
+                    mainPanel.getRenderer().setUseSolidSurface(isSelected);
+                    mainPanel.debug("Undurchsichtige Darstellung direkt auf Renderer gesetzt: " +
+                            (isSelected ? "aktiviert" : "deaktiviert"));
+                }
+
+                // Auch über ViewController setzen
+                viewController.setUseSolidSurface(isSelected);
+                mainPanel.debug("Undurchsichtige Darstellung über ViewController gesetzt: " +
+                        (isSelected ? "aktiviert" : "deaktiviert"));
+
+                // Explizit neu zeichnen
+                mainPanel.renderPlot();
+            }
         });
 
         displayOptionsPanel.add(showCoordinateSystemCheckbox);

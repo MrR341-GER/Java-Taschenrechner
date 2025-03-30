@@ -2,6 +2,9 @@ package plugins.plotter3d.renderer;
 
 import java.awt.*;
 import java.awt.geom.Path2D;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import plugins.plotter3d.model.Plot3DModel;
 import plugins.plotter3d.model.Plot3DPoint;
@@ -24,26 +27,40 @@ public class Plot3DFunctionRenderer {
     /**
      * Zeichnet alle Funktionen im Modell
      * 
-     * @param g2d          Grafikkontext
-     * @param model        Datenmodell mit Funktionen
-     * @param view         Ansichtsparameter
-     * @param displayScale Skalierungsfaktor für die Anzeige
-     * @param xOffset      X-Versatz für die Anzeige
-     * @param yOffset      Y-Versatz für die Anzeige
-     * @param useHeatmap   Ob Heatmap-Farben verwendet werden sollen
+     * @param g2d             Grafikkontext
+     * @param model           Datenmodell mit Funktionen
+     * @param view            Ansichtsparameter
+     * @param displayScale    Skalierungsfaktor für die Anzeige
+     * @param xOffset         X-Versatz für die Anzeige
+     * @param yOffset         Y-Versatz für die Anzeige
+     * @param useHeatmap      Ob Heatmap-Farben verwendet werden sollen
+     * @param useSolidSurface Ob undurchsichtige Oberflächen mit Schattierung
+     *                        verwendet werden sollen
      */
     public void drawFunctions(Graphics2D g2d, Plot3DModel model, Plot3DView view,
-            double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
+            double displayScale, int xOffset, int yOffset,
+            boolean useHeatmap, boolean useSolidSurface) {
         // Jede Funktion im Modell zeichnen
         for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
             drawFunctionGrid(g2d, functionInfo, model, displayScale, xOffset, yOffset,
-                    useHeatmap, view.isUseSolidSurface());
+                    useHeatmap, useSolidSurface);
         }
     }
 
     /**
+     * Zeichnet alle Funktionen im Modell (Überladene Methode für
+     * Rückwärtskompatibilität)
+     */
+    public void drawFunctions(Graphics2D g2d, Plot3DModel model, Plot3DView view,
+            double displayScale, int xOffset, int yOffset, boolean useHeatmap) {
+        // Delegiere an die vollständige Methode mit dem zusätzlichen Parameter
+        drawFunctions(g2d, model, view, displayScale, xOffset, yOffset,
+                useHeatmap, view.isUseSolidSurface());
+    }
+
+    /**
      * Zeichnet eine einzelne Funktion als Gitter oder als undurchsichtige
-     * Oberfläche mit Schattierung
+     * Oberfläche mit Schattierung und Tiefensortierung
      */
     private void drawFunctionGrid(Graphics2D g2d, Plot3DModel.Function3DInfo functionInfo,
             Plot3DModel model, double displayScale, int xOffset, int yOffset,
@@ -62,8 +79,33 @@ public class Plot3DFunctionRenderer {
         // Originalen Zeichenstil speichern
         Stroke originalStroke = g2d.getStroke();
 
-        // Bei undurchsichtiger Darstellung zunächst die Dreiecke/Polygone zeichnen
+        // Bei undurchsichtiger Darstellung zunächst die Dreiecke/Polygone sammeln und
+        // sortieren
         if (useSolidSurface) {
+            // Klasse für ein Dreieck mit seiner Tiefe (Z-Wert)
+            class Triangle implements Comparable<Triangle> {
+                int[] xPoints;
+                int[] yPoints;
+                Color color;
+                double depth; // Mittlere Z-Koordinate für die Tiefensortierung
+
+                Triangle(int[] xPoints, int[] yPoints, Color color, double depth) {
+                    this.xPoints = xPoints;
+                    this.yPoints = yPoints;
+                    this.color = color;
+                    this.depth = depth;
+                }
+
+                @Override
+                public int compareTo(Triangle other) {
+                    // Sortiere von hinten nach vorne (größerer Tiefenwert = weiter hinten)
+                    return Double.compare(other.depth, this.depth);
+                }
+            }
+
+            // Liste aller Dreiecke erstellen
+            List<Triangle> triangles = new ArrayList<>();
+
             // Der Lichtquelle für die Schattierung (normalisierter Vektor)
             double[] lightSource = { 0.5, 0.5, 1.0 };
             double lightMagnitude = Math.sqrt(lightSource[0] * lightSource[0] +
@@ -73,7 +115,7 @@ public class Plot3DFunctionRenderer {
             lightSource[1] /= lightMagnitude;
             lightSource[2] /= lightMagnitude;
 
-            // Undurchsichtige Oberfläche als Dreiecke zeichnen
+            // Dreiecke sammeln
             for (int i = 0; i < resolution - 1; i++) {
                 for (int j = 0; j < resolution - 1; j++) {
                     // Vier Punkte, die ein Quadrat bilden
@@ -114,71 +156,115 @@ public class Plot3DFunctionRenderer {
                         normal[2] /= normalMagnitude;
                     }
 
-                    // Farbe basierend auf Z-Wert und Beleuchtung berechnen
-                    Color baseColor;
-                    if (useHeatmap) {
-                        // Normalisierter Z-Wert für die Farbskala
-                        double normalizedZ = (p1.getZ() - model.getZMin()) /
-                                (model.getZMax() - model.getZMin());
-                        normalizedZ = Math.max(0, Math.min(1, normalizedZ));
-                        baseColor = colorScheme.getColorForValue(normalizedZ);
-                    } else {
-                        baseColor = functionInfo.getColor();
+                    // Backface Culling - Flächen, die von der Kamera abgewandt sind, nicht zeichnen
+                    // Für unseren Fall: Normalen, die in positiver Z-Richtung zeigen (normal[2] <
+                    // 0),
+                    // zeigen von der Kamera weg und werden nicht gezeichnet
+                    boolean isVisible = normal[2] >= 0;
+
+                    if (isVisible) {
+                        // Farbe basierend auf Z-Wert und Beleuchtung berechnen
+                        Color baseColor;
+                        if (useHeatmap) {
+                            // Normalisierter Z-Wert für die Farbskala
+                            double normalizedZ = (p1.getZ() - model.getZMin()) /
+                                    (model.getZMax() - model.getZMin());
+                            normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+                            baseColor = colorScheme.getColorForValue(normalizedZ);
+                        } else {
+                            baseColor = functionInfo.getColor();
+                        }
+
+                        // Skalarprodukt zwischen Normale und Lichtquelle berechnen (Lambertsche
+                        // Beleuchtung)
+                        double dotProduct = normal[0] * lightSource[0] +
+                                normal[1] * lightSource[1] +
+                                normal[2] * lightSource[2];
+
+                        // Sicherstellen, dass das Skalarprodukt positiv ist (sonst andere Seite der
+                        // Fläche)
+                        dotProduct = Math.abs(dotProduct);
+
+                        // Farbe basierend auf der Beleuchtung anpassen
+                        int red = (int) (baseColor.getRed() * (0.4 + 0.6 * dotProduct));
+                        int green = (int) (baseColor.getGreen() * (0.4 + 0.6 * dotProduct));
+                        int blue = (int) (baseColor.getBlue() * (0.4 + 0.6 * dotProduct));
+
+                        // Farbwerte begrenzen
+                        red = Math.max(0, Math.min(255, red));
+                        green = Math.max(0, Math.min(255, green));
+                        blue = Math.max(0, Math.min(255, blue));
+
+                        Color shadedColor = new Color(red, green, blue);
+
+                        // Mittlere Tiefe für die Sortierung berechnen
+                        double depth1 = (p1.getZ() + p2.getZ() + p3.getZ()) / 3.0;
+
+                        // Erstes Dreieck (p1, p2, p3) zur Liste hinzufügen
+                        int[] xPoints1 = { s1[0], s2[0], s3[0] };
+                        int[] yPoints1 = { s1[1], s2[1], s3[1] };
+                        triangles.add(new Triangle(xPoints1, yPoints1, shadedColor, depth1));
+
+                        // Normale für das zweite Dreieck (p1, p3, p4) berechnen
+                        double[] v3 = { p3.getX() - p1.getX(), p3.getY() - p1.getY(), p3.getZ() - p1.getZ() };
+                        double[] v4 = { p4.getX() - p1.getX(), p4.getY() - p1.getY(), p4.getZ() - p1.getZ() };
+
+                        double[] normal2 = {
+                                v3[1] * v4[2] - v3[2] * v4[1],
+                                v3[2] * v4[0] - v3[0] * v4[2],
+                                v3[0] * v4[1] - v3[1] * v4[0]
+                        };
+
+                        // Normale normalisieren
+                        double normal2Magnitude = Math.sqrt(normal2[0] * normal2[0] +
+                                normal2[1] * normal2[1] +
+                                normal2[2] * normal2[2]);
+                        if (normal2Magnitude > 0) {
+                            normal2[0] /= normal2Magnitude;
+                            normal2[1] /= normal2Magnitude;
+                            normal2[2] /= normal2Magnitude;
+                        }
+
+                        // Backface Culling für das zweite Dreieck
+                        boolean isVisible2 = normal2[2] >= 0;
+
+                        if (isVisible2) {
+                            // Skalarprodukt für zweites Dreieck
+                            double dotProduct2 = normal2[0] * lightSource[0] +
+                                    normal2[1] * lightSource[1] +
+                                    normal2[2] * lightSource[2];
+                            dotProduct2 = Math.abs(dotProduct2);
+
+                            // Farbe anpassen
+                            int red2 = (int) (baseColor.getRed() * (0.4 + 0.6 * dotProduct2));
+                            int green2 = (int) (baseColor.getGreen() * (0.4 + 0.6 * dotProduct2));
+                            int blue2 = (int) (baseColor.getBlue() * (0.4 + 0.6 * dotProduct2));
+
+                            red2 = Math.max(0, Math.min(255, red2));
+                            green2 = Math.max(0, Math.min(255, green2));
+                            blue2 = Math.max(0, Math.min(255, blue2));
+
+                            Color shadedColor2 = new Color(red2, green2, blue2);
+
+                            // Mittlere Tiefe für das zweite Dreieck
+                            double depth2 = (p1.getZ() + p3.getZ() + p4.getZ()) / 3.0;
+
+                            // Zweites Dreieck (p1, p3, p4) zur Liste hinzufügen
+                            int[] xPoints2 = { s1[0], s3[0], s4[0] };
+                            int[] yPoints2 = { s1[1], s3[1], s4[1] };
+                            triangles.add(new Triangle(xPoints2, yPoints2, shadedColor2, depth2));
+                        }
                     }
-
-                    // Skalarprodukt zwischen Normale und Lichtquelle berechnen (Lambertsche
-                    // Beleuchtung)
-                    double dotProduct = normal[0] * lightSource[0] +
-                            normal[1] * lightSource[1] +
-                            normal[2] * lightSource[2];
-
-                    // Sicherstellen, dass das Skalarprodukt positiv ist (sonst andere Seite der
-                    // Fläche)
-                    dotProduct = Math.abs(dotProduct);
-
-                    // Farbe basierend auf der Beleuchtung anpassen
-                    int red = (int) (baseColor.getRed() * (0.4 + 0.6 * dotProduct));
-                    int green = (int) (baseColor.getGreen() * (0.4 + 0.6 * dotProduct));
-                    int blue = (int) (baseColor.getBlue() * (0.4 + 0.6 * dotProduct));
-
-                    // Farbwerte begrenzen
-                    red = Math.max(0, Math.min(255, red));
-                    green = Math.max(0, Math.min(255, green));
-                    blue = Math.max(0, Math.min(255, blue));
-
-                    Color shadedColor = new Color(red, green, blue);
-                    g2d.setColor(shadedColor);
-
-                    // Erstes Dreieck (p1, p2, p3) zeichnen
-                    int[] xPoints1 = { s1[0], s2[0], s3[0] };
-                    int[] yPoints1 = { s1[1], s2[1], s3[1] };
-                    g2d.fillPolygon(xPoints1, yPoints1, 3);
-
-                    // Normale für das zweite Dreieck (p1, p3, p4) berechnen
-                    double[] v3 = { p3.getX() - p1.getX(), p3.getY() - p1.getY(), p3.getZ() - p1.getZ() };
-                    double[] v4 = { p4.getX() - p1.getX(), p4.getY() - p1.getY(), p4.getZ() - p1.getZ() };
-
-                    double[] normal2 = {
-                            v3[1] * v4[2] - v3[2] * v4[1],
-                            v3[2] * v4[0] - v3[0] * v4[2],
-                            v3[0] * v4[1] - v3[1] * v4[0]
-                    };
-
-                    // Normale normalisieren
-                    double normal2Magnitude = Math.sqrt(normal2[0] * normal2[0] +
-                            normal2[1] * normal2[1] +
-                            normal2[2] * normal2[2]);
-                    if (normal2Magnitude > 0) {
-                        normal2[0] /= normal2Magnitude;
-                        normal2[1] /= normal2Magnitude;
-                        normal2[2] /= normal2Magnitude;
-                    }
-
-                    // Zweites Dreieck (p1, p3, p4) zeichnen
-                    int[] xPoints2 = { s1[0], s3[0], s4[0] };
-                    int[] yPoints2 = { s1[1], s3[1], s4[1] };
-                    g2d.fillPolygon(xPoints2, yPoints2, 3);
                 }
+            }
+
+            // Dreiecke nach Tiefe sortieren und zeichnen (Painter's Algorithm)
+            Collections.sort(triangles);
+
+            // Dreiecke von hinten nach vorne zeichnen
+            for (Triangle triangle : triangles) {
+                g2d.setColor(triangle.color);
+                g2d.fillPolygon(triangle.xPoints, triangle.yPoints, 3);
             }
         }
 
@@ -316,7 +402,7 @@ public class Plot3DFunctionRenderer {
     }
 
     /**
-     * Creates a snapshot image of the current plot
+     * Erstellt ein Snapshot-Bild des aktuellen Plots
      */
     public java.awt.image.BufferedImage createImage(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             Plot3DColorScheme colorScheme, Plot3DGridRenderer gridRenderer,
@@ -325,20 +411,20 @@ public class Plot3DFunctionRenderer {
                 width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2dImage = image.createGraphics();
 
-        // Set background
+        // Hintergrund setzen
         g2dImage.setColor(Color.WHITE);
         g2dImage.fillRect(0, 0, width, height);
 
-        // Enable anti-aliasing
+        // Anti-Aliasing aktivieren
         g2dImage.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2dImage.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Calculate display parameters
+        // Anzeigeeinstellungen berechnen
         double displayScale = Math.min(width, height) * 0.6;
         int xOffset = width / 2;
         int yOffset = height / 2;
 
-        // Draw coordinate system
+        // Koordinatensystem zeichnen
         if (view.isShowCoordinateSystem()) {
             if (view.isShowGrid()) {
                 gridRenderer.drawCoordinateGrid(g2dImage, model, view, displayScale, xOffset, yOffset);
@@ -352,13 +438,16 @@ public class Plot3DFunctionRenderer {
             gridRenderer.drawTicksAndLabels(g2dImage, model, view, displayScale, xOffset, yOffset);
         }
 
-        // Draw functions
-        drawFunctions(g2dImage, model, view, displayScale, xOffset, yOffset, useHeatmap);
+        // Funktionen zeichnen - hier den Parameter useSolidSurface von der View holen
+        for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
+            drawFunctionGrid(g2dImage, functionInfo, model, displayScale, xOffset, yOffset,
+                    useHeatmap, view.isUseSolidSurface());
+        }
 
-        // Draw informational labels
+        // Informationslabels zeichnen
         gridRenderer.drawInfoLabels(g2dImage, model, view, width, height);
 
-        // Draw color scale
+        // Farbskala zeichnen
         gridRenderer.drawColorScale(g2dImage, model, colorScheme, width - 30, 50, 20, height - 100);
 
         g2dImage.dispose();

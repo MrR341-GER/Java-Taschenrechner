@@ -193,19 +193,19 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Renders the 3D plot on the provided graphics context
+     * Rendert den 3D-Plot auf dem bereitgestellten Grafikkontext
      */
     public void render(Graphics2D g2d, int width, int height) {
-        // Enable anti-aliasing
+        // Anti-Aliasing aktivieren
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Calculate display parameters
+        // Anzeigeeinstellungen berechnen
         double displayScale = Math.min(width, height) * 0.6;
         int xOffset = width / 2;
         int yOffset = height / 2;
 
-        // Draw coordinate system
+        // Koordinatensystem zeichnen
         if (view.isShowCoordinateSystem()) {
             if (view.isShowGrid()) {
                 gridRenderer.drawCoordinateGrid(g2d, model, view, displayScale, xOffset, yOffset);
@@ -219,13 +219,13 @@ public class Plot3DRenderer {
             gridRenderer.drawTicksAndLabels(g2d, model, view, displayScale, xOffset, yOffset);
         }
 
-        // Draw functions
-        functionRenderer.drawFunctions(g2d, model, view, displayScale, xOffset, yOffset, useHeatmap);
+        // Funktionen zeichnen - mit allen Parametern
+        functionRenderer.drawFunctions(g2d, model, view, displayScale, xOffset, yOffset, useHeatmap, useSolidSurface);
 
-        // Draw informational labels
+        // Informationslabels zeichnen
         gridRenderer.drawInfoLabels(g2d, model, view, width, height);
 
-        // Draw color scale
+        // Farbskala zeichnen
         gridRenderer.drawColorScale(g2d, model, colorScheme, width - 30, 50, 20, height - 100);
     }
 
