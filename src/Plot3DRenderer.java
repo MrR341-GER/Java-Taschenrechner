@@ -13,6 +13,7 @@ public class Plot3DRenderer {
     private final Plot3DGridRenderer gridRenderer;
     private final Plot3DFunctionRenderer functionRenderer;
     private final Plot3DColorScheme colorScheme;
+    private boolean useHeatmap = true;
 
     /**
      * Creates a new 3D renderer with the specified bounds and resolution
@@ -55,6 +56,13 @@ public class Plot3DRenderer {
      */
     public java.util.List<Plot3DModel.Function3DInfo> getFunctions() {
         return model.getFunctions();
+    }
+
+    /**
+     * Setzt den Heatmap-Modus
+     */
+    public void setUseHeatmap(boolean useHeatmap) {
+        this.useHeatmap = useHeatmap;
     }
 
     /**
@@ -137,6 +145,13 @@ public class Plot3DRenderer {
     }
 
     /**
+     * Gibt zurück, ob der Heatmap-Modus aktiv ist
+     */
+    public boolean isUseHeatmap() {
+        return useHeatmap;
+    }
+
+    /**
      * Calculates all function values
      */
     private void calculateAllFunctionValues() {
@@ -182,7 +197,7 @@ public class Plot3DRenderer {
         }
 
         // Draw functions
-        functionRenderer.drawFunctions(g2d, model, view, displayScale, xOffset, yOffset);
+        functionRenderer.drawFunctions(g2d, model, view, displayScale, xOffset, yOffset, useHeatmap);
 
         // Draw informational labels
         gridRenderer.drawInfoLabels(g2d, model, view, width, height);
@@ -195,7 +210,7 @@ public class Plot3DRenderer {
      * Creates a snapshot image of the current plot
      */
     public BufferedImage createImage(int width, int height) {
-        return functionRenderer.createImage(null, model, view, colorScheme, gridRenderer, width, height);
+        return functionRenderer.createImage(null, model, view, colorScheme, gridRenderer, width, height, useHeatmap);
     }
 
     // Getters for backward compatibility

@@ -218,6 +218,30 @@ public class Plot3DViewController {
         }
     }
 
+    /**
+     * Aktiviert oder deaktiviert den Heatmap-Modus
+     */
+    public void setUseHeatmap(boolean useHeatmap) {
+        if (renderer != null) {
+            renderer.setUseHeatmap(useHeatmap);
+
+            // Explizites Neuzeichnen, wenn verfügbar
+            if (parentPanel != null) {
+                parentPanel.getPlotPanel().repaint();
+            }
+        }
+    }
+
+    /**
+     * Gibt zurück, ob der Heatmap-Modus aktiv ist
+     */
+    public boolean isUseHeatmap() {
+        if (renderer != null) {
+            return renderer.isUseHeatmap();
+        }
+        return true; // Standardmäßig an
+    }
+
     // Getter und Setter für die View-Eigenschaften
 
     public double getCurrentRotationX() {

@@ -27,6 +27,7 @@ public class Plot3DUIBuilder {
     private JCheckBox showCoordinateSystemCheckbox;
     private JCheckBox showGridCheckbox;
     private JCheckBox showHelperLinesCheckbox;
+    private JCheckBox useHeatmapCheckbox;
 
     /**
      * Konstruktor für den UI-Builder
@@ -346,32 +347,37 @@ public class Plot3DUIBuilder {
      * Erstellt das Panel für die Anzeigeoptionen
      */
     private JPanel createDisplayOptionsPanel() {
-        JPanel displayOptionsPanel = new JPanel(new GridLayout(3, 1, 5, 5));
+        // Anzahl der Zeilen erhöhen (von 3 auf 4)
+        JPanel displayOptionsPanel = new JPanel(new GridLayout(4, 1, 5, 5));
         displayOptionsPanel.setBorder(BorderFactory.createTitledBorder("Anzeigeoptionen"));
 
         showCoordinateSystemCheckbox = new JCheckBox("Koordinatensystem anzeigen", true);
         showCoordinateSystemCheckbox.addActionListener(e -> {
             viewController.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
-            // Explizites Neuzeichnen wird nun in setShowCoordinateSystem() ausgeführt
         });
 
         showGridCheckbox = new JCheckBox("Gitter anzeigen", true);
         showGridCheckbox.addActionListener(e -> {
             viewController.setShowGrid(showGridCheckbox.isSelected());
-            // Explizites Neuzeichnen wird nun in setShowGrid() ausgeführt
         });
 
-        // Checkbox für Hilfslinien
         showHelperLinesCheckbox = new JCheckBox("Hilfslinien anzeigen", true);
         showHelperLinesCheckbox.addActionListener(e -> {
             viewController.setShowHelperLines(showHelperLinesCheckbox.isSelected());
-            // Explizites Neuzeichnen wird nun in setShowHelperLines() ausgeführt
             mainPanel.debug("Hilfslinien " + (showHelperLinesCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
+        });
+
+        // Neue Checkbox für Heatmap-Modus
+        useHeatmapCheckbox = new JCheckBox("Heatmap-Farben verwenden", true);
+        useHeatmapCheckbox.addActionListener(e -> {
+            viewController.setUseHeatmap(useHeatmapCheckbox.isSelected());
+            mainPanel.debug("Heatmap-Farben " + (useHeatmapCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
         });
 
         displayOptionsPanel.add(showCoordinateSystemCheckbox);
         displayOptionsPanel.add(showGridCheckbox);
         displayOptionsPanel.add(showHelperLinesCheckbox);
+        displayOptionsPanel.add(useHeatmapCheckbox);
 
         return displayOptionsPanel;
     }

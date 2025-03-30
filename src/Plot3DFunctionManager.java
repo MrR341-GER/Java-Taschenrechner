@@ -95,6 +95,7 @@ public class Plot3DFunctionManager {
 
     /**
      * Öffnet einen Dialog zum Bearbeiten der ausgewählten Funktion
+     * (Angepasste Version mit verbessertem Dialog)
      */
     public void editSelectedFunction() {
         int selectedIndex = functionList.getSelectedIndex();
@@ -109,26 +110,38 @@ public class Plot3DFunctionManager {
             String function = matcher.group(1);
             String colorName = matcher.group(2);
 
-            // Setze die Werte in die Eingabefelder
-            // In der refaktorisierten Version müssen wir stattdessen einen Dialog erstellen
-            String newFunction = JOptionPane.showInputDialog(
-                    functionList,
-                    "Bearbeiten Sie die Funktion:",
-                    function);
+            // Finde das Hauptfenster als Parent für den Dialog
+            Frame parentFrame = JOptionPane.getFrameForComponent(functionList);
 
-            if (newFunction != null && !newFunction.isEmpty()) {
-                // Farbauswahl
-                Object[] colorOptions = ColorChooser.getColorNames();
-                String newColorName = (String) JOptionPane.showInputDialog(
-                        functionList,
-                        "Wählen Sie eine Farbe:",
-                        "Farbauswahl",
-                        JOptionPane.QUESTION_MESSAGE,
-                        null,
-                        colorOptions,
-                        colorName);
+            // Dialog zum Bearbeiten erstellen (ähnlich wie im 2D-Plotter)
+            JPanel panel = new JPanel(new BorderLayout(10, 10));
 
-                if (newColorName != null) {
+            JPanel functionPanel = new JPanel(new BorderLayout(5, 5));
+            functionPanel.add(new JLabel("Funktion:"), BorderLayout.WEST);
+            JTextField functionField = new JTextField(function, 20);
+            functionPanel.add(functionField, BorderLayout.CENTER);
+
+            // Farbauswahl als ComboBox
+            JPanel colorPanel = new JPanel(new BorderLayout(5, 5));
+            colorPanel.add(new JLabel("Farbe:"), BorderLayout.WEST);
+            JComboBox<String> colorBox = new JComboBox<>(ColorChooser.getColorNames());
+            colorBox.setSelectedItem(colorName);
+            colorPanel.add(colorBox, BorderLayout.CENTER);
+
+            panel.add(functionPanel, BorderLayout.NORTH);
+            panel.add(colorPanel, BorderLayout.CENTER);
+
+            // Dialog anzeigen
+            int result = JOptionPane.showConfirmDialog(
+                    parentFrame, panel, "Funktion bearbeiten",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            // Wenn OK, Funktion aktualisieren
+            if (result == JOptionPane.OK_OPTION) {
+                String newFunction = functionField.getText().trim();
+                String newColorName = (String) colorBox.getSelectedItem();
+
+                if (!newFunction.isEmpty() && newColorName != null) {
                     updateFunction(selectedIndex, newFunction, newColorName);
                 }
             }
