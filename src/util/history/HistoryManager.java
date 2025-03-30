@@ -1,4 +1,10 @@
+
+package util.history;
+
 import javax.swing.*;
+
+import core.Taschenrechner;
+
 import java.awt.*;
 import java.util.ArrayList;
 

@@ -1,4 +1,14 @@
+
+package plugins.plotter3d.ui;
+
 import javax.swing.*;
+
+import common.ColorChooser;
+import plugins.plotter3d.Plot3DPanel;
+import plugins.plotter3d.renderer.Plot3DRenderer;
+import plugins.plotter3d.view.Plot3DViewController;
+import util.debug.DebugManager;
+
 import java.awt.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

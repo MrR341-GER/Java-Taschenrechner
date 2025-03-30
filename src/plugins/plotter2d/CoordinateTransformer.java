@@ -1,3 +1,6 @@
+
+package plugins.plotter2d;
+
 import java.awt.geom.Point2D;
 import java.text.DecimalFormat;
 

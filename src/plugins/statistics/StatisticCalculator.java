@@ -1,3 +1,6 @@
+
+package plugins.statistics;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -234,7 +237,7 @@ public class StatisticCalculator {
         Collections.sort(sortedData);
 
         int size = sortedData.size();
-        
+
         // Berechne Q1 (unteres Quartil)
         double q1;
         if (size % 4 == 0) {
@@ -243,7 +246,7 @@ public class StatisticCalculator {
         } else {
             q1 = sortedData.get(size / 4);
         }
-        
+
         // Berechne Q3 (oberes Quartil)
         double q3;
         if (size % 4 == 0) {
@@ -252,7 +255,7 @@ public class StatisticCalculator {
         } else {
             q3 = sortedData.get(3 * size / 4);
         }
-        
+
         return q3 - q1;
     }
 }

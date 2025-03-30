@@ -1,3 +1,6 @@
+
+package parser;
+
 /**
  * Parser für mathematische Funktionen mit einer Variablen (x)
  * Erbt von AbstractExpressionParser für gemeinsame Parsing-Funktionalität

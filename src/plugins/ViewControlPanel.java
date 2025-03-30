@@ -1,7 +1,9 @@
-
-package plugins.plotter2d;
+package plugins;
 
 import javax.swing.*;
+
+import plugins.plotter2d.PlotterPanel;
+
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.geom.Point2D;

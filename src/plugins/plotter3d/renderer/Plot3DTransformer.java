@@ -1,3 +1,10 @@
+
+package plugins.plotter3d.renderer;
+
+import plugins.plotter3d.model.Plot3DModel;
+import plugins.plotter3d.model.Plot3DPoint;
+import plugins.plotter3d.view.Plot3DView;
+
 /**
  * Handles transformations from 3D world coordinates to 2D screen coordinates
  * Applies rotation, scale, and panning
@@ -16,7 +23,7 @@ public class Plot3DTransformer {
      */
     public void transformAndProjectAllPoints(Plot3DModel model, Plot3DView view, double zCenter) {
         for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
-            if (functionInfo.gridPoints != null) {
+            if (functionInfo.getGridPoints() != null) {
                 transformAndProjectPoints(functionInfo, view,
                         (view.getXMax() + view.getXMin()) / 2,
                         (view.getYMax() + view.getYMin()) / 2,
@@ -32,14 +39,14 @@ public class Plot3DTransformer {
         double zMin = Double.POSITIVE_INFINITY;
         double zMax = Double.NEGATIVE_INFINITY;
 
-        if (functionInfo.gridPoints == null) {
+        if (functionInfo.getGridPoints() == null) {
             return 1.0; // Default range if no points
         }
 
         // Find min/max Z values across all grid points
-        for (int i = 0; i < functionInfo.gridPoints.length; i++) {
-            for (int j = 0; j < functionInfo.gridPoints[i].length; j++) {
-                Plot3DPoint original = functionInfo.gridPoints[i][j][0];
+        for (int i = 0; i < functionInfo.getGridPoints().length; i++) {
+            for (int j = 0; j < functionInfo.getGridPoints()[i].length; j++) {
+                Plot3DPoint original = functionInfo.getGridPoints()[i][j][0];
                 if (original != null) {
                     double z = original.getZ();
                     if (z < zMin)
@@ -94,7 +101,7 @@ public class Plot3DTransformer {
         double adjustedPanY = view.getPanY() * scale;
 
         // Get grid points array for this function
-        Plot3DPoint[][][] gridPoints = functionInfo.gridPoints;
+        Plot3DPoint[][][] gridPoints = functionInfo.getGridPoints();
         int resolution = gridPoints.length;
 
         // Process each point in the grid

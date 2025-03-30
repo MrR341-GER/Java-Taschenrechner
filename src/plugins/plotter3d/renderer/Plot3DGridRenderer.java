@@ -1,5 +1,12 @@
+
+package plugins.plotter3d.renderer;
+
 import java.awt.*;
 import java.text.DecimalFormat;
+
+import plugins.plotter3d.model.Plot3DModel;
+import plugins.plotter3d.model.Plot3DPoint;
+import plugins.plotter3d.view.Plot3DView;
 
 /**
  * Renders coordinate grid, axes, ticks, labels, and helper lines for 3D

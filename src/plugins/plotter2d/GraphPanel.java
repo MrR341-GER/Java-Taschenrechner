@@ -1,4 +1,11 @@
+
+package plugins.plotter2d;
+
 import javax.swing.*;
+
+import plugins.plotter2d.intersection.IntersectionCalculator;
+import plugins.plotter2d.intersection.IntersectionPoint;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Point2D;

@@ -1,4 +1,10 @@
+
+package plugins.plotter2d;
+
 import javax.swing.*;
+
+import common.ColorChooser;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Objects;

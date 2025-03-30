@@ -1,3 +1,6 @@
+
+package util.debug;
+
 import javax.swing.JTextArea;
 
 /**
@@ -7,7 +10,7 @@ import javax.swing.JTextArea;
 public class CalculatorLogger implements Logger {
     private JTextArea debugTextArea;
     private boolean consoleOutput;
-    
+
     /**
      * Erstellt einen neuen Logger
      * 
@@ -18,7 +21,7 @@ public class CalculatorLogger implements Logger {
         this.debugTextArea = debugTextArea;
         this.consoleOutput = consoleOutput;
     }
-    
+
     /**
      * Erstellt einen neuen Logger mit Konsolenausgabe
      * 
@@ -27,39 +30,39 @@ public class CalculatorLogger implements Logger {
     public CalculatorLogger(JTextArea debugTextArea) {
         this(debugTextArea, true);
     }
-    
+
     @Override
     public void debug(String message) {
         log("[DEBUG] " + message);
     }
-    
+
     @Override
     public void info(String message) {
         log("[INFO] " + message);
     }
-    
+
     @Override
     public void warning(String message) {
         log("[WARNUNG] " + message);
     }
-    
+
     @Override
     public void error(String message) {
         log("[FEHLER] " + message);
     }
-    
+
     @Override
     public void error(String message, Exception e) {
         log("[FEHLER] " + message);
         log("  Exception: " + e.getClass().getName() + ": " + e.getMessage());
-        
+
         // Stacktrace (begrenzt)
         StackTraceElement[] stack = e.getStackTrace();
         for (int i = 0; i < Math.min(3, stack.length); i++) {
             log("    at " + stack[i].toString());
         }
     }
-    
+
     /**
      * Interne Methode zum Protokollieren einer Nachricht
      */
@@ -67,21 +70,21 @@ public class CalculatorLogger implements Logger {
         if (consoleOutput) {
             System.out.println(message);
         }
-        
+
         if (debugTextArea != null) {
             debugTextArea.append(message + "\n");
             // Zum Ende scrollen
             debugTextArea.setCaretPosition(debugTextArea.getDocument().getLength());
         }
     }
-    
+
     /**
      * Setzt das TextArea für Debug-Ausgaben
      */
     public void setDebugTextArea(JTextArea debugTextArea) {
         this.debugTextArea = debugTextArea;
     }
-    
+
     /**
      * Aktiviert oder deaktiviert die Konsolenausgabe
      */

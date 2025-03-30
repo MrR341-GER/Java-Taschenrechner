@@ -1,7 +1,11 @@
+package plugins.plotter2d;
+
 import java.awt.*;
 import java.awt.geom.Path2D;
 import java.util.ArrayList;
 import java.util.List;
+
+import parser.FunctionParser;
 
 /**
  * Handles the rendering of mathematical functions
@@ -54,7 +58,7 @@ public class FunctionRenderer {
      * Draws a function and connects it correctly with the edges of the visible area
      */
     private void drawFunctionWithEdges(Graphics2D g2d, FunctionInfo functionInfo) {
-        g2d.setColor(functionInfo.color);
+        g2d.setColor(functionInfo.getColor());
         g2d.setStroke(new BasicStroke(2f));
 
         // Drawing area
@@ -81,8 +85,8 @@ public class FunctionRenderer {
             double x = transformer.screenToWorldX(screenX);
 
             try {
-                // Calculate Y value
-                double y = functionInfo.function.evaluateAt(x);
+                // Calculate Y value using the function's parser
+                double y = functionInfo.getFunction().evaluateAt(x);
 
                 // Check for valid value
                 if (Double.isNaN(y) || Double.isInfinite(y)) {
@@ -244,12 +248,30 @@ public class FunctionRenderer {
      * Class for storing function information
      */
     public static class FunctionInfo {
-        final FunctionParser function;
-        final Color color;
+        private final FunctionParser function;
+        private final Color color;
 
         public FunctionInfo(FunctionParser function, Color color) {
             this.function = function;
             this.color = color;
+        }
+
+        /**
+         * Getter für den FunctionParser
+         * 
+         * @return Der FunctionParser
+         */
+        public FunctionParser getFunction() {
+            return function;
+        }
+
+        /**
+         * Getter für die Farbe
+         * 
+         * @return Die Farbe
+         */
+        public Color getColor() {
+            return color;
         }
     }
 }

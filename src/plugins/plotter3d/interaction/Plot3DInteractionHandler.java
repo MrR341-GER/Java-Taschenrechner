@@ -1,4 +1,12 @@
+
+package plugins.plotter3d.interaction;
+
 import javax.swing.*;
+
+import plugins.plotter3d.Plot3DPanel;
+import plugins.plotter3d.view.Plot3DViewController;
+import util.debug.DebugManager;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.text.DecimalFormat;

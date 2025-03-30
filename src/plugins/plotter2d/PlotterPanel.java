@@ -1,4 +1,13 @@
+package plugins.plotter2d;
+
 import javax.swing.*;
+
+import common.ColorChooser;
+import plugins.plotter2d.intersection.IntersectionPanel;
+import plugins.plotter2d.intersection.IntersectionPoint;
+import util.debug.DebugManager;
+import core.GrafischerTaschenrechner;
+
 import java.awt.*;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -16,6 +25,7 @@ public class PlotterPanel extends JPanel {
     private final IntersectionPanel intersectionPanel;
     private final ExamplePanel examplePanel;
     private JCheckBox showGridCheckbox;
+    private GrafischerTaschenrechner calculator; // Referenz auf den Taschenrechner
 
     // Debug-Referenz
     private DebugManager debugManager;
@@ -27,9 +37,20 @@ public class PlotterPanel extends JPanel {
     private final Pattern colorPattern = Pattern.compile("\\[(.+)\\]$");
 
     /**
-     * Creates a new PlotterPanel
+     * Konstruktor ohne Parameter (für eigenständige Verwendung)
      */
     public PlotterPanel() {
+        this(null);
+    }
+
+    /**
+     * Konstruktor mit Taschenrechner-Referenz (für Plugin-Integration)
+     * 
+     * @param calculator Der übergeordnete Taschenrechner
+     */
+    public PlotterPanel(GrafischerTaschenrechner calculator) {
+        this.calculator = calculator;
+
         setLayout(new BorderLayout(5, 5));
 
         // Create graph panel
@@ -79,6 +100,9 @@ public class PlotterPanel extends JPanel {
             debug("Koordinatensystem-Anzeige: " + (showGridCheckbox.isSelected() ? "eingeschaltet" : "ausgeschaltet"));
         });
         gridCheckboxPanel.add(showGridCheckbox);
+
+        // Checkbox für Schnittpunkte
+        gridCheckboxPanel.add(intersectionPanel.getShowIntersectionsCheckbox());
 
         // Füge Checkbox zum Optionen-Panel hinzu
         displayOptionsPanel.add(gridCheckboxPanel);
@@ -141,6 +165,32 @@ public class PlotterPanel extends JPanel {
         });
 
         debug("Funktionsplotter initialisiert");
+
+        // Debug-Verbindung herstellen, wenn Taschenrechner vorhanden
+        if (calculator != null) {
+            // Versuche, den DebugManager über Reflection zu bekommen
+            tryToGetDebugManager();
+        }
+    }
+
+    /**
+     * Versucht, den DebugManager des Taschenrechners mittels Reflection zu bekommen
+     */
+    private void tryToGetDebugManager() {
+        if (calculator != null) {
+            try {
+                // Reflection verwenden, um auf den debugManager zuzugreifen
+                java.lang.reflect.Field field = calculator.getClass().getSuperclass().getDeclaredField("debugManager");
+                field.setAccessible(true);
+                DebugManager dm = (DebugManager) field.get(calculator);
+                if (dm != null) {
+                    setDebugManager(dm);
+                    debug("DebugManager vom Taschenrechner via Reflection übernommen");
+                }
+            } catch (Exception e) {
+                System.err.println("Fehler beim Zugriff auf DebugManager via Reflection: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -339,5 +389,21 @@ public class PlotterPanel extends JPanel {
         } else {
             return "f" + (index + 1);
         }
+    }
+
+    /**
+     * Gibt den zugehörigen Taschenrechner zurück
+     */
+    public GrafischerTaschenrechner getCalculator() {
+        return calculator;
+    }
+
+    /**
+     * Aktualisiert die Anzeige des Panels
+     */
+    public void refresh() {
+        // Kann verwendet werden, um das Panel bei Tab-Wechsel zu aktualisieren
+        viewControlPanel.updateCenteringFields();
+        repaint();
     }
 }

@@ -1,6 +1,11 @@
+
+package plugins.plotter2d.intersection;
+
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
+
+import parser.FunctionParser;
 
 /**
  * Klasse zum Berechnen von Schnittpunkten zwischen mathematischen Funktionen

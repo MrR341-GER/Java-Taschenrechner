@@ -1,5 +1,11 @@
+
+package plugins.plotter3d.renderer;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
+
+import plugins.plotter3d.model.Plot3DModel;
+import plugins.plotter3d.view.Plot3DView;
 
 /**
  * Main renderer class for 3D plotting

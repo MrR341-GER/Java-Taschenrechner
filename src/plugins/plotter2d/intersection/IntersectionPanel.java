@@ -1,4 +1,10 @@
+
+package plugins.plotter2d.intersection;
+
 import javax.swing.*;
+
+import plugins.plotter2d.PlotterPanel;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;

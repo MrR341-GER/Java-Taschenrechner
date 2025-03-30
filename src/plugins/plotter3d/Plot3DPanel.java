@@ -1,4 +1,17 @@
+
+package plugins.plotter3d;
+
 import javax.swing.*;
+
+import common.ColorChooser;
+import core.GrafischerTaschenrechner;
+import plugins.plotter3d.interaction.Plot3DInteractionHandler;
+import plugins.plotter3d.renderer.Plot3DRenderer;
+import plugins.plotter3d.ui.Plot3DFunctionManager;
+import plugins.plotter3d.view.Plot3DUIBuilder;
+import plugins.plotter3d.view.Plot3DViewController;
+import util.debug.DebugManager;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;

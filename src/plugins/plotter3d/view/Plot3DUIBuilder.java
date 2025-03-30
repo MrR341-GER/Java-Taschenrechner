@@ -1,6 +1,15 @@
+
+package plugins.plotter3d.view;
+
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+
+import common.ColorChooser;
+import plugins.plotter3d.Plot3DPanel;
+import plugins.plotter3d.ui.Example3DPanel;
+import plugins.plotter3d.ui.Plot3DFunctionManager;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;

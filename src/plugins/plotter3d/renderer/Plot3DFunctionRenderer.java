@@ -1,5 +1,12 @@
+
+package plugins.plotter3d.renderer;
+
 import java.awt.*;
 import java.awt.geom.Path2D;
+
+import plugins.plotter3d.model.Plot3DModel;
+import plugins.plotter3d.model.Plot3DPoint;
+import plugins.plotter3d.view.Plot3DView;
 
 /**
  * Renders 3D function plots as wireframe grids
@@ -48,7 +55,7 @@ public class Plot3DFunctionRenderer {
         }
 
         // Get the grid resolution
-        Plot3DPoint[][][] gridPoints = functionInfo.gridPoints;
+        Plot3DPoint[][][] gridPoints = functionInfo.getGridPoints();
         if (gridPoints == null)
             return;
 

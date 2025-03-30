@@ -1,9 +1,16 @@
+
+package plugins.plotter3d.view;
+
 import java.awt.Color;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Locale;
 import javax.swing.JTextField;
+
+import plugins.plotter3d.Plot3DPanel;
+import plugins.plotter3d.renderer.Plot3DRenderer;
+import util.debug.DebugManager;
 
 /**
  * Verwaltet die Ansicht des 3D-Plots

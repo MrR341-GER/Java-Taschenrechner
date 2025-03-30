@@ -1,4 +1,10 @@
+
+package plugins.plotter3d.ui;
+
 import javax.swing.*;
+
+import plugins.plotter3d.Plot3DPanel;
+
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -17,18 +23,18 @@ public class Example3DPanel {
 
     // Standard-3D-Funktionsbeispiele
     private final String[] defaultExamples = {
-            "sin(sqrt(x^2+y^2))",             // Kreisförmige Welle (Mexican Hat)
-            "cos(x) * sin(y)",                // Gewellte Oberfläche
-            "x^2 + y^2",                      // Paraboloid
-            "sin(x) + cos(y)",                // Periodische Oberfläche
-            "exp(-(x^2+y^2)/4)",              // Glockenkurve (Normalverteilung)
-            "sin(x*y)",                       // Komplexes Rippelmuster
-            "sqrt(abs(x) + abs(y))",          // Kegelförmige Oberfläche
-            "1/(1+x^2+y^2)",                  // Umgekehrter Kegel
-            "sin(3*x) * cos(3*y) / 3",        // Komplexe trigonometrische Oberfläche
+            "sin(sqrt(x^2+y^2))", // Kreisförmige Welle (Mexican Hat)
+            "cos(x) * sin(y)", // Gewellte Oberfläche
+            "x^2 + y^2", // Paraboloid
+            "sin(x) + cos(y)", // Periodische Oberfläche
+            "exp(-(x^2+y^2)/4)", // Glockenkurve (Normalverteilung)
+            "sin(x*y)", // Komplexes Rippelmuster
+            "sqrt(abs(x) + abs(y))", // Kegelförmige Oberfläche
+            "1/(1+x^2+y^2)", // Umgekehrter Kegel
+            "sin(3*x) * cos(3*y) / 3", // Komplexe trigonometrische Oberfläche
             "cos(sqrt(x^2+y^2)) * exp(-0.1*(x^2+y^2))", // Gedämpfte Wellenringe
-            "sin(x) * sin(y)",                // Schachbrettmuster
-            "abs(sin(x) * cos(y))"            // Gefaltete Oberfläche
+            "sin(x) * sin(y)", // Schachbrettmuster
+            "abs(sin(x) * cos(y))" // Gefaltete Oberfläche
     };
 
     // Datei zum Speichern der Beispiele
@@ -43,7 +49,8 @@ public class Example3DPanel {
     }
 
     /**
-     * Erstellt das Beispiel-Panel mit einer Liste von 3D-Funktionen und Buttons zum Verwalten
+     * Erstellt das Beispiel-Panel mit einer Liste von 3D-Funktionen und Buttons zum
+     * Verwalten
      */
     public JPanel createExamplesPanel() {
         // Panel mit BorderLayout erstellen
@@ -115,7 +122,8 @@ public class Example3DPanel {
     }
 
     /**
-     * Lädt gespeicherte Beispiele aus einer Datei oder verwendet die Standardbeispiele
+     * Lädt gespeicherte Beispiele aus einer Datei oder verwendet die
+     * Standardbeispiele
      */
     private void loadExamples() {
         // Erst alle Standardbeispiele laden

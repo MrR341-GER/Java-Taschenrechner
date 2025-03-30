@@ -1,7 +1,15 @@
+
+package plugins.plotter2d.intersection;
+
 import java.awt.*;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
+
+import parser.FunctionParser;
+import plugins.plotter2d.CoordinateTransformer;
+import plugins.plotter2d.FunctionRenderer;
+import plugins.plotter2d.GraphPanel;
 
 /**
  * Calculates and renders intersection points between functions
@@ -78,7 +86,7 @@ public class IntersectionCalculator {
                 FunctionRenderer.FunctionInfo f2 = functions.get(j);
 
                 // Check if the functions are identical
-                if (areFunctionsIdentical(f1.function, f2.function)) {
+                if (areFunctionsIdentical(f1.getFunction(), f2.getFunction())) {
                     continue; // Skip identical functions
                 }
 
@@ -88,7 +96,7 @@ public class IntersectionCalculator {
 
                 // Find intersection points in the current view window
                 List<Point2D.Double> points = IntersectionFinder.findIntersections(
-                        f1.function, f2.function, transformer.getXMin(), transformer.getXMax());
+                        f1.getFunction(), f2.getFunction(), transformer.getXMin(), transformer.getXMax());
 
                 // Add the found intersection points as IntersectionPoint objects to the total
                 // list

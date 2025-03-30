@@ -1,4 +1,13 @@
+
+package plugins.scientific;
+
 import javax.swing.*;
+
+import core.CalculationEngine;
+import core.GrafischerTaschenrechner;
+import parser.FunctionParser;
+import util.debug.DebugManager;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.text.DecimalFormat;

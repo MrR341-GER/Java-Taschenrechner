@@ -1,5 +1,11 @@
+
+package plugins.plotter2d;
+
 import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
+
+import common.ColorChooser;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;

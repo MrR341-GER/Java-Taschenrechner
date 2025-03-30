@@ -1,4 +1,11 @@
+
+package util.debug;
+
 import javax.swing.*;
+
+import common.CalculatorConstants;
+import core.Taschenrechner;
+
 import java.awt.*;
 
 /**
@@ -119,7 +126,7 @@ public class DebugManager implements Logger {
         log("[FEHLER] " + message);
         if (e != null) {
             log("  Exception: " + e.getClass().getName() + ": " + e.getMessage());
-            
+
             // Stacktrace (begrenzt)
             StackTraceElement[] stack = e.getStackTrace();
             for (int i = 0; i < Math.min(3, stack.length); i++) {

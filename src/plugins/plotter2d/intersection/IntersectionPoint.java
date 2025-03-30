@@ -1,3 +1,6 @@
+
+package plugins.plotter2d.intersection;
+
 import java.awt.geom.Point2D;
 
 /**

@@ -1,4 +1,10 @@
+
+package util.error;
+
 import javax.swing.JOptionPane;
+
+import util.debug.Logger;
+
 import java.awt.Component;
 
 /**
@@ -8,7 +14,7 @@ import java.awt.Component;
 public class ErrorHandler {
     private final Component parent;
     private final Logger logger;
-    
+
     /**
      * Erstellt einen neuen ErrorHandler
      * 
@@ -19,24 +25,23 @@ public class ErrorHandler {
         this.parent = parent;
         this.logger = logger;
     }
-    
+
     /**
      * Behandelt einen allgemeinen Fehler
      * 
      * @param userMessage Nachricht für den Benutzer
-     * @param error Der aufgetretene Fehler
+     * @param error       Der aufgetretene Fehler
      */
     public void handleError(String userMessage, Throwable error) {
-        logger.error(userMessage, (error instanceof Exception) ? (Exception)error : null);
-        
+        logger.error(userMessage, (error instanceof Exception) ? (Exception) error : null);
+
         JOptionPane.showMessageDialog(
-            parent,
-            userMessage + "\n" + error.getMessage(),
-            "Fehler",
-            JOptionPane.ERROR_MESSAGE
-        );
+                parent,
+                userMessage + "\n" + error.getMessage(),
+                "Fehler",
+                JOptionPane.ERROR_MESSAGE);
     }
-    
+
     /**
      * Behandelt eine Warnung
      * 
@@ -44,15 +49,14 @@ public class ErrorHandler {
      */
     public void handleWarning(String userMessage) {
         logger.warning(userMessage);
-        
+
         JOptionPane.showMessageDialog(
-            parent,
-            userMessage,
-            "Warnung",
-            JOptionPane.WARNING_MESSAGE
-        );
+                parent,
+                userMessage,
+                "Warnung",
+                JOptionPane.WARNING_MESSAGE);
     }
-    
+
     /**
      * Zeigt eine Informationsmeldung an
      * 
@@ -60,33 +64,31 @@ public class ErrorHandler {
      */
     public void showInfo(String userMessage) {
         logger.info(userMessage);
-        
+
         JOptionPane.showMessageDialog(
-            parent,
-            userMessage,
-            "Information",
-            JOptionPane.INFORMATION_MESSAGE
-        );
+                parent,
+                userMessage,
+                "Information",
+                JOptionPane.INFORMATION_MESSAGE);
     }
-    
+
     /**
      * Fragt eine Bestätigung vom Benutzer ab
      * 
      * @param question Die Frage an den Benutzer
-     * @param title Der Titel des Dialogs
+     * @param title    Der Titel des Dialogs
      * @return true wenn der Benutzer bestätigt, false sonst
      */
     public boolean confirmAction(String question, String title) {
         logger.debug("Bestätigung angefordert: " + question);
-        
+
         int result = JOptionPane.showConfirmDialog(
-            parent,
-            question,
-            title,
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE
-        );
-        
+                parent,
+                question,
+                title,
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+
         return result == JOptionPane.YES_OPTION;
     }
 }

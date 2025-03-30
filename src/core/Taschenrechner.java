@@ -1,4 +1,11 @@
+
+package core;
+
 import javax.swing.*;
+
+import util.debug.DebugManager;
+import util.history.HistoryManager;
+
 import java.awt.*;
 import java.awt.event.*;
 

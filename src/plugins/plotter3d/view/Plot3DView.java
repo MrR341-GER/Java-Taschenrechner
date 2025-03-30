@@ -1,3 +1,6 @@
+
+package plugins.plotter3d.view;
+
 /**
  * Manages view-related parameters for 3D plotting
  * Handles bounds, rotation, scale, and display options

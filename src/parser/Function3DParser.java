@@ -1,3 +1,6 @@
+
+package parser;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,7 +11,7 @@ import java.util.Map;
 public class Function3DParser extends AbstractExpressionParser {
     // Mapping für Funktionen und Anzahl ihrer Argumente
     private static final Map<String, Integer> FUNCTIONS = new HashMap<>();
-    
+
     static {
         // Mathematische Standardfunktionen
         FUNCTIONS.put("sin", 1);
@@ -32,7 +35,7 @@ public class Function3DParser extends AbstractExpressionParser {
         FUNCTIONS.put("min", 2);
         FUNCTIONS.put("pow", 2);
     }
-    
+
     // Aktuelle x und y Werte für die Auswertung
     private double currentX;
     private double currentY;
@@ -126,8 +129,7 @@ public class Function3DParser extends AbstractExpressionParser {
             if ((ch >= 'a' && ch <= 'z' && ch != 'x' && ch != 'y') || ch == '(') {
                 result *= parseFactor();
             }
-        }
-        else if (ch == 'y') {
+        } else if (ch == 'y') {
             nextChar();
             result = currentY;
 
@@ -149,7 +151,7 @@ public class Function3DParser extends AbstractExpressionParser {
                 // Prüfe, ob es sich um eine bekannte Funktion handelt
                 if (FUNCTIONS.containsKey(name)) {
                     int argCount = FUNCTIONS.get(name);
-                    
+
                     if (argCount == 1) {
                         // Einstellige Funktion
                         double arg = parseExpression();
@@ -171,7 +173,7 @@ public class Function3DParser extends AbstractExpressionParser {
                     // Bei unbekannter Funktion, normal parsen
                     result = parseExpression();
                     eat(')');
-                    
+
                     // Bei unbekannten Funktionen einen Fehler werfen
                     throw new RuntimeException("Unbekannte Funktion: " + name);
                 }
