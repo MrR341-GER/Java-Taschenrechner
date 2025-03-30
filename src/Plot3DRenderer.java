@@ -7,13 +7,12 @@ import java.util.List;
 
 /**
  * Verbesserter Renderer für 3D-Funktionsgraphen
- * Implementiert ein richtiges Koordinatensystem mit Achsen, Teilstrichen und
- * Beschriftungen
- * Passt den Wertebereich beim Zoomen automatisch an
- * Enthält erweiterte Hilfslinien für bessere räumliche Orientierung
+ * Unterstützt jetzt mehrere Funktionen gleichzeitig
  */
 public class Plot3DRenderer {
-    private Function3DParser function;
+    // Liste der Funktionen und ihrer Eigenschaften
+    private List<Function3DInfo> functions = new ArrayList<>();
+
     private double xMin, xMax, yMin, yMax;
     private double originalXMin, originalXMax, originalYMin, originalYMax; // Ursprüngliche Grenzen für Reset
     private int resolution; // Anzahl der Punkte pro Achse
@@ -24,13 +23,12 @@ public class Plot3DRenderer {
     private double panX = 0.0; // Horizontale Verschiebung
     private double panY = 0.0; // Vertikale Verschiebung
     private double zMin, zMax; // Automatisch berechnete Z-Grenzen
-    private Point3D[][][] gridPoints; // [x][y][3] - Speichert originale, transformierte und projizierte Koordinaten
 
     // Eigenschaften des Koordinatensystems
     private boolean showCoordinateSystem = true;
     private boolean showGrid = true;
-    private boolean showHelperLines = true; // Neue Eigenschaft für erweiterte Hilfslinien
-    private static final double AXIS_EXTENSION = 1.3; // Achsen über Datengrenzen hinaus verlängern
+    private boolean showHelperLines = true; // Eigenschaft für erweiterte Hilfslinien
+    private static final double AXIS_EXTENSION = 1.5; // Achsen über Datengrenzen hinaus verlängern
     private static final int NUM_TICKS = 5; // Anzahl der Teilstriche pro Achse
     private static final int NUM_HELPER_LINES = 10; // Anzahl der Hilfslinien pro Raumrichtung
 
@@ -52,16 +50,13 @@ public class Plot3DRenderer {
     /**
      * Konstruktor für den 3D-Renderer
      * 
-     * @param functionExpression Funktionsausdruck (z = f(x,y))
-     * @param xMin               Minimaler X-Wert
-     * @param xMax               Maximaler X-Wert
-     * @param yMin               Minimaler Y-Wert
-     * @param yMax               Maximaler Y-Wert
-     * @param resolution         Anzahl der Punkte pro Achse
+     * @param xMin       Minimaler X-Wert
+     * @param xMax       Maximaler X-Wert
+     * @param yMin       Minimaler Y-Wert
+     * @param yMax       Maximaler Y-Wert
+     * @param resolution Anzahl der Punkte pro Achse
      */
-    public Plot3DRenderer(String functionExpression, double xMin, double xMax,
-            double yMin, double yMax, int resolution) {
-        this.function = new Function3DParser(functionExpression);
+    public Plot3DRenderer(double xMin, double xMax, double yMin, double yMax, int resolution) {
         this.xMin = xMin;
         this.xMax = xMax;
         this.yMin = yMin;
@@ -86,21 +81,69 @@ public class Plot3DRenderer {
                 new Color(255, 0, 0) // Rot (hohe Werte)
         );
 
-        // Gitterpunkte initialisieren und Funktionswerte berechnen
-        calculateFunctionValues();
+        // Initialisiere Z-Grenzen
+        this.zMin = 0;
+        this.zMax = 1;
     }
 
     /**
-     * Berechnet alle Funktionswerte für das Gitter
+     * Fügt eine neue Funktion hinzu
+     * 
+     * @param functionExpression Der Funktionsausdruck
+     * @param color              Die Farbe für diese Funktion
      */
-    private void calculateFunctionValues() {
-        gridPoints = new Point3D[resolution][resolution][3];
+    public void addFunction(String functionExpression, Color color) {
+        Function3DParser parser = new Function3DParser(functionExpression);
+        Function3DInfo functionInfo = new Function3DInfo(parser, color, functionExpression);
+        functions.add(functionInfo);
 
+        // Initialisiere die Gitter-Punkte für die neue Funktion
+        calculateFunctionValues(functionInfo);
+    }
+
+    /**
+     * Entfernt alle Funktionen
+     */
+    public void clearFunctions() {
+        functions.clear();
+
+        // Setze Z-Grenzen zurück
+        zMin = 0;
+        zMax = 1;
+    }
+
+    /**
+     * Entfernt die Funktion an der angegebenen Position
+     * 
+     * @param index Der Index der zu entfernenden Funktion
+     */
+    public void removeFunction(int index) {
+        if (index >= 0 && index < functions.size()) {
+            functions.remove(index);
+
+            // Berechne Z-Grenzen neu, wenn noch Funktionen vorhanden sind
+            if (!functions.isEmpty()) {
+                recalculateZRange();
+            } else {
+                // Wenn keine Funktionen mehr vorhanden sind, setze Z-Grenzen zurück
+                zMin = 0;
+                zMax = 1;
+            }
+        }
+    }
+
+    /**
+     * Berechnet alle Funktionswerte für das Gitter einer Funktion
+     */
+    private void calculateFunctionValues(Function3DInfo functionInfo) {
         double xStep = (xMax - xMin) / (resolution - 1);
         double yStep = (yMax - yMin) / (resolution - 1);
 
-        zMin = Double.POSITIVE_INFINITY;
-        zMax = Double.NEGATIVE_INFINITY;
+        Point3D[][][] gridPoints = new Point3D[resolution][resolution][3];
+        functionInfo.gridPoints = gridPoints;
+
+        double localZMin = Double.POSITIVE_INFINITY;
+        double localZMax = Double.NEGATIVE_INFINITY;
 
         // Berechne alle Punkte und finde zMin/zMax
         for (int i = 0; i < resolution; i++) {
@@ -112,7 +155,7 @@ public class Plot3DRenderer {
                 // Sichere Funktionsauswertung mit Fehlerbehandlung
                 double z;
                 try {
-                    z = function.evaluateAt(x, y);
+                    z = functionInfo.function.evaluateAt(x, y);
                     if (Double.isNaN(z) || Double.isInfinite(z)) {
                         z = 0; // Problematische Werte auf 0 setzen
                     }
@@ -123,10 +166,46 @@ public class Plot3DRenderer {
                 gridPoints[i][j][ORIGINAL] = new Point3D(x, y, z);
 
                 // Min/Max Z-Werte aktualisieren
-                if (z < zMin)
-                    zMin = z;
-                if (z > zMax)
-                    zMax = z;
+                if (z < localZMin)
+                    localZMin = z;
+                if (z > localZMax)
+                    localZMax = z;
+            }
+        }
+
+        // Aktualisiere globale Z-Grenzen
+        if (localZMin < zMin)
+            zMin = localZMin;
+        if (localZMax > zMax)
+            zMax = localZMax;
+
+        // Verhindere zu kleine Z-Bereiche
+        if (Math.abs(zMax - zMin) < 1e-10) {
+            zMax = zMin + 1.0;
+        }
+
+        // Transformiere und projiziere alle Punkte dieser Funktion
+        transformAndProjectPoints(functionInfo);
+    }
+
+    /**
+     * Berechnet die Z-Grenzen über alle Funktionen hinweg neu
+     */
+    private void recalculateZRange() {
+        zMin = Double.POSITIVE_INFINITY;
+        zMax = Double.NEGATIVE_INFINITY;
+
+        for (Function3DInfo functionInfo : functions) {
+            // Finde lokale Min/Max Z-Werte dieser Funktion
+            for (int i = 0; i < resolution; i++) {
+                for (int j = 0; j < resolution; j++) {
+                    double z = functionInfo.gridPoints[i][j][ORIGINAL].z;
+
+                    if (z < zMin)
+                        zMin = z;
+                    if (z > zMax)
+                        zMax = z;
+                }
             }
         }
 
@@ -134,16 +213,24 @@ public class Plot3DRenderer {
         if (Math.abs(zMax - zMin) < 1e-10) {
             zMax = zMin + 1.0;
         }
-
-        // Transformiere und projiziere alle Punkte
-        transformAndProjectPoints();
     }
 
     /**
      * Transformiert und projiziert alle Punkte basierend auf Rotation und
      * Skalierung
+     * für alle Funktionen
      */
-    private void transformAndProjectPoints() {
+    private void transformAndProjectAllPoints() {
+        for (Function3DInfo functionInfo : functions) {
+            transformAndProjectPoints(functionInfo);
+        }
+    }
+
+    /**
+     * Transformiert und projiziert alle Punkte einer Funktion basierend auf
+     * Rotation und Skalierung
+     */
+    private void transformAndProjectPoints(Function3DInfo functionInfo) {
         // Winkel in Radianten umrechnen
         double angleX = Math.toRadians(rotationX);
         double angleY = Math.toRadians(rotationY);
@@ -172,6 +259,8 @@ public class Plot3DRenderer {
         // Pan-Werte für die aktuelle Transformation anpassen
         double adjustedPanX = panX * scale;
         double adjustedPanY = panY * scale;
+
+        Point3D[][][] gridPoints = functionInfo.gridPoints;
 
         // Jeden Punkt transformieren und projizieren
         for (int i = 0; i < resolution; i++) {
@@ -228,7 +317,7 @@ public class Plot3DRenderer {
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         // Skalierungsfaktoren für die Anzeige berechnen
-        double displayScale = Math.min(width, height) * 0.4;
+        double displayScale = Math.min(width, height) * 0.6; // Erhöht von 0.4 auf 0.6
         int xOffset = width / 2;
         int yOffset = height / 2;
 
@@ -245,8 +334,10 @@ public class Plot3DRenderer {
             drawTicksAndLabels(g2d, displayScale, xOffset, yOffset);
         }
 
-        // Das Funktionsgitter zeichnen
-        drawGrid(g2d, displayScale, xOffset, yOffset);
+        // Alle Funktionsgitter zeichnen
+        for (Function3DInfo functionInfo : functions) {
+            drawGrid(g2d, functionInfo, displayScale, xOffset, yOffset);
+        }
 
         // Beschriftungen zeichnen
         drawLabels(g2d, width, height);
@@ -541,75 +632,6 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Zeichnet das 3D-Gitter als Drahtgittermodell
-     */
-    private void drawGrid(Graphics2D g2d, double displayScale, int xOffset, int yOffset) {
-        // Linienstärke für das Gitter
-        g2d.setStroke(new BasicStroke(1.0f));
-
-        // Horizontale Linien zeichnen (entlang der X-Achse)
-        for (int j = 0; j < resolution; j++) {
-            Path2D path = new Path2D.Double();
-            boolean started = false;
-
-            for (int i = 0; i < resolution; i++) {
-                Point3D projected = gridPoints[i][j][PROJECTED];
-
-                // Bildschirmkoordinaten berechnen
-                int screenX = xOffset + (int) (projected.x * displayScale);
-                int screenY = yOffset - (int) (projected.y * displayScale); // Y-Achse ist auf dem Bildschirm umgekehrt
-
-                if (!started) {
-                    path.moveTo(screenX, screenY);
-                    started = true;
-                } else {
-                    path.lineTo(screenX, screenY);
-                }
-
-                // Farbe basierend auf Z-Wert bestimmen
-                double normalizedZ = (gridPoints[i][j][ORIGINAL].z - zMin) / (zMax - zMin);
-                Color color = colorScheme.getColorForValue(normalizedZ);
-                g2d.setColor(color);
-            }
-
-            g2d.draw(path);
-        }
-
-        // Vertikale Linien zeichnen (entlang der Y-Achse)
-        for (int i = 0; i < resolution; i++) {
-            Path2D path = new Path2D.Double();
-            boolean started = false;
-
-            for (int j = 0; j < resolution; j++) {
-                Point3D projected = gridPoints[i][j][PROJECTED];
-
-                // Bildschirmkoordinaten berechnen
-                int screenX = xOffset + (int) (projected.x * displayScale);
-                int screenY = yOffset - (int) (projected.y * displayScale);
-
-                if (!started) {
-                    path.moveTo(screenX, screenY);
-                    started = true;
-                } else {
-                    path.lineTo(screenX, screenY);
-                }
-
-                // Farbe basierend auf Z-Wert bestimmen
-                double normalizedZ = (gridPoints[i][j][ORIGINAL].z - zMin) / (zMax - zMin);
-                Color color = colorScheme.getColorForValue(normalizedZ);
-                g2d.setColor(color);
-            }
-
-            g2d.draw(path);
-        }
-    }
-
-    /**
-     * Zeichnet die Koordinatenachsen durch den gesamten sichtbaren Bereich
-     * Mit verbesserter Behandlung für Achsen, die den sichtbaren Bereich verlassen
-     * würden
-     */
-    /**
      * Zeichnet die Koordinatenachsen durch den gesamten sichtbaren Bereich
      * Mit korrektem Einrasten an den Grenzen des sichtbaren Bereichs
      */
@@ -744,6 +766,10 @@ public class Plot3DRenderer {
         tempZ = ty * sinX + tz * cosX;
         ty = tempY;
 
+        // Panning anwenden
+        tx += panX * scale;
+        ty += panY * scale;
+
         // Achsenlabel "X" zeichnen (mit leichtem Offset für bessere Sichtbarkeit)
         int xLabelX = xOffset + (int) (tx * displayScale) + 10;
         int xLabelY = yOffset - (int) (ty * displayScale);
@@ -768,6 +794,10 @@ public class Plot3DRenderer {
         tempY = ty * cosX - tz * sinX;
         tempZ = ty * sinX + tz * cosX;
         ty = tempY;
+
+        // Panning anwenden
+        tx += panX * scale;
+        ty += panY * scale;
 
         // Achsenlabel "Y" zeichnen (mit leichtem Offset für bessere Sichtbarkeit)
         int yLabelX = xOffset + (int) (tx * displayScale);
@@ -794,6 +824,10 @@ public class Plot3DRenderer {
         tempZ = ty * sinX + tz * cosX;
         ty = tempY;
 
+        // Panning anwenden
+        tx += panX * scale;
+        ty += panY * scale;
+
         // Achsenlabel "Z" zeichnen (mit leichtem Offset für bessere Sichtbarkeit)
         int zLabelX = xOffset + (int) (tx * displayScale);
         int zLabelY = yOffset - (int) (ty * displayScale);
@@ -801,170 +835,6 @@ public class Plot3DRenderer {
 
         // Ursprungsschriftart wiederherstellen
         g2d.setFont(originalFont);
-    }
-
-    /**
-     * Zeichnet die Achsenbeschriftungen (X, Y, Z)
-     */
-    private void drawAxisLabels(Graphics2D g2d, double displayScale, int xOffset, int yOffset,
-            double xCenter, double yCenter, double zCenter, double factor,
-            double sinX, double cosX, double sinY, double cosY, double sinZ, double cosZ) {
-
-        Font originalFont = g2d.getFont();
-        g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
-
-        // X-Achsen-Beschriftung
-        double labelX, labelY, labelZ;
-
-        // X-Achsen-Position für die Beschriftung - Prüfe ob im Bereich
-        if (xMin <= 0 && xMax >= 0) {
-            // X-Achse geht durch den Ursprung
-            labelX = xMax;
-            labelY = 0;
-            labelZ = 0;
-        } else if (xMax < 0) {
-            // X-Achse liegt vollständig im negativen Bereich
-            labelX = xMax;
-            labelY = yMin;
-            labelZ = 0;
-        } else { // xMin > 0
-            // X-Achse liegt vollständig im positiven Bereich
-            labelX = xMax;
-            labelY = yMax;
-            labelZ = 0;
-        }
-
-        // X-Beschriftung transformieren und positionieren
-        double tx = (labelX - xCenter) * factor * scale;
-        double ty = (labelY - yCenter) * factor * scale;
-        double tz = (labelZ - zCenter) * factor * scale;
-
-        double tempX = tx * cosZ - ty * sinZ;
-        double tempY = tx * sinZ + ty * cosZ;
-        tx = tempX;
-        ty = tempY;
-
-        tempX = tx * cosY + tz * sinY;
-        double tempZ = -tx * sinY + tz * cosY;
-        tx = tempX;
-        tz = tempZ;
-
-        tempY = ty * cosX - tz * sinX;
-        tempZ = ty * sinX + tz * cosX;
-        ty = tempY;
-
-        int xLabelX = xOffset + (int) (tx * displayScale) + 10;
-        int xLabelY = yOffset - (int) (ty * displayScale);
-        g2d.drawString("X", xLabelX, xLabelY);
-
-        // Y-Achsen-Position für die Beschriftung - Prüfe ob im Bereich
-        if (yMin <= 0 && yMax >= 0) {
-            // Y-Achse geht durch den Ursprung
-            labelX = 0;
-            labelY = yMax;
-            labelZ = 0;
-        } else if (yMax < 0) {
-            // Y-Achse liegt vollständig im negativen Bereich
-            labelX = xMin;
-            labelY = yMax;
-            labelZ = 0;
-        } else { // yMin > 0
-            // Y-Achse liegt vollständig im positiven Bereich
-            labelX = xMax;
-            labelY = yMax;
-            labelZ = 0;
-        }
-
-        // Y-Beschriftung transformieren und positionieren
-        tx = (labelX - xCenter) * factor * scale;
-        ty = (labelY - yCenter) * factor * scale;
-        tz = (labelZ - zCenter) * factor * scale;
-
-        tempX = tx * cosZ - ty * sinZ;
-        tempY = tx * sinZ + ty * cosZ;
-        tx = tempX;
-        ty = tempY;
-
-        tempX = tx * cosY + tz * sinY;
-        tempZ = -tx * sinY + tz * cosY;
-        tx = tempX;
-        tz = tempZ;
-
-        tempY = ty * cosX - tz * sinX;
-        tempZ = ty * sinX + tz * cosX;
-        ty = tempY;
-
-        int yLabelX = xOffset + (int) (tx * displayScale);
-        int yLabelY = yOffset - (int) (ty * displayScale) - 10;
-        g2d.drawString("Y", yLabelX, yLabelY);
-
-        // Z-Achsen-Position für die Beschriftung - Prüfe ob im Bereich
-        if (zMin <= 0 && zMax >= 0) {
-            // Z-Achse geht durch den Ursprung
-            labelX = 0;
-            labelY = 0;
-            labelZ = zMax;
-        } else if (zMax < 0) {
-            // Z-Achse liegt vollständig im negativen Bereich
-            labelX = xMin;
-            labelY = yMin;
-            labelZ = zMax;
-        } else { // zMin > 0
-            // Z-Achse liegt vollständig im positiven Bereich
-            labelX = xMax;
-            labelY = yMax;
-            labelZ = zMax;
-        }
-
-        // Z-Beschriftung transformieren und positionieren
-        tx = (labelX - xCenter) * factor * scale;
-        ty = (labelY - yCenter) * factor * scale;
-        tz = (labelZ - zCenter) * factor * scale;
-
-        tempX = tx * cosZ - ty * sinZ;
-        tempY = tx * sinZ + ty * cosZ;
-        tx = tempX;
-        ty = tempY;
-
-        tempX = tx * cosY + tz * sinY;
-        tempZ = -tx * sinY + tz * cosY;
-        tx = tempX;
-        tz = tempZ;
-
-        tempY = ty * cosX - tz * sinX;
-        tempZ = ty * sinX + tz * cosX;
-        ty = tempY;
-
-        int zLabelX = xOffset + (int) (tx * displayScale);
-        int zLabelY = yOffset - (int) (ty * displayScale);
-        g2d.drawString("Z", zLabelX, zLabelY);
-
-        // Ursprungsfarnung wiederherstellen
-        g2d.setFont(originalFont);
-    }
-
-    /**
-     * Berechnet einen geeigneten Abstand für Gitterlinien und Achsenbeschriftungen
-     * basierend auf dem Wertebereich
-     */
-    private double calculateGridSpacing(double range) {
-        // Ziel: Etwa 5-10 Gitterlinien im sichtbaren Bereich
-        double targetSteps = 6;
-        double rawSpacing = range / targetSteps;
-
-        // Auf "schöne" Werte normalisieren (1, 2, 5, 10, 20, 50, ...)
-        double exponent = Math.floor(Math.log10(rawSpacing));
-        double mantissa = rawSpacing / Math.pow(10, exponent);
-
-        // Runde auf "schöne" Werte: 1, 2, 5, 10
-        if (mantissa < 1.5)
-            return Math.pow(10, exponent);
-        else if (mantissa < 3.5)
-            return 2 * Math.pow(10, exponent);
-        else if (mantissa < 7.5)
-            return 5 * Math.pow(10, exponent);
-        else
-            return 10 * Math.pow(10, exponent);
     }
 
     /**
@@ -1193,6 +1063,30 @@ public class Plot3DRenderer {
     }
 
     /**
+     * Berechnet einen geeigneten Abstand für Gitterlinien und Achsenbeschriftungen
+     * basierend auf dem Wertebereich
+     */
+    private double calculateGridSpacing(double range) {
+        // Ziel: Etwa 5-10 Gitterlinien im sichtbaren Bereich
+        double targetSteps = 6;
+        double rawSpacing = range / targetSteps;
+
+        // Auf "schöne" Werte normalisieren (1, 2, 5, 10, 20, 50, ...)
+        double exponent = Math.floor(Math.log10(rawSpacing));
+        double mantissa = rawSpacing / Math.pow(10, exponent);
+
+        // Runde auf "schöne" Werte: 1, 2, 5, 10
+        if (mantissa < 1.5)
+            return Math.pow(10, exponent);
+        else if (mantissa < 3.5)
+            return 2 * Math.pow(10, exponent);
+        else if (mantissa < 7.5)
+            return 5 * Math.pow(10, exponent);
+        else
+            return 10 * Math.pow(10, exponent);
+    }
+
+    /**
      * Zeichnet Beschriftungen für Achsen und Farbskala
      */
     private void drawLabels(Graphics2D g2d, int width, int height) {
@@ -1237,6 +1131,67 @@ public class Plot3DRenderer {
     }
 
     /**
+     * Zeichnet das 3D-Gitter als Drahtgittermodell für eine bestimmte Funktion
+     */
+    private void drawGrid(Graphics2D g2d, Function3DInfo functionInfo, double displayScale, int xOffset, int yOffset) {
+        // Linienstärke für das Gitter
+        g2d.setStroke(new BasicStroke(1.0f));
+
+        Point3D[][][] gridPoints = functionInfo.gridPoints;
+        Color color = functionInfo.color;
+
+        // Horizontale Linien zeichnen (entlang der X-Achse)
+        for (int j = 0; j < resolution; j++) {
+            Path2D path = new Path2D.Double();
+            boolean started = false;
+
+            for (int i = 0; i < resolution; i++) {
+                Point3D projected = gridPoints[i][j][PROJECTED];
+
+                // Bildschirmkoordinaten berechnen
+                int screenX = xOffset + (int) (projected.x * displayScale);
+                int screenY = yOffset - (int) (projected.y * displayScale); // Y-Achse ist auf dem Bildschirm umgekehrt
+
+                if (!started) {
+                    path.moveTo(screenX, screenY);
+                    started = true;
+                } else {
+                    path.lineTo(screenX, screenY);
+                }
+            }
+
+            // Farbe für diese Funktion verwenden
+            g2d.setColor(color);
+            g2d.draw(path);
+        }
+
+        // Vertikale Linien zeichnen (entlang der Y-Achse)
+        for (int i = 0; i < resolution; i++) {
+            Path2D path = new Path2D.Double();
+            boolean started = false;
+
+            for (int j = 0; j < resolution; j++) {
+                Point3D projected = gridPoints[i][j][PROJECTED];
+
+                // Bildschirmkoordinaten berechnen
+                int screenX = xOffset + (int) (projected.x * displayScale);
+                int screenY = yOffset - (int) (projected.y * displayScale);
+
+                if (!started) {
+                    path.moveTo(screenX, screenY);
+                    started = true;
+                } else {
+                    path.lineTo(screenX, screenY);
+                }
+            }
+
+            // Farbe für diese Funktion verwenden
+            g2d.setColor(color);
+            g2d.draw(path);
+        }
+    }
+
+    /**
      * Erstellt ein BufferedImage des 3D-Plots
      */
     public BufferedImage createImage(int width, int height) {
@@ -1261,7 +1216,7 @@ public class Plot3DRenderer {
         this.rotationX = rotationX;
         this.rotationY = rotationY;
         this.rotationZ = rotationZ;
-        transformAndProjectPoints();
+        transformAndProjectAllPoints();
     }
 
     /**
@@ -1269,7 +1224,7 @@ public class Plot3DRenderer {
      */
     public void setScale(double scale) {
         this.scale = Math.max(0.1, Math.min(10.0, scale)); // Skalierung begrenzen
-        transformAndProjectPoints();
+        transformAndProjectAllPoints();
     }
 
     /**
@@ -1279,7 +1234,7 @@ public class Plot3DRenderer {
         this.panX = panX;
         this.panY = panY;
         // Punkte mit neuen Werten transformieren
-        transformAndProjectPoints();
+        transformAndProjectAllPoints();
     }
 
     /**
@@ -1289,42 +1244,7 @@ public class Plot3DRenderer {
         this.panX += deltaPanX;
         this.panY += deltaPanY;
         // Punkte mit neuen Werten transformieren
-        transformAndProjectPoints();
-    }
-
-    /**
-     * Passt die Wertebereiche beim Zoomen an
-     */
-    private void adjustValueRangesForZoom() {
-        // Berechnen, wie stark die Bereiche angepasst werden sollen
-        // Beim Hineinzoomen (scale > 1) werden die Bereiche kleiner
-        // Beim Herauszoomen (scale < 1) werden die Bereiche größer
-
-        // Der Mittelpunkt der Ansicht soll stabil bleiben
-        double xCenter = (xMax + xMin) / 2;
-        double yCenter = (yMax + yMin) / 2;
-
-        // Bereich basierend auf Skalierung anpassen
-        // 1/scale gibt uns die inverse Beziehung, die wir wollen:
-        // Größere Skalierung = kleinerer sichtbarer Bereich
-        double adjustmentFactor = 1 / scale;
-
-        // Originalbereiche verwenden, um korrekt zu skalieren
-        double originalXRange = originalXMax - originalXMin;
-        double originalYRange = originalYMax - originalYMin;
-
-        // Neue Bereiche berechnen
-        double newXRange = originalXRange * adjustmentFactor;
-        double newYRange = originalYRange * adjustmentFactor;
-
-        // Neue Minimum- und Maximumwerte um xCenter und yCenter zentriert setzen
-        xMin = xCenter - newXRange / 2;
-        xMax = xCenter + newXRange / 2;
-        yMin = yCenter - newYRange / 2;
-        yMax = yCenter + newYRange / 2;
-
-        // Funktionswerte mit neuen Bereichen neu berechnen
-        calculateFunctionValues();
+        transformAndProjectAllPoints();
     }
 
     /**
@@ -1332,19 +1252,6 @@ public class Plot3DRenderer {
      */
     public void zoom(double factor) {
         setScale(scale * factor);
-    }
-
-    /**
-     * Setzt eine neue Funktion
-     */
-    public void setFunction(String functionExpression) {
-        try {
-            this.function = new Function3DParser(functionExpression);
-            calculateFunctionValues();
-        } catch (Exception e) {
-            // Behalte die alte Funktion bei, wenn die neue ungültig ist
-            System.err.println("Fehler beim Setzen der Funktion: " + e.getMessage());
-        }
     }
 
     /**
@@ -1362,22 +1269,30 @@ public class Plot3DRenderer {
         this.originalYMin = yMin;
         this.originalYMax = yMax;
 
-        calculateFunctionValues();
+        // Alle Funktionen neu berechnen
+        recalculateAllFunctions();
     }
 
     /**
-     * Setzt die Auflösung des Gitters
+     * Berechnet alle Funktionen neu
+     */
+    private void recalculateAllFunctions() {
+        // Z-Grenzen zurücksetzen
+        zMin = Double.POSITIVE_INFINITY;
+        zMax = Double.NEGATIVE_INFINITY;
+
+        // Alle Funktionen neu berechnen
+        for (Function3DInfo functionInfo : functions) {
+            calculateFunctionValues(functionInfo);
+        }
+    }
+
+    /**
+     * Setzt die Auflösung des Gitters und berechnet alle Funktionen neu
      */
     public void setResolution(int resolution) {
         this.resolution = Math.max(10, Math.min(100, resolution));
-        calculateFunctionValues();
-    }
-
-    /**
-     * Setzt das Farbschema
-     */
-    public void setColorScheme(GradientColorScheme colorScheme) {
-        this.colorScheme = colorScheme;
+        recalculateAllFunctions();
     }
 
     /**
@@ -1402,31 +1317,47 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Getter-Methode für xMin
+     * Gibt die aktuelle Liste der Funktionen zurück
      */
+    public List<Function3DInfo> getFunctions() {
+        return functions;
+    }
+
+    // Getter-Methoden
     public double getXMin() {
         return xMin;
     }
 
-    /**
-     * Getter-Methode für xMax
-     */
     public double getXMax() {
         return xMax;
     }
 
-    /**
-     * Getter-Methode für yMin
-     */
     public double getYMin() {
         return yMin;
     }
 
-    /**
-     * Getter-Methode für yMax
-     */
     public double getYMax() {
         return yMax;
+    }
+
+    /**
+     * Klasse zum Speichern von 3D-Funktionsinformationen
+     */
+    public static class Function3DInfo {
+        final Function3DParser function;
+        final Color color;
+        final String expression;
+        Point3D[][][] gridPoints;
+
+        public Function3DInfo(Function3DParser function, Color color, String expression) {
+            this.function = function;
+            this.color = color;
+            this.expression = expression;
+        }
+
+        public String getExpression() {
+            return expression;
+        }
     }
 
     /**
