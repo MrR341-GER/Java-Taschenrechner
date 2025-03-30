@@ -13,7 +13,8 @@ public class Plot3DUIBuilder {
     private final Plot3DPanel mainPanel;
     private final Plot3DFunctionManager functionManager;
     private final Plot3DViewController viewController;
-    
+    private Example3DPanel examplePanel; // Neu: Komponente für 3D-Beispiele
+
     // UI-Komponenten
     private JTextField functionField;
     private JComboBox<String> colorComboBox;
@@ -26,21 +27,21 @@ public class Plot3DUIBuilder {
     private JCheckBox showCoordinateSystemCheckbox;
     private JCheckBox showGridCheckbox;
     private JCheckBox showHelperLinesCheckbox;
-    
+
     /**
      * Konstruktor für den UI-Builder
      * 
-     * @param mainPanel Das Hauptpanel des 3D-Plotters
+     * @param mainPanel       Das Hauptpanel des 3D-Plotters
      * @param functionManager Der Funktionsmanager
-     * @param viewController Der View-Controller
+     * @param viewController  Der View-Controller
      */
-    public Plot3DUIBuilder(Plot3DPanel mainPanel, Plot3DFunctionManager functionManager, 
-                           Plot3DViewController viewController) {
+    public Plot3DUIBuilder(Plot3DPanel mainPanel, Plot3DFunctionManager functionManager,
+            Plot3DViewController viewController) {
         this.mainPanel = mainPanel;
         this.functionManager = functionManager;
         this.viewController = viewController;
     }
-    
+
     /**
      * Erstellt das Kontrollpanel mit allen Steuerungselementen
      */
@@ -52,8 +53,28 @@ public class Plot3DUIBuilder {
         // 1. Funktionseingabe
         JPanel functionPanel = createFunctionInputPanel();
 
-        // 2. Funktionsliste
+        // Initialisiere den FunctionField für das Beispiel-Panel
+        if (functionField != null) {
+            examplePanel = new Example3DPanel(mainPanel, functionField);
+        }
+
+        // 2. Zweispaltige Ansicht: Links Beispiele, rechts Funktionsliste
+        JPanel splitPanel = new JPanel(new GridLayout(1, 2, 5, 5));
+
+        // Beispiel-Panel erstellen
+        JPanel examplesPanel = null;
+        if (examplePanel != null) {
+            examplesPanel = examplePanel.createExamplesPanel();
+        }
+
+        // Funktionslisten-Panel erstellen
         JPanel functionsPanel = createFunctionListPanel();
+
+        // Beide Panels einfügen
+        if (examplesPanel != null) {
+            splitPanel.add(examplesPanel);
+        }
+        splitPanel.add(functionsPanel);
 
         // 3. Bereichseinstellungen
         JPanel rangePanel = createRangePanel();
@@ -77,7 +98,7 @@ public class Plot3DUIBuilder {
         // Alles zusammenfügen
         panel.add(functionPanel);
         panel.add(Box.createVerticalStrut(10));
-        panel.add(functionsPanel);
+        panel.add(splitPanel); // Neu: Funktionsliste und Beispiele nebeneinander
         panel.add(Box.createVerticalStrut(10));
         panel.add(rangePanel);
         panel.add(Box.createVerticalStrut(10));
@@ -96,7 +117,7 @@ public class Plot3DUIBuilder {
 
         return panel;
     }
-    
+
     /**
      * Erstellt das Panel für die Funktionseingabe
      */
@@ -122,19 +143,19 @@ public class Plot3DUIBuilder {
         functionPanel.add(inputPanel, BorderLayout.CENTER);
 
         JButton renderButton = new JButton("Hinzufügen");
-        renderButton.addActionListener(e -> functionManager.addFunction(functionField.getText(), 
-                                                                     (String)colorComboBox.getSelectedItem()));
+        renderButton.addActionListener(e -> functionManager.addFunction(functionField.getText(),
+                (String) colorComboBox.getSelectedItem()));
 
         functionPanel.add(renderButton, BorderLayout.EAST);
-        
+
         return functionPanel;
     }
-    
+
     /**
      * Behandelt die Auswahl einer benutzerdefinierten Farbe
      */
     private void handleCustomColorSelection() {
-        if (colorComboBox.getSelectedItem() != null && 
+        if (colorComboBox.getSelectedItem() != null &&
                 colorComboBox.getSelectedItem().toString().equals("Weitere...")) {
 
             mainPanel.debug("Benutzerdefinierte Farbauswahl geöffnet");
@@ -172,7 +193,7 @@ public class Plot3DUIBuilder {
             }
         }
     }
-    
+
     /**
      * Erstellt das Panel für die Funktionsliste
      */
@@ -182,7 +203,7 @@ public class Plot3DUIBuilder {
 
         // Scroll-Bereich für die Liste
         JScrollPane scrollPane = new JScrollPane(functionManager.getFunctionList());
-        scrollPane.setPreferredSize(new Dimension(200, 100));
+        scrollPane.setPreferredSize(new Dimension(100, 100));
         functionsPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Button-Panel
@@ -200,7 +221,7 @@ public class Plot3DUIBuilder {
 
         return functionsPanel;
     }
-    
+
     /**
      * Erstellt das Panel für die Bereichseinstellungen
      */
@@ -284,7 +305,7 @@ public class Plot3DUIBuilder {
 
         return rangePanel;
     }
-    
+
     /**
      * Erstellt das Panel für die Auflösungseinstellung
      */
@@ -317,7 +338,7 @@ public class Plot3DUIBuilder {
 
         return resolutionPanel;
     }
-    
+
     /**
      * Erstellt das Panel für die Anzeigeoptionen
      */
@@ -351,7 +372,7 @@ public class Plot3DUIBuilder {
 
         return displayOptionsPanel;
     }
-    
+
     /**
      * Erstellt das Panel für die Rotationssteuerung
      */
@@ -431,7 +452,7 @@ public class Plot3DUIBuilder {
 
         return rotationPanel;
     }
-    
+
     /**
      * Erstellt das Panel mit Steuerungshinweisen
      */
@@ -445,33 +466,44 @@ public class Plot3DUIBuilder {
         instructionText.setEditable(false);
         instructionText.setBackground(instructionPanel.getBackground());
         instructionPanel.add(instructionText, BorderLayout.CENTER);
-        
+
         return instructionPanel;
     }
-    
+
+    // Getter-Methoden für Komponenten
+
     /**
-     * Gibt die Textfelder für den Wertebereich zurück
+     * Gibt das Funktionsfeld zurück
+     */
+    public JTextField getFunctionField() {
+        return functionField;
+    }
+
+    /**
+     * Gibt das Feld für X-Minimum zurück
      */
     public JTextField getXMinField() {
         return xMinField;
     }
-    
+
+    /**
+     * Gibt das Feld für X-Maximum zurück
+     */
     public JTextField getXMaxField() {
         return xMaxField;
     }
-    
+
+    /**
+     * Gibt das Feld für Y-Minimum zurück
+     */
     public JTextField getYMinField() {
         return yMinField;
     }
-    
+
+    /**
+     * Gibt das Feld für Y-Maximum zurück
+     */
     public JTextField getYMaxField() {
         return yMaxField;
-    }
-    
-    /**
-     * Gibt den Funktionsfeld zurück
-     */
-    public JTextField getFunctionField() {
-        return functionField;
     }
 }

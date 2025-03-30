@@ -2,33 +2,39 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * Manages the debug functionality
+ * Verwaltet die Debug-Funktionalität
+ * Implementiert das Logger-Interface für einheitliche Protokollierung
  */
-public class DebugManager {
+public class DebugManager implements Logger {
     private JTextArea debugTextArea;
     private JDialog debugDialog;
     private final Taschenrechner calculator;
 
+    /**
+     * Erstellt einen neuen DebugManager
+     * 
+     * @param calculator Der zugehörige Taschenrechner
+     */
     public DebugManager(Taschenrechner calculator) {
         this.calculator = calculator;
         initializeDebugPanel();
     }
 
     /**
-     * Initializes the debug panel
+     * Initialisiert das Debug-Panel
      */
     private void initializeDebugPanel() {
         // Create debug text area
         debugTextArea = new JTextArea(10, 40);
         debugTextArea.setEditable(false);
-        debugTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        debugTextArea.setFont(CalculatorConstants.MONOSPACE_FONT);
 
         // Create dialog for debug information
         createDebugDialog();
     }
 
     /**
-     * Creates the dialog for displaying debug information
+     * Erstellt den Dialog für die Anzeige von Debug-Informationen
      */
     private void createDebugDialog() {
         // Erstelle den Dialog
@@ -74,17 +80,66 @@ public class DebugManager {
     }
 
     /**
-     * Adds a debug message
+     * Protokolliert eine Debug-Nachricht
      */
+    @Override
     public void debug(String message) {
-        System.out.println("[DEBUG] " + message);
+        log("[DEBUG] " + message);
+    }
+
+    /**
+     * Protokolliert eine Info-Nachricht
+     */
+    @Override
+    public void info(String message) {
+        log("[INFO] " + message);
+    }
+
+    /**
+     * Protokolliert eine Warnung
+     */
+    @Override
+    public void warning(String message) {
+        log("[WARNUNG] " + message);
+    }
+
+    /**
+     * Protokolliert einen Fehler
+     */
+    @Override
+    public void error(String message) {
+        log("[FEHLER] " + message);
+    }
+
+    /**
+     * Protokolliert einen Fehler mit Exception
+     */
+    @Override
+    public void error(String message, Exception e) {
+        log("[FEHLER] " + message);
+        if (e != null) {
+            log("  Exception: " + e.getClass().getName() + ": " + e.getMessage());
+            
+            // Stacktrace (begrenzt)
+            StackTraceElement[] stack = e.getStackTrace();
+            for (int i = 0; i < Math.min(3, stack.length); i++) {
+                log("    at " + stack[i].toString());
+            }
+        }
+    }
+
+    /**
+     * Interne Methode zum Protokollieren einer Nachricht
+     */
+    private void log(String message) {
+        System.out.println(message);
         debugTextArea.append(message + "\n");
-        // Scroll to the end
+        // Zum Ende scrollen
         debugTextArea.setCaretPosition(debugTextArea.getDocument().getLength());
     }
 
     /**
-     * Shows the debug dialog
+     * Zeigt den Debug-Dialog an
      */
     public void showDebugDialog() {
         if (debugDialog != null) {
@@ -93,7 +148,7 @@ public class DebugManager {
     }
 
     /**
-     * Hides the debug dialog
+     * Verbirgt den Debug-Dialog
      */
     public void hideDebugDialog() {
         if (debugDialog != null) {
@@ -102,18 +157,25 @@ public class DebugManager {
     }
 
     /**
-     * Returns if the debug dialog is visible
+     * Gibt zurück, ob der Debug-Dialog sichtbar ist
      */
     public boolean isVisible() {
         return debugDialog != null && debugDialog.isVisible();
     }
 
     /**
-     * Updates the dialog position relative to the parent window
+     * Aktualisiert die Dialog-Position relativ zum Elternfenster
      */
     public void updateDialogPosition() {
         if (debugDialog != null && calculator != null) {
             debugDialog.setLocationRelativeTo(calculator);
         }
+    }
+
+    /**
+     * Gibt das Debug-TextArea zurück
+     */
+    public JTextArea getDebugTextArea() {
+        return debugTextArea;
     }
 }

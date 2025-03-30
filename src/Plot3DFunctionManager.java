@@ -10,40 +10,40 @@ import java.util.regex.Pattern;
 public class Plot3DFunctionManager {
     private final Plot3DRenderer renderer;
     private final Plot3DViewController viewController;
-    
+
     // Funktionslisten-Komponenten
     private DefaultListModel<String> functionListModel;
     private JList<String> functionList;
     private JPopupMenu functionPopup;
-    
+
     // Pattern für Funktionseinträge
     private final Pattern functionPattern = Pattern.compile("f\\(x,y\\) = (.+) \\[(.+)\\]");
-    
+
     // Debug-Referenz
     private DebugManager debugManager;
-    
+
     /**
      * Konstruktor für den Funktionsmanager
      * 
-     * @param renderer Der Plot3DRenderer
+     * @param renderer       Der Plot3DRenderer
      * @param viewController Der View-Controller
      */
     public Plot3DFunctionManager(Plot3DRenderer renderer, Plot3DViewController viewController) {
         this.renderer = renderer;
         this.viewController = viewController;
-        
+
         // Initialisiere die Listmodell und Liste
         functionListModel = new DefaultListModel<>();
         functionList = new JList<>(functionListModel);
         functionList.setCellRenderer(new FunctionCellRenderer());
-        
+
         // Kontextmenü für die Funktionsliste
         setupContextMenu();
-        
+
         // Doppelklick-Listener für Bearbeitung
         setupListListeners();
     }
-    
+
     /**
      * Erstellt das Kontextmenü für die Funktionsliste
      */
@@ -60,7 +60,7 @@ public class Plot3DFunctionManager {
         functionPopup.addSeparator();
         functionPopup.add(removeItem);
     }
-    
+
     /**
      * Richtet die Listener für die Funktionsliste ein
      */
@@ -82,7 +82,7 @@ public class Plot3DFunctionManager {
             }
         });
     }
-    
+
     /**
      * Öffnet einen Dialog zum Bearbeiten der ausgewählten Funktion
      */
@@ -102,31 +102,29 @@ public class Plot3DFunctionManager {
             // Setze die Werte in die Eingabefelder
             // In der refaktorisierten Version müssen wir stattdessen einen Dialog erstellen
             String newFunction = JOptionPane.showInputDialog(
-                functionList, 
-                "Bearbeiten Sie die Funktion:", 
-                function
-            );
-            
+                    functionList,
+                    "Bearbeiten Sie die Funktion:",
+                    function);
+
             if (newFunction != null && !newFunction.isEmpty()) {
                 // Farbauswahl
                 Object[] colorOptions = ColorChooser.getColorNames();
                 String newColorName = (String) JOptionPane.showInputDialog(
-                    functionList,
-                    "Wählen Sie eine Farbe:",
-                    "Farbauswahl",
-                    JOptionPane.QUESTION_MESSAGE,
-                    null,
-                    colorOptions,
-                    colorName
-                );
-                
+                        functionList,
+                        "Wählen Sie eine Farbe:",
+                        "Farbauswahl",
+                        JOptionPane.QUESTION_MESSAGE,
+                        null,
+                        colorOptions,
+                        colorName);
+
                 if (newColorName != null) {
                     updateFunction(selectedIndex, newFunction, newColorName);
                 }
             }
         }
     }
-    
+
     /**
      * Aktualisiert eine bestehende Funktion
      */
@@ -175,13 +173,13 @@ public class Plot3DFunctionManager {
             debug("Fehler beim Aktualisieren der Funktion: " + e.getMessage());
         }
     }
-    
+
     /**
      * Fügt eine neue Funktion hinzu
      */
     public void addFunction(String function, String colorName) {
         function = function.trim();
-        
+
         if (function.isEmpty()) {
             JOptionPane.showMessageDialog(functionList, "Bitte geben Sie eine Funktion ein.");
             return;
@@ -223,14 +221,14 @@ public class Plot3DFunctionManager {
             debug("Fehler beim Hinzufügen der Funktion: " + e.getMessage());
         }
     }
-    
+
     /**
      * Entfernt die ausgewählte Funktion
      */
     public void removeSelectedFunction() {
         int selectedIndex = functionList.getSelectedIndex();
         if (selectedIndex < 0) {
-            JOptionPane.showMessageDialog(functionList, 
+            JOptionPane.showMessageDialog(functionList,
                     "Bitte wählen Sie eine Funktion zum Entfernen aus.");
             return;
         }
@@ -243,7 +241,7 @@ public class Plot3DFunctionManager {
 
         debug("Funktion an Position " + selectedIndex + " entfernt");
     }
-    
+
     /**
      * Entfernt alle Funktionen
      */
@@ -268,14 +266,14 @@ public class Plot3DFunctionManager {
             debug("Alle Funktionen gelöscht");
         }
     }
-    
+
     /**
      * Setzt den DebugManager für Logging
      */
     public void setDebugManager(DebugManager debugManager) {
         this.debugManager = debugManager;
     }
-    
+
     /**
      * Schreibt Debug-Informationen in das Debug-Fenster
      */
@@ -286,21 +284,21 @@ public class Plot3DFunctionManager {
             System.out.println("[3D-Funktionen] " + message);
         }
     }
-    
+
     /**
      * Gibt die Funktionsliste zurück
      */
     public JList<String> getFunctionList() {
         return functionList;
     }
-    
+
     /**
      * Gibt das Funktionslisten-Modell zurück
      */
     public DefaultListModel<String> getFunctionListModel() {
         return functionListModel;
     }
-    
+
     /**
      * Benutzerdefinierter Cell Renderer für die Funktionsliste mit Farbvorschau
      */

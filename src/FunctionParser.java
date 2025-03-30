@@ -1,16 +1,16 @@
 /**
- * Parser für mathematische Funktionen
- * Diese Klasse verwendet Rekursiven Abstieg zum Parsen von Ausdrücken
- * Unterstützt implizite Multiplikation (2x statt 2*x)
+ * Parser für mathematische Funktionen mit einer Variablen (x)
+ * Erbt von AbstractExpressionParser für gemeinsame Parsing-Funktionalität
  */
-public class FunctionParser {
-    private final String expression;
-    private int pos;
-    private char ch;
-    private char nextCh; // Speichert das nächste Zeichen für Look-ahead
+public class FunctionParser extends AbstractExpressionParser {
+    // Aktueller x-Wert für die Auswertung
+    private double currentX;
 
+    /**
+     * Erstellt einen neuen Funktionsparser
+     */
     public FunctionParser(String expression) {
-        this.expression = expression.toLowerCase().replaceAll("\\s+", "");
+        super(expression);
     }
 
     /**
@@ -19,7 +19,8 @@ public class FunctionParser {
     public double evaluateAt(double x) {
         pos = 0;
         nextChar();
-        double result = parseExpression(x);
+        this.currentX = x;
+        double result = parseExpression();
 
         if (pos < expression.length()) {
             throw new RuntimeException("Unexpected character: " + ch);
@@ -28,73 +29,46 @@ public class FunctionParser {
         return result;
     }
 
-    private void nextChar() {
-        ch = (pos < expression.length()) ? expression.charAt(pos++) : '\0';
-        // Speichere auch das folgende Zeichen (ohne Position zu erhöhen)
-        nextCh = (pos < expression.length()) ? expression.charAt(pos) : '\0';
-    }
-
-    private boolean eat(char charToEat) {
-        while (ch == ' ')
-            nextChar();
-        if (ch == charToEat) {
-            nextChar();
-            return true;
-        }
-        return false;
-    }
-
-    private double parseExpression(double x) {
-        double result = parseTerm(x);
-
-        while (true) {
-            if (eat('+'))
-                result += parseTerm(x);
-            else if (eat('-'))
-                result -= parseTerm(x);
-            else
-                return result;
-        }
-    }
-
-    private double parseTerm(double x) {
-        double result = parseFactor(x);
+    @Override
+    protected double parseTerm() {
+        double result = parseFactor();
 
         while (true) {
             if (eat('*'))
-                result *= parseFactor(x);
+                result *= parseFactor();
             else if (eat('/')) {
-                double divisor = parseFactor(x);
+                double divisor = parseFactor();
                 if (Math.abs(divisor) < 1e-10) {
                     throw new ArithmeticException("Division by zero");
                 }
                 result /= divisor;
             }
-            // Implizite Multiplikation für Fälle wie "2x" oder "2(x+1)" oder "x(y)"
+            // Implizite Multiplikation für Fälle wie "2x" oder "2(x+1)"
             else if ((ch >= 'a' && ch <= 'z') || ch == '(') {
                 // Implizite Multiplikation erkannt - multiply mit dem nächsten Faktor
-                result *= parseFactor(x);
+                result *= parseFactor();
             } else
                 return result;
         }
     }
 
-    private double parseFactor(double x) {
+    @Override
+    protected double parseFactor() {
         if (eat('+'))
-            return parseFactor(x);
+            return parseFactor();
         if (eat('-'))
-            return -parseFactor(x);
+            return -parseFactor();
 
         double result;
 
         // Klammern
         if (eat('(')) {
-            result = parseExpression(x);
+            result = parseExpression();
             eat(')');
 
             // Nach schließender Klammer prüfen, ob implizite Multiplikation folgt
             if ((ch >= 'a' && ch <= 'z') || ch == '(') {
-                result *= parseFactor(x);
+                result *= parseFactor();
             }
         }
         // Zahlen
@@ -108,17 +82,17 @@ public class FunctionParser {
 
             // Nach einer Zahl prüfen, ob implizite Multiplikation folgt
             if ((ch >= 'a' && ch <= 'z') || ch == '(') {
-                result *= parseFactor(x);
+                result *= parseFactor();
             }
         }
         // Die Variable x
         else if (ch == 'x') {
             nextChar();
-            result = x;
+            result = currentX;
 
             // Nach 'x' prüfen, ob implizite Multiplikation folgt
             if ((ch >= 'a' && ch <= 'z' && ch != 'x') || ch == '(') {
-                result *= parseFactor(x);
+                result *= parseFactor();
             }
         }
         // Funktionen wie sin, cos, etc.
@@ -131,100 +105,15 @@ public class FunctionParser {
 
             String name = funcName.toString();
             if (eat('(')) {
-                result = parseExpression(x);
+                result = parseExpression();
                 eat(')');
 
                 // Bekannte Funktionen auswerten
-                switch (name) {
-                    case "sin":
-                        result = Math.sin(result);
-                        break;
-                    case "cos":
-                        result = Math.cos(result);
-                        break;
-                    case "tan":
-                        result = Math.tan(result);
-                        break;
-                    case "sqrt":
-                        if (result < 0)
-                            throw new ArithmeticException("Square root of negative number");
-                        result = Math.sqrt(result);
-                        break;
-                    case "log":
-                        if (result <= 0)
-                            throw new ArithmeticException("Logarithm of non-positive number");
-                        result = Math.log10(result);
-                        break;
-                    case "ln":
-                        if (result <= 0)
-                            throw new ArithmeticException("Natural logarithm of non-positive number");
-                        result = Math.log(result);
-                        break;
-                    case "abs":
-                        result = Math.abs(result);
-                        break;
-                    case "exp":
-                        result = Math.exp(result);
-                        break;
-                    // Neue Funktionen
-                    case "asin":
-                    case "arcsin":
-                        if (result < -1 || result > 1)
-                            throw new ArithmeticException("Arcsin argument out of range [-1, 1]");
-                        result = Math.asin(result);
-                        break;
-                    case "acos":
-                    case "arccos":
-                        if (result < -1 || result > 1)
-                            throw new ArithmeticException("Arccos argument out of range [-1, 1]");
-                        result = Math.acos(result);
-                        break;
-                    case "atan":
-                    case "arctan":
-                        result = Math.atan(result);
-                        break;
-                    case "sinh":
-                        result = Math.sinh(result);
-                        break;
-                    case "cosh":
-                        result = Math.cosh(result);
-                        break;
-                    case "tanh":
-                        result = Math.tanh(result);
-                        break;
-                    case "log2":
-                        if (result <= 0)
-                            throw new ArithmeticException("Logarithm of non-positive number");
-                        result = Math.log(result) / Math.log(2);
-                        break;
-                    case "floor":
-                        result = Math.floor(result);
-                        break;
-                    case "ceil":
-                    case "ceiling":
-                        result = Math.ceil(result);
-                        break;
-                    case "round":
-                        result = Math.round(result);
-                        break;
-                    case "cbrt":
-                        result = Math.cbrt(result);
-                        break;
-                    case "degrees":
-                    case "deg":
-                        result = Math.toDegrees(result);
-                        break;
-                    case "radians":
-                    case "rad":
-                        result = Math.toRadians(result);
-                        break;
-                    default:
-                        throw new RuntimeException("Unknown function: " + name);
-                }
+                result = evaluateFunction(name, result);
 
                 // Nach einer Funktionsauswertung prüfen, ob implizite Multiplikation folgt
                 if ((ch >= 'a' && ch <= 'z') || ch == '(') {
-                    result *= parseFactor(x);
+                    result *= parseFactor();
                 }
             } else {
                 // Mathematische Konstanten
@@ -235,10 +124,6 @@ public class FunctionParser {
                     case "e":
                         result = Math.E;
                         break;
-                    case "x":
-                        result = x;
-                        break;
-                    // Neue Konstanten
                     case "phi":
                     case "golden":
                         result = (1 + Math.sqrt(5)) / 2; // Goldener Schnitt (≈ 1.618033988749895)
@@ -262,7 +147,7 @@ public class FunctionParser {
 
                 // Nach einer Konstanten prüfen, ob implizite Multiplikation folgt
                 if ((ch >= 'a' && ch <= 'z' && !name.equals("x")) || ch == '(') {
-                    result *= parseFactor(x);
+                    result *= parseFactor();
                 }
             }
         } else {
@@ -271,7 +156,7 @@ public class FunctionParser {
 
         // Exponentation (Potenzen)
         if (eat('^')) {
-            result = Math.pow(result, parseFactor(x));
+            result = Math.pow(result, parseFactor());
         }
 
         return result;

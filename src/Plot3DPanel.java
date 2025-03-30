@@ -102,9 +102,12 @@ public class Plot3DPanel extends JPanel {
         add(splitPane, BorderLayout.CENTER);
     }
 
-    /**
-     * Rendert den Plot mit aktuellen Einstellungen
-     */
+    // Zusätzliche Hilfsmethode, um das Funktionsfeld aus dem UI-Builder abzurufen
+    public JTextField getFunctionField() {
+        return uiBuilder.getFunctionField();
+    }
+
+    // In der renderPlot() Methode, um die Standard-Funktion zu verbessern:
     public void renderPlot() {
         try {
             // Überprüfe auf leere Funktionen
@@ -119,6 +122,12 @@ public class Plot3DPanel extends JPanel {
                     renderer.addFunction(defaultFunction, defaultColor);
                     functionManager.getFunctionListModel()
                             .addElement("f(x,y) = " + defaultFunction + " [" + colorName + "]");
+
+                    // Wenn es ein Funktionsfeld gibt, aktualisiere es auch
+                    JTextField functionField = getFunctionField();
+                    if (functionField != null) {
+                        functionField.setText(defaultFunction);
+                    }
                 }
             }
 
