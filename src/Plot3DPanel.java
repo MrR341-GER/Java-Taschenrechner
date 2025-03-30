@@ -2,61 +2,28 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.text.ParseException;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Panel für 3D-Funktionsplots mit Unterstützung für mehrere Funktionen
+ * (Refactored version with components split into smaller classes)
  */
 public class Plot3DPanel extends JPanel {
     private final GrafischerTaschenrechner calculator;
-    private Plot3DRenderer renderer;
+    private final Plot3DRenderer renderer;
     private JPanel plotPanel;
-    private JTextField functionField;
-    private JTextField xMinField, xMaxField, yMinField, yMaxField;
-    private JSlider resolutionSlider;
-    private JLabel resolutionLabel;
-    private JSlider rotationXSlider, rotationYSlider, rotationZSlider;
-    private JLabel rotationXLabel, rotationYLabel, rotationZLabel;
-    private JButton resetViewButton;
-    private JButton renderButton;
-    private JCheckBox showCoordinateSystemCheckbox;
-    private JCheckBox showGridCheckbox;
-    private JCheckBox showHelperLinesCheckbox;
 
-    // Neue Komponenten für Funktionsliste
-    private DefaultListModel<String> functionListModel;
-    private JList<String> functionList;
-    private JComboBox<String> colorComboBox;
-    private JPopupMenu functionPopup;
+    // UI-Komponenten Manager
+    private final Plot3DUIBuilder uiBuilder;
 
-    // Pattern für Funktionseinträge
-    private final Pattern functionPattern = Pattern.compile("f\\(x,y\\) = (.+) \\[(.+)\\]");
+    // Funktions-Manager
+    private final Plot3DFunctionManager functionManager;
 
-    // Standardwerte
-    private static final double DEFAULT_MIN = -5.0;
-    private static final double DEFAULT_MAX = 5.0;
-    private static final int DEFAULT_RESOLUTION = 30;
-    private static final String DEFAULT_FUNCTION = "sin(sqrt(x^2+y^2))";
+    // Interaktions-Handler
+    private final Plot3DInteractionHandler interactionHandler;
 
-    // Interaktionsstatus
-    private boolean isDragging = false;
-    private boolean isPanning = false;
-    private Point lastMousePos;
-    private double currentRotationX = 25; // Angepasst von 30 auf 25
-    private double currentRotationY = 0;
-    private double currentRotationZ = 35; // Angepasst von 30 auf 35
-    private double currentScale = 1.2; // Erhöht von 1.0 auf 1.2
-
-    // Aktuelle Wertebereiche
-    private double currentXMin = DEFAULT_MIN;
-    private double currentXMax = DEFAULT_MAX;
-    private double currentYMin = DEFAULT_MIN;
-    private double currentYMax = DEFAULT_MAX;
+    // View-Controller
+    private final Plot3DViewController viewController;
 
     // Debug-Referenz
     private DebugManager debugManager;
@@ -69,21 +36,36 @@ public class Plot3DPanel extends JPanel {
 
         // Initialisiere den Renderer mit Standardwerten
         renderer = new Plot3DRenderer(
-                DEFAULT_MIN, DEFAULT_MAX,
-                DEFAULT_MIN, DEFAULT_MAX,
-                DEFAULT_RESOLUTION);
+                Plot3DViewController.DEFAULT_MIN,
+                Plot3DViewController.DEFAULT_MAX,
+                Plot3DViewController.DEFAULT_MIN,
+                Plot3DViewController.DEFAULT_MAX,
+                Plot3DViewController.DEFAULT_RESOLUTION);
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Speichere die initialen Wertebereiche
-        currentXMin = DEFAULT_MIN;
-        currentXMax = DEFAULT_MAX;
-        currentYMin = DEFAULT_MIN;
-        currentYMax = DEFAULT_MAX;
+        // Manager initialisieren
+        viewController = new Plot3DViewController(renderer);
+        functionManager = new Plot3DFunctionManager(renderer, viewController);
+
+        // UI-Builder erstellen
+        uiBuilder = new Plot3DUIBuilder(this, functionManager, viewController);
 
         // UI-Komponenten erstellen
         createUI();
+
+        // Textfelder aus dem UI-Builder in den ViewController übertragen
+        viewController.setXMinField(uiBuilder.getXMinField());
+        viewController.setXMaxField(uiBuilder.getXMaxField());
+        viewController.setYMinField(uiBuilder.getYMinField());
+        viewController.setYMaxField(uiBuilder.getYMaxField());
+
+        // Interaktions-Handler initialisieren (nach UI-Erstellung)
+        interactionHandler = new Plot3DInteractionHandler(plotPanel, viewController, this);
+
+        // Jetzt erst initialen Plot rendern, wenn alles initialisiert ist
+        SwingUtilities.invokeLater(() -> renderPlot());
     }
 
     /**
@@ -109,11 +91,8 @@ public class Plot3DPanel extends JPanel {
         // Mindestgröße für den Plot festlegen
         plotPanel.setMinimumSize(new Dimension(400, 300));
 
-        // Maus-Listener für Interaktion hinzufügen
-        setupMouseListeners();
-
-        // Steuerungsbereich mit Eingabefeldern und Buttons
-        JPanel controlPanel = createControlPanel();
+        // Steuerungsbereich erstellen
+        JPanel controlPanel = uiBuilder.createControlPanel();
         controlPanel.setMinimumSize(new Dimension(250, 300));
 
         // Panes zusammenfügen
@@ -121,840 +100,34 @@ public class Plot3DPanel extends JPanel {
         splitPane.setRightComponent(controlPanel);
 
         add(splitPane, BorderLayout.CENTER);
-
-        // Initialen Plot rendern
-        renderPlot();
-    }
-
-    /**
-     * Erstellt das Kontrollpanel mit allen Einstellungsmöglichkeiten
-     */
-    private JPanel createControlPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-        // 1. Funktionseingabe
-        JPanel functionPanel = new JPanel(new BorderLayout(5, 5));
-        functionPanel.setBorder(BorderFactory.createTitledBorder("Funktion (z = f(x,y))"));
-
-        functionField = new JTextField(DEFAULT_FUNCTION, 20);
-        functionField.setToolTipText("Geben Sie eine Funktion mit Variablen x und y ein, z.B. x^2+y^2");
-
-        // Neue Farbauswahl hinzufügen
-        colorComboBox = new JComboBox<>(ColorChooser.getColorNames());
-        colorComboBox.setPreferredSize(new Dimension(100, functionField.getPreferredSize().height));
-        colorComboBox.setSelectedItem(ColorChooser.RANDOM_COLOR_OPTION);
-
-        // Behandlung der "Weitere..."-Option
-        colorComboBox.addActionListener(e -> {
-            if (colorComboBox.getSelectedItem() != null &&
-                    colorComboBox.getSelectedItem().toString().equals("Weitere...")) {
-
-                debug("Benutzerdefinierte Farbauswahl geöffnet");
-                // Zeige den Farbauswahl-Dialog
-                Color selectedColor = ColorChooser.showColorChooser(
-                        this,
-                        "Benutzerdefinierte Farbe wählen",
-                        Color.RED);
-
-                if (selectedColor != null) {
-                    // Farbname ermitteln oder neu erstellen
-                    String colorName = ColorChooser.getColorName(selectedColor);
-                    debug("Benutzerdefinierte Farbe gewählt: " + colorName);
-
-                    // Überprüfen, ob die Farbe bereits in der Liste ist
-                    boolean exists = false;
-                    for (int i = 0; i < colorComboBox.getItemCount() - 1; i++) {
-                        if (colorComboBox.getItemAt(i).equals(colorName)) {
-                            colorComboBox.setSelectedIndex(i);
-                            exists = true;
-                            break;
-                        }
-                    }
-
-                    // Wenn nicht, hinzufügen
-                    if (!exists) {
-                        colorComboBox.insertItemAt(colorName, colorComboBox.getItemCount() - 1);
-                        colorComboBox.setSelectedIndex(colorComboBox.getItemCount() - 2);
-                        debug("Neue Farbe zur Auswahlliste hinzugefügt: " + colorName);
-                    }
-                } else {
-                    // Falls abgebrochen, zurück zur "Zufällig"-Option
-                    colorComboBox.setSelectedItem(ColorChooser.RANDOM_COLOR_OPTION);
-                    debug("Farbauswahl abgebrochen, zurück zu 'Zufällig'");
-                }
-            }
-        });
-
-        JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
-        inputPanel.add(functionField, BorderLayout.CENTER);
-        inputPanel.add(colorComboBox, BorderLayout.EAST);
-
-        functionPanel.add(inputPanel, BorderLayout.CENTER);
-
-        renderButton = new JButton("Hinzufügen");
-        renderButton.addActionListener(e -> addFunction());
-
-        functionPanel.add(renderButton, BorderLayout.EAST);
-
-        // 2. Funktionsliste
-        JPanel functionsPanel = createFunctionListPanel();
-
-        // 3. Bereichseinstellungen
-        JPanel rangePanel = new JPanel(new GridBagLayout());
-        rangePanel.setBorder(BorderFactory.createTitledBorder("Wertebereich"));
-
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(2, 2, 2, 2);
-
-        // X-Bereich
-        c.gridx = 0;
-        c.gridy = 0;
-        c.gridwidth = 1;
-        c.weightx = 0.0;
-        rangePanel.add(new JLabel("X-Min:"), c);
-
-        c.gridx = 1;
-        c.gridy = 0;
-        c.gridwidth = 1;
-        c.weightx = 1.0;
-        xMinField = new JTextField(String.valueOf(DEFAULT_MIN), 5);
-        rangePanel.add(xMinField, c);
-
-        c.gridx = 2;
-        c.gridy = 0;
-        c.gridwidth = 1;
-        c.weightx = 0.0;
-        rangePanel.add(new JLabel("X-Max:"), c);
-
-        c.gridx = 3;
-        c.gridy = 0;
-        c.gridwidth = 1;
-        c.weightx = 1.0;
-        xMaxField = new JTextField(String.valueOf(DEFAULT_MAX), 5);
-        rangePanel.add(xMaxField, c);
-
-        // Y-Bereich
-        c.gridx = 0;
-        c.gridy = 1;
-        c.gridwidth = 1;
-        c.weightx = 0.0;
-        rangePanel.add(new JLabel("Y-Min:"), c);
-
-        c.gridx = 1;
-        c.gridy = 1;
-        c.gridwidth = 1;
-        c.weightx = 1.0;
-        yMinField = new JTextField(String.valueOf(DEFAULT_MIN), 5);
-        rangePanel.add(yMinField, c);
-
-        c.gridx = 2;
-        c.gridy = 1;
-        c.gridwidth = 1;
-        c.weightx = 0.0;
-        rangePanel.add(new JLabel("Y-Max:"), c);
-
-        c.gridx = 3;
-        c.gridy = 1;
-        c.gridwidth = 1;
-        c.weightx = 1.0;
-        yMaxField = new JTextField(String.valueOf(DEFAULT_MAX), 5);
-        rangePanel.add(yMaxField, c);
-
-        // Apply-Button für Wertebereich
-        c.gridx = 0;
-        c.gridy = 2;
-        c.gridwidth = 4;
-        c.weightx = 1.0;
-        JButton applyRangeButton = new JButton("Bereich anwenden");
-        applyRangeButton.addActionListener(e -> updateRangeAndReplot());
-        rangePanel.add(applyRangeButton, c);
-
-        // 4. Auflösungseinstellung
-        JPanel resolutionPanel = new JPanel(new BorderLayout(5, 5));
-        resolutionPanel.setBorder(BorderFactory.createTitledBorder("Auflösung"));
-
-        resolutionSlider = new JSlider(JSlider.HORIZONTAL, 10, 100, DEFAULT_RESOLUTION);
-        resolutionSlider.setMajorTickSpacing(30);
-        resolutionSlider.setMinorTickSpacing(10);
-        resolutionSlider.setPaintTicks(true);
-        resolutionSlider.setPaintLabels(true);
-
-        resolutionLabel = new JLabel("Auflösung: " + DEFAULT_RESOLUTION);
-        resolutionLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        resolutionSlider.addChangeListener(e -> {
-            int value = resolutionSlider.getValue();
-            resolutionLabel.setText("Auflösung: " + value);
-
-            // Nur neu rendern, wenn nicht mehr am Schieben
-            if (!resolutionSlider.getValueIsAdjusting()) {
-                updateResolution();
-            }
-        });
-
-        resolutionPanel.add(resolutionSlider, BorderLayout.CENTER);
-        resolutionPanel.add(resolutionLabel, BorderLayout.SOUTH);
-
-        // 5. Anzeigeoptionen
-        JPanel displayOptionsPanel = new JPanel(new GridLayout(3, 1, 5, 5));
-        displayOptionsPanel.setBorder(BorderFactory.createTitledBorder("Anzeigeoptionen"));
-
-        showCoordinateSystemCheckbox = new JCheckBox("Koordinatensystem anzeigen", true);
-        showCoordinateSystemCheckbox.addActionListener(e -> {
-            renderer.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
-            plotPanel.repaint();
-        });
-
-        showGridCheckbox = new JCheckBox("Gitter anzeigen", true);
-        showGridCheckbox.addActionListener(e -> {
-            renderer.setShowGrid(showGridCheckbox.isSelected());
-            plotPanel.repaint();
-        });
-
-        // Neue Checkbox für Hilfslinien
-        showHelperLinesCheckbox = new JCheckBox("Hilfslinien anzeigen", true);
-        showHelperLinesCheckbox.addActionListener(e -> {
-            renderer.setShowHelperLines(showHelperLinesCheckbox.isSelected());
-            plotPanel.repaint();
-            debug("Hilfslinien " + (showHelperLinesCheckbox.isSelected() ? "aktiviert" : "deaktiviert"));
-        });
-
-        displayOptionsPanel.add(showCoordinateSystemCheckbox);
-        displayOptionsPanel.add(showGridCheckbox);
-        displayOptionsPanel.add(showHelperLinesCheckbox);
-
-        // 6. Rotationssteuerung
-        JPanel rotationPanel = new JPanel(new GridLayout(3, 1, 5, 5));
-        rotationPanel.setBorder(BorderFactory.createTitledBorder("Rotation"));
-
-        // X-Rotation
-        JPanel rotXPanel = new JPanel(new BorderLayout(5, 5));
-        rotationXSlider = new JSlider(JSlider.HORIZONTAL, 0, 360, (int) currentRotationX);
-        rotationXSlider.setMajorTickSpacing(90);
-        rotationXSlider.setPaintTicks(true);
-        rotationXLabel = new JLabel("X: " + (int) currentRotationX + "°");
-        rotationXLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        rotationXSlider.addChangeListener(e -> {
-            currentRotationX = rotationXSlider.getValue();
-            rotationXLabel.setText("X: " + (int) currentRotationX + "°");
-
-            if (!rotationXSlider.getValueIsAdjusting()) {
-                updateRotation();
-            }
-        });
-
-        rotXPanel.add(new JLabel("X:"), BorderLayout.WEST);
-        rotXPanel.add(rotationXSlider, BorderLayout.CENTER);
-        rotXPanel.add(rotationXLabel, BorderLayout.EAST);
-
-        // Y-Rotation
-        JPanel rotYPanel = new JPanel(new BorderLayout(5, 5));
-        rotationYSlider = new JSlider(JSlider.HORIZONTAL, 0, 360, (int) currentRotationY);
-        rotationYSlider.setMajorTickSpacing(90);
-        rotationYSlider.setPaintTicks(true);
-        rotationYLabel = new JLabel("Y: " + (int) currentRotationY + "°");
-        rotationYLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        rotationYSlider.addChangeListener(e -> {
-            currentRotationY = rotationYSlider.getValue();
-            rotationYLabel.setText("Y: " + (int) currentRotationY + "°");
-
-            if (!rotationYSlider.getValueIsAdjusting()) {
-                updateRotation();
-            }
-        });
-
-        rotYPanel.add(new JLabel("Y:"), BorderLayout.WEST);
-        rotYPanel.add(rotationYSlider, BorderLayout.CENTER);
-        rotYPanel.add(rotationYLabel, BorderLayout.EAST);
-
-        // Z-Rotation
-        JPanel rotZPanel = new JPanel(new BorderLayout(5, 5));
-        rotationZSlider = new JSlider(JSlider.HORIZONTAL, 0, 360, (int) currentRotationZ);
-        rotationZSlider.setMajorTickSpacing(90);
-        rotationZSlider.setPaintTicks(true);
-        rotationZLabel = new JLabel("Z: " + (int) currentRotationZ + "°");
-        rotationZLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        rotationZSlider.addChangeListener(e -> {
-            currentRotationZ = rotationZSlider.getValue();
-            rotationZLabel.setText("Z: " + (int) currentRotationZ + "°");
-
-            if (!rotationZSlider.getValueIsAdjusting()) {
-                updateRotation();
-            }
-        });
-
-        rotZPanel.add(new JLabel("Z:"), BorderLayout.WEST);
-        rotZPanel.add(rotationZSlider, BorderLayout.CENTER);
-        rotZPanel.add(rotationZLabel, BorderLayout.EAST);
-
-        rotationPanel.add(rotXPanel);
-        rotationPanel.add(rotYPanel);
-        rotationPanel.add(rotZPanel);
-
-        // 7. Ansicht zurücksetzen Button
-        resetViewButton = new JButton("Ansicht zurücksetzen");
-        resetViewButton.addActionListener(e -> resetView());
-
-        // Steuerungshinweis
-        JPanel instructionPanel = new JPanel(new BorderLayout());
-        instructionPanel.setBorder(BorderFactory.createTitledBorder("Steuerung"));
-        JTextArea instructionText = new JTextArea(
-                "Rotation: Mausziehen\n" +
-                        "Verschieben: Shift + Mausziehen\n" +
-                        "Zoom: Mausrad");
-        instructionText.setEditable(false);
-        instructionText.setBackground(panel.getBackground());
-        instructionPanel.add(instructionText, BorderLayout.CENTER);
-
-        // Alles zusammenfügen
-        panel.add(functionPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(functionsPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(rangePanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(resolutionPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(displayOptionsPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(rotationPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(instructionPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(resetViewButton);
-
-        // Verbleibenden Platz füllen
-        panel.add(Box.createVerticalGlue());
-
-        return panel;
-    }
-
-    /**
-     * Erstellt das Panel für die Funktionsliste
-     */
-    private JPanel createFunctionListPanel() {
-        JPanel functionsPanel = new JPanel(new BorderLayout(5, 5));
-        functionsPanel.setBorder(BorderFactory.createTitledBorder("Funktionen"));
-
-        // Initialisiere die Listmodell und Liste
-        functionListModel = new DefaultListModel<>();
-        functionList = new JList<>(functionListModel);
-        functionList.setCellRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value,
-                    int index, boolean isSelected, boolean cellHasFocus) {
-                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
-                // Farbe aus dem String extrahieren
-                String entry = (String) value;
-                Matcher matcher = functionPattern.matcher(entry);
-                if (matcher.find()) {
-                    String colorName = matcher.group(2);
-                    Color color = ColorChooser.getColorByName(colorName);
-
-                    // Farbkästchen links neben dem Text
-                    if (c instanceof JLabel) {
-                        JLabel label = (JLabel) c;
-                        label.setIcon(createColorIcon(color, 16, 16));
-                        label.setIconTextGap(10);
-                    }
-                }
-                return c;
-            }
-
-            private Icon createColorIcon(Color color, int width, int height) {
-                return new Icon() {
-                    @Override
-                    public void paintIcon(Component c, Graphics g, int x, int y) {
-                        g.setColor(color);
-                        g.fillRect(x, y, width, height);
-                        g.setColor(Color.BLACK);
-                        g.drawRect(x, y, width - 1, height - 1);
-                    }
-
-                    @Override
-                    public int getIconWidth() {
-                        return width;
-                    }
-
-                    @Override
-                    public int getIconHeight() {
-                        return height;
-                    }
-                };
-            }
-        });
-
-        // Kontextmenü für die Funktionsliste
-        setupContextMenu();
-
-        // Doppelklick-Listener für Bearbeitung
-        functionList.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    // Doppelklick - Bearbeitungsdialog öffnen
-                    editSelectedFunction();
-                } else if (SwingUtilities.isRightMouseButton(e)) {
-                    // Rechtsklick - Kontextmenü anzeigen
-                    int index = functionList.locationToIndex(e.getPoint());
-                    if (index >= 0) {
-                        functionList.setSelectedIndex(index);
-                        functionPopup.show(functionList, e.getX(), e.getY());
-                    }
-                }
-            }
-        });
-
-        // Scroll-Bereich für die Liste
-        JScrollPane scrollPane = new JScrollPane(functionList);
-        scrollPane.setPreferredSize(new Dimension(200, 100));
-        functionsPanel.add(scrollPane, BorderLayout.CENTER);
-
-        // Button-Panel
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 5, 5));
-
-        JButton removeButton = new JButton("Entfernen");
-        removeButton.addActionListener(e -> removeSelectedFunction());
-
-        JButton clearButton = new JButton("Alle löschen");
-        clearButton.addActionListener(e -> clearAllFunctions());
-
-        buttonPanel.add(removeButton);
-        buttonPanel.add(clearButton);
-        functionsPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        return functionsPanel;
-    }
-
-    /**
-     * Erstellt das Kontextmenü für die Funktionsliste
-     */
-    private void setupContextMenu() {
-        functionPopup = new JPopupMenu();
-
-        JMenuItem editItem = new JMenuItem("Bearbeiten");
-        editItem.addActionListener(e -> editSelectedFunction());
-
-        JMenuItem removeItem = new JMenuItem("Entfernen");
-        removeItem.addActionListener(e -> removeSelectedFunction());
-
-        functionPopup.add(editItem);
-        functionPopup.addSeparator();
-        functionPopup.add(removeItem);
-    }
-
-    /**
-     * Öffnet einen Dialog zum Bearbeiten der ausgewählten Funktion
-     */
-    private void editSelectedFunction() {
-        int selectedIndex = functionList.getSelectedIndex();
-        if (selectedIndex < 0)
-            return;
-
-        // Extrahiere die Funktionsdaten
-        String entry = functionListModel.getElementAt(selectedIndex);
-        Matcher matcher = functionPattern.matcher(entry);
-
-        if (matcher.find()) {
-            String function = matcher.group(1);
-            String colorName = matcher.group(2);
-
-            // Setze die Werte in die Eingabefelder
-            functionField.setText(function);
-            colorComboBox.setSelectedItem(colorName);
-
-            // Option zum Aktualisieren oder Abbrechen
-            int option = JOptionPane.showConfirmDialog(
-                    this,
-                    "Möchten Sie die ausgewählte Funktion aktualisieren?\n" +
-                            "Drücken Sie OK, um die Funktion zu aktualisieren, oder Abbrechen, um die Bearbeitung abzubrechen.",
-                    "Funktion bearbeiten",
-                    JOptionPane.OK_CANCEL_OPTION);
-
-            if (option == JOptionPane.OK_OPTION) {
-                // Funktion aktualisieren
-                updateFunction(selectedIndex);
-            }
-        }
-    }
-
-    /**
-     * Aktualisiert eine bestehende Funktion
-     */
-    private void updateFunction(int index) {
-        String function = functionField.getText().trim();
-
-        if (function.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Bitte geben Sie eine Funktion ein.");
-            return;
-        }
-
-        // Farbauswahl verarbeiten
-        String colorName = (String) colorComboBox.getSelectedItem();
-        Color color;
-
-        if (colorName.equals(ColorChooser.RANDOM_COLOR_OPTION)) {
-            // Bei "Zufällig" eine neue Farbe generieren
-            color = ColorChooser.generateRandomColor();
-            colorName = ColorChooser.getColorName(color);
-        } else if (colorName.equals("Weitere...")) {
-            // Bei "Weitere..." auf "Zufällig" zurückfallen
-            color = ColorChooser.generateRandomColor();
-            colorName = ColorChooser.getColorName(color);
-        } else {
-            // Sonst die ausgewählte Farbe verwenden
-            color = ColorChooser.getColorByName(colorName);
-        }
-
-        // Alten Eintrag entfernen
-        functionListModel.remove(index);
-
-        // Funktion aus dem Renderer entfernen
-        renderer.removeFunction(index);
-
-        // Neue Funktion hinzufügen (an derselben Stelle)
-        String newEntry = "f(x,y) = " + function + " [" + colorName + "]";
-        functionListModel.add(index, newEntry);
-
-        try {
-            // Funktion im Renderer aktualisieren
-            renderer.addFunction(function, color);
-            plotPanel.repaint();
-            debug("Funktion aktualisiert: " + function);
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Fehler beim Aktualisieren der Funktion: " + e.getMessage(),
-                    "Fehler",
-                    JOptionPane.ERROR_MESSAGE);
-            debug("Fehler beim Aktualisieren der Funktion: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Fügt eine neue Funktion hinzu
-     */
-    private void addFunction() {
-        String function = functionField.getText().trim();
-
-        if (function.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Bitte geben Sie eine Funktion ein.");
-            return;
-        }
-
-        // Farbauswahl verarbeiten
-        String colorName = (String) colorComboBox.getSelectedItem();
-        Color color;
-
-        if (colorName.equals(ColorChooser.RANDOM_COLOR_OPTION)) {
-            // Bei "Zufällig" eine neue Farbe generieren
-            color = ColorChooser.generateRandomColor();
-            colorName = ColorChooser.getColorName(color);
-        } else if (colorName.equals("Weitere...")) {
-            // Bei "Weitere..." auf "Zufällig" zurückfallen
-            color = ColorChooser.generateRandomColor();
-            colorName = ColorChooser.getColorName(color);
-        } else {
-            // Sonst die ausgewählte Farbe verwenden
-            color = ColorChooser.getColorByName(colorName);
-        }
-
-        // Listeneintrag erstellen
-        String entry = "f(x,y) = " + function + " [" + colorName + "]";
-        functionListModel.addElement(entry);
-
-        try {
-            // Funktion zum Renderer hinzufügen
-            renderer.addFunction(function, color);
-            plotPanel.repaint();
-            debug("Funktion hinzugefügt: " + function);
-        } catch (Exception e) {
-            // Fehler behandeln - Eintrag wieder entfernen
-            functionListModel.removeElement(entry);
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Fehler beim Hinzufügen der Funktion: " + e.getMessage(),
-                    "Fehler",
-                    JOptionPane.ERROR_MESSAGE);
-            debug("Fehler beim Hinzufügen der Funktion: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Entfernt die ausgewählte Funktion
-     */
-    private void removeSelectedFunction() {
-        int selectedIndex = functionList.getSelectedIndex();
-        if (selectedIndex < 0) {
-            JOptionPane.showMessageDialog(this, "Bitte wählen Sie eine Funktion zum Entfernen aus.");
-            return;
-        }
-
-        // Funktion aus dem Listmodell entfernen
-        functionListModel.remove(selectedIndex);
-
-        // Funktion aus dem Renderer entfernen
-        renderer.removeFunction(selectedIndex);
-
-        // Neuzeichnen
-        plotPanel.repaint();
-        debug("Funktion an Position " + selectedIndex + " entfernt");
-    }
-
-    /**
-     * Entfernt alle Funktionen
-     */
-    private void clearAllFunctions() {
-        int count = functionListModel.getSize();
-        if (count == 0)
-            return;
-
-        int option = JOptionPane.showConfirmDialog(
-                this,
-                "Möchten Sie wirklich alle " + count + " Funktionen löschen?",
-                "Alle Funktionen löschen",
-                JOptionPane.YES_NO_OPTION);
-
-        if (option == JOptionPane.YES_OPTION) {
-            // Alle Funktionen aus dem Listmodell entfernen
-            functionListModel.clear();
-
-            // Alle Funktionen aus dem Renderer entfernen
-            renderer.clearFunctions();
-
-            // Neuzeichnen
-            plotPanel.repaint();
-            debug("Alle Funktionen gelöscht");
-        }
-    }
-
-    // [Hier der Rest der Klasse, wie setup-Methoden, Listener, etc.]
-
-    /**
-     * Richtet die Maus-Listener für Interaktionen ein
-     */
-    private void setupMouseListeners() {
-        // Mouse-Listener für Rotation und Zoom
-        plotPanel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                lastMousePos = e.getPoint();
-                isDragging = true;
-
-                // Shift-Taste gedrückt = Panning, sonst Rotation
-                isPanning = e.isShiftDown();
-                debug("Interaktion gestartet: " + (isPanning ? "Panning" : "Rotation"));
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                isDragging = false;
-            }
-        });
-
-        plotPanel.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if (isDragging) {
-                    // Berechne Verschiebung
-                    int dx = e.getX() - lastMousePos.x;
-                    int dy = e.getY() - lastMousePos.y;
-
-                    if (isPanning) {
-                        // Pan-Modus: Verschiebe den Wertebereich
-                        // Berechne die Verschiebung im Wertebereich
-                        // Die Verschiebung ist umgekehrt zur Mausbewegung, daher negativ
-                        double xRange = currentXMax - currentXMin;
-                        double yRange = currentYMax - currentYMin;
-
-                        // Skaliere die Verschiebung relativ zur Größe des Wertebereichs
-                        // und der Größe des Anzeigebereichs
-                        double viewWidth = plotPanel.getWidth();
-                        double viewHeight = plotPanel.getHeight();
-
-                        double deltaX = -dx * (xRange / viewWidth);
-                        double deltaY = dy * (yRange / viewHeight); // Y-Achse ist invertiert
-
-                        // Aktualisiere die Wertebereiche
-                        currentXMin += deltaX;
-                        currentXMax += deltaX;
-                        currentYMin += deltaY;
-                        currentYMax += deltaY;
-
-                        // Update the fields
-                        DecimalFormat df = new DecimalFormat("0.##");
-                        xMinField.setText(df.format(currentXMin));
-                        xMaxField.setText(df.format(currentXMax));
-                        yMinField.setText(df.format(currentYMin));
-                        yMaxField.setText(df.format(currentYMax));
-
-                        // Neuen Plot mit verschobenem Wertebereich zeichnen
-                        renderPlot();
-
-                        debug("Wertebereich verschoben nach: x=[" + currentXMin + "," + currentXMax +
-                                "], y=[" + currentYMin + "," + currentYMax + "]");
-                    } else {
-                        // Rotations-Modus
-                        double rotationScale = 0.5;
-                        currentRotationX += dy * rotationScale;
-                        currentRotationZ += dx * rotationScale;
-
-                        // Begrenze Rotation auf 0-360 Grad
-                        currentRotationX = (currentRotationX + 360) % 360;
-                        currentRotationZ = (currentRotationZ + 360) % 360;
-
-                        // UI-Elemente aktualisieren
-                        rotationXSlider.setValue((int) currentRotationX);
-                        rotationZSlider.setValue((int) currentRotationZ);
-
-                        // Aktualisiere Rotation im Renderer
-                        updateRotation();
-                    }
-
-                    lastMousePos = e.getPoint();
-                }
-            }
-        });
-
-        // Mouse-Wheel-Listener für Wertebereichsänderung (wie im 2D-Plotter)
-        plotPanel.addMouseWheelListener(e -> {
-            try {
-                // Aktuelle Wertebereiche holen (mit verbessertem Parsen)
-                double xMin = parseDecimal(xMinField.getText().trim());
-                double xMax = parseDecimal(xMaxField.getText().trim());
-                double yMin = parseDecimal(yMinField.getText().trim());
-                double yMax = parseDecimal(yMaxField.getText().trim());
-
-                // Bereichsgröße berechnen
-                double xRange = xMax - xMin;
-                double yRange = yMax - yMin;
-
-                // Zoom-Faktor basierend auf Mausrad-Richtung
-                double zoomFactor = e.getWheelRotation() < 0 ? 0.8 : 1.25; // Zoomen wir rein oder raus?
-
-                // Neue Wertebereiche berechnen (zentriert)
-                double newXRange = xRange * zoomFactor;
-                double newYRange = yRange * zoomFactor;
-
-                // Mittelpunkt beibehalten
-                double xCenter = (xMax + xMin) / 2;
-                double yCenter = (yMax + yMin) / 2;
-
-                // Neue Grenzen berechnen
-                double newXMin = xCenter - newXRange / 2;
-                double newXMax = xCenter + newXRange / 2;
-                double newYMin = yCenter - newYRange / 2;
-                double newYMax = yCenter + newYRange / 2;
-
-                // Felder aktualisieren
-                DecimalFormat df = new DecimalFormat("0.##");
-                xMinField.setText(df.format(newXMin));
-                xMaxField.setText(df.format(newXMax));
-                yMinField.setText(df.format(newYMin));
-                yMaxField.setText(df.format(newYMax));
-
-                // Aktualisiere die aktuellen Wertebereiche
-                currentXMin = newXMin;
-                currentXMax = newXMax;
-                currentYMin = newYMin;
-                currentYMax = newYMax;
-
-                // Neu rendern
-                renderPlot();
-
-                debug("Wertebereich geändert durch Mausrad: " +
-                        "[" + df.format(newXMin) + ", " + df.format(newXMax) + "] x " +
-                        "[" + df.format(newYMin) + ", " + df.format(newYMax) + "]");
-
-            } catch (Exception ex) {
-                debug("Fehler beim Ändern des Wertebereichs: " + ex.getMessage());
-            }
-        });
     }
 
     /**
      * Rendert den Plot mit aktuellen Einstellungen
      */
-    private void renderPlot() {
+    public void renderPlot() {
         try {
             // Überprüfe auf leere Funktionen
-            if (functionListModel.isEmpty()) {
+            if (functionManager.getFunctionListModel().isEmpty()) {
                 // Optional: Füge eine Standard-Funktion hinzu
                 if (renderer.getFunctions().isEmpty()) {
-                    String defaultFunction = DEFAULT_FUNCTION;
+                    String defaultFunction = Plot3DViewController.DEFAULT_FUNCTION;
                     Color defaultColor = ColorChooser.generateRandomColor();
                     String colorName = ColorChooser.getColorName(defaultColor);
 
                     // Testweise eine Funktion hinzufügen (nur beim ersten Start)
                     renderer.addFunction(defaultFunction, defaultColor);
-                    functionListModel.addElement("f(x,y) = " + defaultFunction + " [" + colorName + "]");
+                    functionManager.getFunctionListModel()
+                            .addElement("f(x,y) = " + defaultFunction + " [" + colorName + "]");
                 }
             }
 
-            // Bereichsangaben parsen mit verbesserter Methode
-            double xMin = parseDecimal(xMinField.getText().trim());
-            double xMax = parseDecimal(xMaxField.getText().trim());
-            double yMin = parseDecimal(yMinField.getText().trim());
-            double yMax = parseDecimal(yMaxField.getText().trim());
-
-            // Bereichsgültigkeiten überprüfen
-            if (xMin >= xMax || yMin >= yMax) {
-                debug("Ungültige Bereichsangaben");
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Die Min-Werte müssen kleiner als die Max-Werte sein.",
-                        "Fehler",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            debug("Rendere mit Bereich x=[" + xMin + "," + xMax + "], y=[" + yMin + "," + yMax + "]");
-
-            // Speichere die aktuellen Wertebereiche
-            currentXMin = xMin;
-            currentXMax = xMax;
-            currentYMin = yMin;
-            currentYMax = yMax;
-
-            // Auflösung aus Slider holen
-            int resolution = resolutionSlider.getValue();
-
-            // Grenzen im Renderer setzen
-            if (renderer != null) {
-                renderer.setBounds(xMin, xMax, yMin, yMax);
-                renderer.setResolution(resolution);
-                renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
-                renderer.setScale(currentScale);
-                renderer.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
-                renderer.setShowGrid(showGridCheckbox.isSelected());
-                renderer.setShowHelperLines(showHelperLinesCheckbox.isSelected());
-            } else {
-                renderer = new Plot3DRenderer(xMin, xMax, yMin, yMax, resolution);
-                renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
-                renderer.setScale(currentScale);
-                renderer.setShowCoordinateSystem(showCoordinateSystemCheckbox.isSelected());
-                renderer.setShowGrid(showGridCheckbox.isSelected());
-                renderer.setShowHelperLines(showHelperLinesCheckbox.isSelected());
-            }
+            // Bereichsangaben parsen und Renderer aktualisieren
+            viewController.updateViewBounds();
 
             // Plot neu zeichnen
             plotPanel.repaint();
 
-        } catch (NumberFormatException e) {
-            debug("Fehler beim Parsen der Zahlen: " + e.getMessage());
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Bitte geben Sie gültige Zahlen für die Bereiche ein.",
-                    "Fehler",
-                    JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
             debug("Fehler beim Rendern: " + e.getMessage());
             JOptionPane.showMessageDialog(
@@ -966,140 +139,51 @@ public class Plot3DPanel extends JPanel {
     }
 
     /**
-     * Aktualisiert den Wertebereich und renderrt neu
-     */
-    private void updateRangeAndReplot() {
-        try {
-            // Aktualisiere die aktuellen Wertebereiche aus den Feldern
-            currentXMin = parseDecimal(xMinField.getText().trim());
-            currentXMax = parseDecimal(xMaxField.getText().trim());
-            currentYMin = parseDecimal(yMinField.getText().trim());
-            currentYMax = parseDecimal(yMaxField.getText().trim());
-
-            // Prüfe auf gültige Wertebereiche
-            if (currentXMin >= currentXMax || currentYMin >= currentYMax) {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Die Min-Werte müssen kleiner als die Max-Werte sein.",
-                        "Fehler",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            // Wertebereiche im Renderer setzen und neu zeichnen
-            renderer.setBounds(currentXMin, currentXMax, currentYMin, currentYMax);
-            plotPanel.repaint();
-            debug("Wertebereich manuell aktualisiert");
-
-        } catch (NumberFormatException | ParseException e) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Bitte geben Sie gültige Zahlen für die Wertebereiche ein.",
-                    "Fehler",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /**
-     * Aktualisiert die Auflösung und renderrt neu
-     */
-    private void updateResolution() {
-        int resolution = resolutionSlider.getValue();
-        renderer.setResolution(resolution);
-        plotPanel.repaint();
-        debug("Auflösung geändert auf " + resolution);
-    }
-
-    /**
-     * Aktualisiert die Rotation im Renderer
-     */
-    private void updateRotation() {
-        if (renderer != null) {
-            renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
-            plotPanel.repaint();
-        }
-    }
-
-    /**
-     * Setzt die Ansicht auf Standardwerte zurück
-     */
-    private void resetView() {
-        // Standardwerte für Rotation
-        currentRotationX = 25; // Angepasst von 30 auf 25
-        currentRotationY = 0;
-        currentRotationZ = 35; // Angepasst von 30 auf 35
-        currentScale = 1.2; // Erhöht von 1.0 auf 1.2
-
-        // UI aktualisieren
-        rotationXSlider.setValue((int) currentRotationX);
-        rotationYSlider.setValue((int) currentRotationY);
-        rotationZSlider.setValue((int) currentRotationZ);
-
-        // Wertebereiche auf Standardwerte zurücksetzen
-        currentXMin = DEFAULT_MIN;
-        currentXMax = DEFAULT_MAX;
-        currentYMin = DEFAULT_MIN;
-        currentYMax = DEFAULT_MAX;
-
-        // Bereichsfelder auf Originalwerte zurücksetzen
-        xMinField.setText(String.valueOf(DEFAULT_MIN));
-        xMaxField.setText(String.valueOf(DEFAULT_MAX));
-        yMinField.setText(String.valueOf(DEFAULT_MIN));
-        yMaxField.setText(String.valueOf(DEFAULT_MAX));
-
-        // Renderer aktualisieren
-        try {
-            // Grenzen im Renderer aktualisieren
-            renderer.setBounds(DEFAULT_MIN, DEFAULT_MAX, DEFAULT_MIN, DEFAULT_MAX);
-
-            // Rotation und Skalierung aktualisieren
-            renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
-            renderer.setScale(currentScale);
-
-            plotPanel.repaint();
-
-            debug("Ansicht auf Standardwerte zurückgesetzt");
-        } catch (Exception e) {
-            debug("Fehler beim Zurücksetzen der Ansicht: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Parst einen Dezimalwert aus einem String, unterstützt sowohl Punkt als auch
-     * Komma als Dezimaltrennzeichen
-     */
-    private double parseDecimal(String text) throws NumberFormatException, ParseException {
-        // Erst direkt parsen versuchen (für Punkt als Dezimaltrennzeichen)
-        try {
-            return Double.parseDouble(text);
-        } catch (NumberFormatException e) {
-            // Falls fehlgeschlagen, Komma durch Punkt ersetzen und erneut versuchen
-            String replacedText = text.replace(',', '.');
-            try {
-                return Double.parseDouble(replacedText);
-            } catch (NumberFormatException ex) {
-                // Als letzten Versuch die aktuelle Locale verwenden
-                NumberFormat nf = NumberFormat.getNumberInstance(Locale.getDefault());
-                return nf.parse(text).doubleValue();
-            }
-        }
-    }
-
-    /**
      * Setzt den DebugManager für Logging
      */
     public void setDebugManager(DebugManager debugManager) {
         this.debugManager = debugManager;
+        viewController.setDebugManager(debugManager);
+        functionManager.setDebugManager(debugManager);
+        interactionHandler.setDebugManager(debugManager);
     }
 
     /**
      * Schreibt Debug-Informationen
      */
-    private void debug(String message) {
+    public void debug(String message) {
         if (debugManager != null) {
             debugManager.debug("[3D-Plotter] " + message);
         } else {
             System.out.println("[3D-Plotter] " + message);
         }
+    }
+
+    /**
+     * Gibt den Plot3DRenderer zurück
+     */
+    public Plot3DRenderer getRenderer() {
+        return renderer;
+    }
+
+    /**
+     * Gibt den Plot3DFunctionManager zurück
+     */
+    public Plot3DFunctionManager getFunctionManager() {
+        return functionManager;
+    }
+
+    /**
+     * Gibt den Plot3DViewController zurück
+     */
+    public Plot3DViewController getViewController() {
+        return viewController;
+    }
+
+    /**
+     * Gibt das Plot-Panel zurück
+     */
+    public JPanel getPlotPanel() {
+        return plotPanel;
     }
 }
