@@ -13,6 +13,7 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * GraphPanel - A panel for drawing function graphs in a coordinate system
@@ -38,7 +39,7 @@ public class GraphPanel extends JPanel {
     private Point currentMousePosition = null; // Current mouse position for hover detection
     private int closestFunctionIndex = -1; // Index of the function closest to mouse
     private Point2D.Double closestPoint = null; // Closest point on any function to mouse
-    private int selectedFunctionIndex = -1; // Index of the currently selected function
+    private List<Integer> selectedFunctionIndices = new ArrayList<>(); // Indices of selected functions
 
     // Tooltip support
     private IntersectionPoint currentTooltipPoint = null;
@@ -114,8 +115,19 @@ public class GraphPanel extends JPanel {
                 if (e.getPoint().distance(lastMousePos) < 5) {
                     // Find which function was clicked (if any)
                     if (closestPoint != null && closestFunctionIndex >= 0) {
-                        // Select this function
-                        selectedFunctionIndex = closestFunctionIndex;
+                        // Check if CTRL is pressed for multi-selection
+                        if (e.isControlDown()) {
+                            // Toggle selection of this function
+                            if (selectedFunctionIndices.contains(closestFunctionIndex)) {
+                                selectedFunctionIndices.remove(Integer.valueOf(closestFunctionIndex));
+                            } else {
+                                selectedFunctionIndices.add(closestFunctionIndex);
+                            }
+                        } else {
+                            // Single selection - clear previous selection and select just this one
+                            selectedFunctionIndices.clear();
+                            selectedFunctionIndices.add(closestFunctionIndex);
+                        }
                         repaint();
                     }
                 }
@@ -123,9 +135,9 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                // If clicked on empty space, deselect current function
-                if (closestPoint == null) {
-                    selectedFunctionIndex = -1;
+                // If clicked on empty space and not using CTRL, deselect all functions
+                if (closestPoint == null && !e.isControlDown()) {
+                    selectedFunctionIndices.clear();
                     repaint();
                 }
             }
@@ -413,7 +425,7 @@ public class GraphPanel extends JPanel {
         }
 
         // Draw the functions
-        functionRenderer.drawFunctions(g2d, selectedFunctionIndex);
+        functionRenderer.drawFunctions(g2d, selectedFunctionIndices);
 
         // Draw intersection points if enabled
         intersectionCalculator.drawIntersectionPoints(g2d);
@@ -465,6 +477,21 @@ public class GraphPanel extends JPanel {
         if (intersectionCalculator.isShowingIntersections()) {
             intersectionCalculator.calculateIntersections();
         }
+
+        repaint();
+    }
+
+    /**
+     * Adds a new function to the plotter and selects it
+     */
+    public void addFunctionAndSelect(String expression, Color color, boolean addToSelection) {
+        int newIndex = functionRenderer.getFunctions().size();
+        addFunction(expression, color);
+
+        if (!addToSelection) {
+            selectedFunctionIndices.clear();
+        }
+        selectedFunctionIndices.add(newIndex);
 
         repaint();
     }
@@ -523,17 +550,44 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Returns the index of the currently selected function
+     * Returns the list of selected function indices
      */
-    public int getSelectedFunctionIndex() {
-        return selectedFunctionIndex;
+    public List<Integer> getSelectedFunctionIndices() {
+        return selectedFunctionIndices;
     }
 
     /**
-     * Sets the selected function index
+     * Selects a function with the given index
+     *
+     * @param index          The index of the function to select
+     * @param addToSelection If true, adds to the current selection; if false,
+     *                       replaces it
      */
-    public void setSelectedFunctionIndex(int index) {
-        this.selectedFunctionIndex = index;
+    public void selectFunction(int index, boolean addToSelection) {
+        if (!addToSelection) {
+            selectedFunctionIndices.clear();
+        }
+
+        if (index >= 0 && !selectedFunctionIndices.contains(index)) {
+            selectedFunctionIndices.add(index);
+        }
+
+        repaint();
+    }
+
+    /**
+     * Deselects a function with the given index
+     */
+    public void deselectFunction(int index) {
+        selectedFunctionIndices.remove(Integer.valueOf(index));
+        repaint();
+    }
+
+    /**
+     * Clears all function selections
+     */
+    public void clearFunctionSelection() {
+        selectedFunctionIndices.clear();
         repaint();
     }
 }

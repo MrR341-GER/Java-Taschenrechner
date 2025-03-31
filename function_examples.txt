@@ -1,6 +1,8 @@
-x^2
 sin(x)
+cos(x)
+tan(x)
 x^3-3*x
+sqrt(x)
 log(x)
 ln(x)
 abs(x)

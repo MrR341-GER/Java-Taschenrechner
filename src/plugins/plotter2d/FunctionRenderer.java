@@ -48,19 +48,21 @@ public class FunctionRenderer {
     }
 
     /**
-     * Draws all functions, with the selected one highlighted
+     * Draws all functions, with the selected ones highlighted
      */
-    public void drawFunctions(Graphics2D g2d, int selectedIndex) {
+    public void drawFunctions(Graphics2D g2d, List<Integer> selectedIndices) {
         // First draw all non-selected functions
         for (int i = 0; i < functions.size(); i++) {
-            if (i != selectedIndex) {
+            if (!selectedIndices.contains(i)) {
                 drawFunctionWithEdges(g2d, functions.get(i), false);
             }
         }
 
-        // Then draw the selected function (if any) on top
-        if (selectedIndex >= 0 && selectedIndex < functions.size()) {
-            drawFunctionWithEdges(g2d, functions.get(selectedIndex), true);
+        // Then draw the selected functions (if any) on top
+        for (int index : selectedIndices) {
+            if (index >= 0 && index < functions.size()) {
+                drawFunctionWithEdges(g2d, functions.get(index), true);
+            }
         }
     }
 
@@ -271,7 +273,7 @@ public class FunctionRenderer {
 
         /**
          * Getter für den FunctionParser
-         * 
+         *
          * @return Der FunctionParser
          */
         public FunctionParser getFunction() {
@@ -280,7 +282,7 @@ public class FunctionRenderer {
 
         /**
          * Getter für die Farbe
-         * 
+         *
          * @return Die Farbe
          */
         public Color getColor() {

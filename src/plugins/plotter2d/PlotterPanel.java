@@ -368,6 +368,59 @@ public class PlotterPanel extends JPanel {
         }
     }
 
+    public FunctionInputPanel getFunctionInputPanel() {
+        return functionInputPanel;
+    }
+
+    public void combineSelectedFunctions() {
+        List<Integer> selectedIndices = graphPanel.getSelectedFunctionIndices();
+
+        // Mindestens 2 Funktionen müssen ausgewählt sein
+        if (selectedIndices.size() < 2) {
+            JOptionPane.showMessageDialog(this,
+                    "Bitte wählen Sie mindestens zwei Funktionen aus, die kombiniert werden sollen.",
+                    "Zu wenige Funktionen ausgewählt",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Dialog anzeigen
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        FunctionInterferenceDialog dialog = FunctionInterferenceDialog.showDialog(parentFrame, this, selectedIndices);
+
+        // Wenn der Dialog bestätigt wurde, die neue Funktion erstellen
+        if (dialog.isConfirmed()) {
+            String functionExpression = dialog.createFunctionExpression();
+            String functionName = dialog.getFunctionName();
+            Color color = dialog.getSelectedColor();
+
+            if (functionExpression != null && !functionExpression.isEmpty()) {
+                // Farbe in Farbnamen umwandeln
+                String colorName = ColorChooser.getColorName(color);
+
+                // Eintrag für die Funktionsliste erstellen
+                String listEntry = "f(x) = " + functionExpression + " [" + colorName + "]";
+
+                // Zur Funktionsliste hinzufügen
+                functionInputPanel.getFunctionListModel().addElement(listEntry);
+
+                // Graph aktualisieren
+                updateGraphFromList();
+
+                // Debug-Ausgabe
+                debug("Neue kombinierte Funktion erstellt: " + listEntry);
+
+                // Die neue Funktion auswählen
+                int newIndex = functionInputPanel.getFunctionListModel().size() - 1;
+                graphPanel.clearFunctionSelection();
+                graphPanel.selectFunction(newIndex, false);
+
+                // Auch in der Funktionsliste auswählen
+                functionInputPanel.selectFunction(newIndex);
+            }
+        }
+    }
+
     /**
      * Helper method to get the function expression by index
      */

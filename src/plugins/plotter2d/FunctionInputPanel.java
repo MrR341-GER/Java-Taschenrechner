@@ -9,6 +9,7 @@ import common.ColorChooser;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -124,7 +125,7 @@ public class FunctionInputPanel {
         // Function list
         functionListModel = new DefaultListModel<>();
         functionList = new JList<>(functionListModel);
-        functionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        functionList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         // Kontextmenü für die Funktionsliste
         setupContextMenu();
@@ -145,6 +146,28 @@ public class FunctionInputPanel {
                         debug("Rechtsklick auf Funktion #" + (index + 1) + " - zeige Kontextmenü");
                         functionPopup.show(functionList, e.getX(), e.getY());
                     }
+                }
+            }
+        });
+
+        functionList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                // Hole die ausgewählten Indizes aus der JList
+                int[] selectedIndices = functionList.getSelectedIndices();
+
+                // Aktualisiere die Auswahl im GraphPanel
+                GraphPanel graphPanel = plotter.getGraphPanel();
+                graphPanel.clearFunctionSelection();
+
+                for (int index : selectedIndices) {
+                    graphPanel.selectFunction(index, true);
+                }
+
+                // Debug-Meldung
+                if (selectedIndices.length > 0) {
+                    debug("Funktionen ausgewählt: " + Arrays.toString(selectedIndices));
+                } else {
+                    debug("Keine Funktionen ausgewählt");
                 }
             }
         });
@@ -306,6 +329,7 @@ public class FunctionInputPanel {
         JButton addButton = new JButton("Hinzufügen");
         JButton removeButton = new JButton("Entfernen");
         JButton clearButton = new JButton("Alle löschen");
+        JButton combineButton = new JButton("Kombinieren");
 
         // Add button action
         addButton.addActionListener(e -> {
@@ -331,6 +355,11 @@ public class FunctionInputPanel {
             }
         });
 
+        combineButton.addActionListener(e -> {
+            debug("'Kombinieren'-Button geklickt");
+            plotter.combineSelectedFunctions();
+        });
+
         // Enter key in function field adds the function
         functionField.addActionListener(e -> {
             debug("Enter in Funktionsfeld gedrückt");
@@ -339,6 +368,7 @@ public class FunctionInputPanel {
 
         actionButtonPanel.add(addButton);
         actionButtonPanel.add(removeButton);
+        actionButtonPanel.add(combineButton);
         actionButtonPanel.add(clearButton);
 
         return actionButtonPanel;
@@ -369,6 +399,13 @@ public class FunctionInputPanel {
         functionsPanel.add(listScrollPane, BorderLayout.CENTER);
 
         return functionsPanel;
+    }
+
+    public void selectFunction(int index) {
+        if (index >= 0 && index < functionList.getModel().getSize()) {
+            functionList.setSelectedIndex(index);
+            functionList.ensureIndexIsVisible(index);
+        }
     }
 
     /**
