@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import common.ColorChooser;
 
 /**
- * Dialog zum Erstellen von Interferenz-Funktionen (Kombinationen mehrerer Funktionen)
+ * Dialog zum Erstellen von Interferenz-Funktionen (Kombinationen mehrerer
+ * Funktionen)
  */
 public class FunctionInterferenceDialog extends JDialog {
     private final PlotterPanel plotter;
@@ -18,39 +19,39 @@ public class FunctionInterferenceDialog extends JDialog {
     private JTextField nameField;
     private JComboBox<String> colorComboBox;
     private boolean confirmed = false;
-    
+
     // Verfügbare Operationen
     private static final String[] OPERATIONS = {
-        "Summe (f₁ + f₂ + ...)",
-        "Differenz (f₁ - f₂ - ...)",
-        "Produkt (f₁ * f₂ * ...)",
-        "Quotient (f₁ / f₂ / ...)",
-        "Maximum (max(f₁, f₂, ...))",
-        "Minimum (min(f₁, f₂, ...))",
-        "Benutzerdefiniert..."
+            "Summe (f₁ + f₂ + ...)",
+            "Differenz (f₁ - f₂ - ...)",
+            "Produkt (f₁ * f₂ * ...)",
+            "Quotient (f₁ / f₂ / ...)",
+            "Maximum (größerer Wert aus f₁, f₂, ...)",
+            "Minimum (kleinerer Wert aus f₁, f₂, ...)",
+            "Benutzerdefiniert..."
     };
-    
+
     /**
      * Erstellt einen neuen Dialog zum Erstellen von Interferenz-Funktionen
      * 
-     * @param parent Der Eltern-Frame
-     * @param plotter Der PlotterPanel
+     * @param parent          Der Eltern-Frame
+     * @param plotter         Der PlotterPanel
      * @param selectedIndices Die Indizes der ausgewählten Funktionen
      */
     public FunctionInterferenceDialog(Frame parent, PlotterPanel plotter, List<Integer> selectedIndices) {
         super(parent, "Funktionen kombinieren", true);
         this.plotter = plotter;
         this.selectedIndices = new ArrayList<>(selectedIndices);
-        
+
         initComponents();
         setupLayout();
-        
+
         // Fenstergröße und Position
         pack();
         setResizable(false);
         setLocationRelativeTo(parent);
     }
-    
+
     /**
      * Initialisiert die Komponenten des Dialogs
      */
@@ -58,7 +59,8 @@ public class FunctionInterferenceDialog extends JDialog {
         // Operation auswählen
         operationComboBox = new JComboBox<>(OPERATIONS);
         operationComboBox.addActionListener(e -> {
-            // Benutzerdefiniertes Feld nur aktivieren, wenn "Benutzerdefiniert..." ausgewählt ist
+            // Benutzerdefiniertes Feld nur aktivieren, wenn "Benutzerdefiniert..."
+            // ausgewählt ist
             String selected = (String) operationComboBox.getSelectedItem();
             boolean isCustom = selected.equals("Benutzerdefiniert...");
             customExpressionField.setEnabled(isCustom);
@@ -66,15 +68,15 @@ public class FunctionInterferenceDialog extends JDialog {
                 customExpressionField.requestFocus();
             }
         });
-        
+
         // Feld für benutzerdefinierten Ausdruck
         customExpressionField = new JTextField(20);
         customExpressionField.setEnabled(false);
         customExpressionField.setToolTipText("Verwende f₁, f₂, ... für die ausgewählten Funktionen");
-        
+
         // Feld für den Namen der neuen Funktion
         nameField = new JTextField("Kombination", 15);
-        
+
         // Farbauswahl
         String[] colorNames = ColorChooser.getColorNames();
         colorComboBox = new JComboBox<>(colorNames);
@@ -85,7 +87,7 @@ public class FunctionInterferenceDialog extends JDialog {
                 break;
             }
         }
-        
+
         // OK-Button
         JButton okButton = new JButton("OK");
         okButton.addActionListener(e -> {
@@ -94,71 +96,71 @@ public class FunctionInterferenceDialog extends JDialog {
                 dispose();
             }
         });
-        
+
         // Abbrechen-Button
         JButton cancelButton = new JButton("Abbrechen");
         cancelButton.addActionListener(e -> dispose());
-        
+
         // ESC-Taste zum Schließen
         getRootPane().registerKeyboardAction(
                 e -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
-        
+
         // ENTER-Taste zum Bestätigen
         getRootPane().registerKeyboardAction(
                 e -> okButton.doClick(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
-        
+
         // Standard-Button festlegen
         getRootPane().setDefaultButton(okButton);
     }
-    
+
     /**
      * Überprüft die Eingaben auf Gültigkeit
      */
     private boolean validateInput() {
         String name = nameField.getText().trim();
         if (name.isEmpty()) {
-            JOptionPane.showMessageDialog(this, 
-                "Bitte geben Sie einen Namen für die neue Funktion ein.",
-                "Eingabefehler", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this,
+                    "Bitte geben Sie einen Namen für die neue Funktion ein.",
+                    "Eingabefehler", JOptionPane.ERROR_MESSAGE);
             nameField.requestFocus();
             return false;
         }
-        
+
         String selectedOperation = (String) operationComboBox.getSelectedItem();
         if (selectedOperation.equals("Benutzerdefiniert...")) {
             String expression = customExpressionField.getText().trim();
             if (expression.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "Bitte geben Sie einen benutzerdefinierten Ausdruck ein.",
-                    "Eingabefehler", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "Bitte geben Sie einen benutzerdefinierten Ausdruck ein.",
+                        "Eingabefehler", JOptionPane.ERROR_MESSAGE);
                 customExpressionField.requestFocus();
                 return false;
             }
         }
-        
+
         return true;
     }
-    
+
     /**
      * Setzt das Layout des Dialogs
      */
     private void setupLayout() {
         JPanel contentPanel = new JPanel(new BorderLayout(10, 10));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        
+
         // Ausgewählte Funktionen anzeigen
         JPanel selectedFunctionsPanel = new JPanel(new BorderLayout());
         selectedFunctionsPanel.setBorder(BorderFactory.createTitledBorder("Ausgewählte Funktionen"));
-        
+
         JTextArea selectedFunctionsArea = new JTextArea(5, 30);
         selectedFunctionsArea.setEditable(false);
         selectedFunctionsArea.setLineWrap(true);
         selectedFunctionsArea.setWrapStyleWord(true);
-        
+
         // Funktionen auflisten
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < selectedIndices.size(); i++) {
@@ -170,81 +172,85 @@ public class FunctionInterferenceDialog extends JDialog {
             }
         }
         selectedFunctionsArea.setText(sb.toString());
-        
+
         JScrollPane scrollPane = new JScrollPane(selectedFunctionsArea);
         selectedFunctionsPanel.add(scrollPane, BorderLayout.CENTER);
-        
+
         // Operationen und Eingabefelder
         JPanel operationsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        
+
         // Operation
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.3;
         operationsPanel.add(new JLabel("Operation:"), gbc);
-        
+
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         operationsPanel.add(operationComboBox, gbc);
-        
+
         // Benutzerdefinierter Ausdruck
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0.3;
         operationsPanel.add(new JLabel("Eigener Ausdruck:"), gbc);
-        
+
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         operationsPanel.add(customExpressionField, gbc);
-        
+
         // Name
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.weightx = 0.3;
         operationsPanel.add(new JLabel("Name:"), gbc);
-        
+
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         operationsPanel.add(nameField, gbc);
-        
+
         // Farbe
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.weightx = 0.3;
         operationsPanel.add(new JLabel("Farbe:"), gbc);
-        
+
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         operationsPanel.add(colorComboBox, gbc);
-        
+
         // Button-Panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.add(new JButton("OK") {{
-            addActionListener(e -> {
-                if (validateInput()) {
-                    confirmed = true;
-                    dispose();
-                }
-            });
-        }});
-        buttonPanel.add(new JButton("Abbrechen") {{
-            addActionListener(e -> dispose());
-        }});
-        
+        buttonPanel.add(new JButton("OK") {
+            {
+                addActionListener(e -> {
+                    if (validateInput()) {
+                        confirmed = true;
+                        dispose();
+                    }
+                });
+            }
+        });
+        buttonPanel.add(new JButton("Abbrechen") {
+            {
+                addActionListener(e -> dispose());
+            }
+        });
+
         // Alles zusammenfügen
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.add(selectedFunctionsPanel, BorderLayout.NORTH);
         mainPanel.add(operationsPanel, BorderLayout.CENTER);
-        
+
         contentPanel.add(mainPanel, BorderLayout.CENTER);
         contentPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
+
         setContentPane(contentPanel);
     }
-    
+
     /**
      * Gibt den Namen einer Funktion basierend auf dem Index zurück
      */
@@ -254,30 +260,32 @@ public class FunctionInterferenceDialog extends JDialog {
             String entry = listModel.get(index);
             int equalsPos = entry.indexOf('=');
             int bracketPos = entry.lastIndexOf('[');
-            
+
             if (equalsPos >= 0 && bracketPos > equalsPos) {
                 return entry.substring(equalsPos + 1, bracketPos).trim();
             }
         }
         return "f" + (index + 1);
     }
-    
+
     /**
      * Erstellt den Funktionsausdruck basierend auf der ausgewählten Operation
      */
     public String createFunctionExpression() {
-        if (!confirmed) return null;
-        
+        if (!confirmed)
+            return null;
+
         String operation = (String) operationComboBox.getSelectedItem();
         List<String> functionExpressions = new ArrayList<>();
-        
+
         // Funktionsausdrücke sammeln
         for (int index : selectedIndices) {
             functionExpressions.add(getFunctionName(index));
         }
-        
+
         if (operation.equals("Benutzerdefiniert...")) {
-            // Bei benutzerdefiniertem Ausdruck: f₁, f₂, ... durch die tatsächlichen Funktionen ersetzen
+            // Bei benutzerdefiniertem Ausdruck: f₁, f₂, ... durch die tatsächlichen
+            // Funktionen ersetzen
             String expression = customExpressionField.getText().trim();
             for (int i = 0; i < functionExpressions.size(); i++) {
                 expression = expression.replace("f" + (i + 1), "(" + functionExpressions.get(i) + ")");
@@ -294,16 +302,16 @@ public class FunctionInterferenceDialog extends JDialog {
                     return joinWithOperator(functionExpressions, "*");
                 case "Quotient (f₁ / f₂ / ...)":
                     return joinWithOperator(functionExpressions, "/");
-                case "Maximum (max(f₁, f₂, ...))":
-                    return "max(" + joinFunctions(functionExpressions, ",") + ")";
-                case "Minimum (min(f₁, f₂, ...))":
-                    return "min(" + joinFunctions(functionExpressions, ",") + ")";
+                case "Maximum (größerer Wert aus f₁, f₂, ...)":
+                    return createMaxExpression(functionExpressions);
+                case "Minimum (kleinerer Wert aus f₁, f₂, ...)":
+                    return createMinExpression(functionExpressions);
                 default:
                     return functionExpressions.get(0); // Fallback
             }
         }
     }
-    
+
     /**
      * Verbindet Funktionsausdrücke mit einem Operator
      */
@@ -317,28 +325,74 @@ public class FunctionInterferenceDialog extends JDialog {
         }
         return sb.toString();
     }
-    
+
     /**
-     * Verbindet Funktionsausdrücke mit einem Trennzeichen
+     * Erstellt einen Ausdruck für das Maximum mehrerer Funktionen
+     * verwendet arithmetische Ausdrücke statt ternärer Operatoren
      */
-    private String joinFunctions(List<String> expressions, String delimiter) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < expressions.size(); i++) {
-            sb.append("(").append(expressions.get(i)).append(")");
-            if (i < expressions.size() - 1) {
-                sb.append(delimiter).append(" ");
-            }
+    private String createMaxExpression(List<String> expressions) {
+        if (expressions.size() == 1) {
+            return expressions.get(0);
         }
+
+        StringBuilder sb = new StringBuilder();
+
+        // Für zwei Funktionen: (a + b + abs(a - b)) / 2
+        if (expressions.size() == 2) {
+            String a = expressions.get(0);
+            String b = expressions.get(1);
+            sb.append("((").append(a).append(") + (").append(b).append(") + abs((").append(a).append(") - (").append(b)
+                    .append("))) / 2");
+            return sb.toString();
+        }
+
+        // Für mehr als zwei Funktionen rekursiv vorgehen
+        String first = expressions.get(0);
+        List<String> rest = expressions.subList(1, expressions.size());
+        String maxOfRest = createMaxExpression(rest);
+
+        sb.append("((").append(first).append(") + (").append(maxOfRest).append(") + abs((").append(first)
+                .append(") - (").append(maxOfRest).append("))) / 2");
         return sb.toString();
     }
-    
+
+    /**
+     * Erstellt einen Ausdruck für das Minimum mehrerer Funktionen
+     * verwendet arithmetische Ausdrücke statt ternärer Operatoren
+     */
+    private String createMinExpression(List<String> expressions) {
+        if (expressions.size() == 1) {
+            return expressions.get(0);
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        // Für zwei Funktionen: (a + b - abs(a - b)) / 2
+        if (expressions.size() == 2) {
+            String a = expressions.get(0);
+            String b = expressions.get(1);
+            sb.append("((").append(a).append(") + (").append(b).append(") - abs((").append(a).append(") - (").append(b)
+                    .append("))) / 2");
+            return sb.toString();
+        }
+
+        // Für mehr als zwei Funktionen rekursiv vorgehen
+        String first = expressions.get(0);
+        List<String> rest = expressions.subList(1, expressions.size());
+        String minOfRest = createMinExpression(rest);
+
+        sb.append("((").append(first).append(") + (").append(minOfRest).append(") - abs((").append(first)
+                .append(") - (").append(minOfRest).append("))) / 2");
+        return sb.toString();
+    }
+
     /**
      * Gibt den Namen für die neue Funktion zurück
      */
     public String getFunctionName() {
         return nameField.getText().trim();
     }
-    
+
     /**
      * Gibt die ausgewählte Farbe zurück
      */
@@ -350,18 +404,19 @@ public class FunctionInterferenceDialog extends JDialog {
             return ColorChooser.getColorByName(colorName);
         }
     }
-    
+
     /**
      * Gibt zurück, ob der Dialog bestätigt wurde
      */
     public boolean isConfirmed() {
         return confirmed;
     }
-    
+
     /**
      * Öffnet den Dialog und gibt zurück, ob der Benutzer ihn bestätigt hat
      */
-    public static FunctionInterferenceDialog showDialog(JFrame parent, PlotterPanel plotter, List<Integer> selectedIndices) {
+    public static FunctionInterferenceDialog showDialog(JFrame parent, PlotterPanel plotter,
+            List<Integer> selectedIndices) {
         FunctionInterferenceDialog dialog = new FunctionInterferenceDialog(parent, plotter, selectedIndices);
         dialog.setVisible(true);
         return dialog;
