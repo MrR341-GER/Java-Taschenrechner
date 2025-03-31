@@ -1,4 +1,3 @@
-
 package plugins.plotter2d;
 
 import javax.swing.*;
@@ -29,6 +28,9 @@ public class FunctionInputPanel {
 
     // Pattern zur Extraktion von Funktionsinformationen
     private final Pattern functionPattern = Pattern.compile("f\\(x\\) = (.+) \\[(.+)\\]");
+
+    // Aktualisiertes Muster mit Sichtbarkeitsmarkierung
+    private final Pattern visibilityPattern = Pattern.compile("^(\\[x\\]|\\[ \\]) (.+)$");
 
     /**
      * Creates a new function input panel
@@ -122,30 +124,59 @@ public class FunctionInputPanel {
             }
         });
 
-        // Function list
+        // Function list with checkboxes
         functionListModel = new DefaultListModel<>();
-        functionList = new JList<>(functionListModel);
+        functionList = new JList<>(functionListModel) {
+            @Override
+            public String getToolTipText(MouseEvent evt) {
+                // Provide a tooltip with the function expression
+                int index = locationToIndex(evt.getPoint());
+                if (index != -1) {
+                    String item = getModel().getElementAt(index);
+                    // Extract the function expression
+                    Matcher matcher = functionPattern.matcher(item);
+                    if (matcher.find()) {
+                        return matcher.group(1);
+                    }
+                    return item;
+                }
+                return null;
+            }
+        };
+        functionList.setCellRenderer(new FunctionListCellRenderer());
         functionList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         // Kontextmenü für die Funktionsliste
         setupContextMenu();
 
-        // Mauslistener für Doppelklick und Kontextmenü
+        // Mauslistener für Doppelklick, Kontextmenü und Checkbox-Klicks
         functionList.addMouseListener(new MouseInputAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                int index = functionList.locationToIndex(e.getPoint());
+                if (index < 0)
+                    return;
+
+                Rectangle checkBoxBounds = new Rectangle(0, 0, 20, functionList.getCellBounds(index, index).height);
+                checkBoxBounds.y = functionList.getCellBounds(index, index).y;
+
+                // Check if click was on the checkbox area
+                if (checkBoxBounds.contains(e.getPoint())) {
+                    // Toggle visibility
+                    toggleFunctionVisibility(index);
+                    functionList.repaint();
+                    return;
+                }
+
                 if (e.getClickCount() == 2) {
                     // Doppelklick - Bearbeitungsdialog öffnen
                     debug("Doppelklick auf Funktion - öffne Bearbeitungsdialog");
                     openFunctionEditDialog();
                 } else if (SwingUtilities.isRightMouseButton(e)) {
                     // Rechtsklick - Kontextmenü anzeigen
-                    int index = functionList.locationToIndex(e.getPoint());
-                    if (index >= 0) {
-                        functionList.setSelectedIndex(index);
-                        debug("Rechtsklick auf Funktion #" + (index + 1) + " - zeige Kontextmenü");
-                        functionPopup.show(functionList, e.getX(), e.getY());
-                    }
+                    functionList.setSelectedIndex(index);
+                    debug("Rechtsklick auf Funktion #" + (index + 1) + " - zeige Kontextmenü");
+                    functionPopup.show(functionList, e.getX(), e.getY());
                 }
             }
         });
@@ -182,9 +213,54 @@ public class FunctionInputPanel {
                 } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     debug("Enter-Taste gedrückt - bearbeite ausgewählte Funktion");
                     openFunctionEditDialog();
+                } else if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+                    debug("Leertaste gedrückt - ändere Sichtbarkeit der ausgewählten Funktion");
+                    int selectedIndex = functionList.getSelectedIndex();
+                    if (selectedIndex >= 0) {
+                        toggleFunctionVisibility(selectedIndex);
+                    }
                 }
             }
         });
+    }
+
+    /**
+     * Ändert die Sichtbarkeit einer Funktion (ein-/ausblenden)
+     */
+    private void toggleFunctionVisibility(int index) {
+        if (index < 0 || index >= functionListModel.size())
+            return;
+
+        GraphPanel graphPanel = plotter.getGraphPanel();
+        List<FunctionRenderer.FunctionInfo> functions = graphPanel.getFunctionRenderer().getFunctions();
+
+        if (index < functions.size()) {
+            // Toggle visibility in the model
+            functions.get(index).toggleVisibility();
+
+            // Update the list display
+            String item = functionListModel.getElementAt(index);
+
+            // Check if item already has visibility marker
+            Matcher matcher = visibilityPattern.matcher(item);
+            if (matcher.find()) {
+                // Item already has visibility marker, update it
+                boolean isCurrentlyVisible = matcher.group(1).equals("[x]");
+                String newPrefix = isCurrentlyVisible ? "[ ] " : "[x] ";
+                String restOfItem = matcher.group(2);
+                functionListModel.set(index, newPrefix + restOfItem);
+            } else {
+                // Add visibility marker
+                boolean isVisible = functions.get(index).isVisible();
+                String prefix = isVisible ? "[x] " : "[ ] ";
+                functionListModel.set(index, prefix + item);
+            }
+
+            // Repaint the graph
+            graphPanel.repaint();
+            debug("Sichtbarkeit der Funktion #" + (index + 1) + " geändert: " +
+                    (functions.get(index).isVisible() ? "sichtbar" : "ausgeblendet"));
+        }
     }
 
     /**
@@ -214,7 +290,17 @@ public class FunctionInputPanel {
             removeSelectedFunction();
         });
 
+        JMenuItem toggleVisibilityItem = new JMenuItem("Sichtbarkeit umschalten");
+        toggleVisibilityItem.addActionListener(e -> {
+            debug("Kontextmenü: Sichtbarkeit umschalten ausgewählt");
+            int selectedIndex = functionList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                toggleFunctionVisibility(selectedIndex);
+            }
+        });
+
         functionPopup.add(editItem);
+        functionPopup.add(toggleVisibilityItem);
         functionPopup.addSeparator();
         functionPopup.add(removeItem);
     }
@@ -229,6 +315,12 @@ public class FunctionInputPanel {
 
         String entry = functionListModel.getElementAt(selectedIndex);
         debug("Bearbeite Funktion: " + entry);
+
+        // Entferne ggf. Sichtbarkeitsmarkierung
+        Matcher visibilityMatcher = visibilityPattern.matcher(entry);
+        if (visibilityMatcher.find()) {
+            entry = visibilityMatcher.group(2);
+        }
 
         // Extrahiere Funktionsformel und Farbe
         Matcher matcher = functionPattern.matcher(entry);
@@ -266,6 +358,19 @@ public class FunctionInputPanel {
 
                 // Neue Funktion mit geänderter Farbe erstellen
                 String newEntry = "f(x) = " + newFunction + " [" + newColorName + "]";
+
+                // Sichtbarkeit beibehalten
+                boolean isVisible = true;
+                if (visibilityMatcher.find()) {
+                    isVisible = visibilityMatcher.group(1).equals("[x]");
+                } else {
+                    // Prüfe Sichtbarkeit aus dem Funktions-Renderer
+                    isVisible = plotter.getGraphPanel().getFunctionRenderer().getFunctions()
+                            .get(selectedIndex).isVisible();
+                }
+
+                String prefix = isVisible ? "[x] " : "[ ] ";
+                newEntry = prefix + newEntry;
 
                 // Aktualisiere Eintrag in der Liste
                 functionListModel.set(selectedIndex, newEntry);
@@ -323,7 +428,7 @@ public class FunctionInputPanel {
      */
     public JPanel createActionButtonPanel() {
         // Verwende GridLayout für gleichmäßige Aufteilung der Buttons
-        JPanel actionButtonPanel = new JPanel(new GridLayout(1, 3, 5, 0));
+        JPanel actionButtonPanel = new JPanel(new GridLayout(1, 4, 5, 0));
         actionButtonPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
 
         JButton addButton = new JButton("Hinzufügen");
@@ -430,8 +535,7 @@ public class FunctionInputPanel {
                 Color color;
 
                 // Bei "Zufällig" eine zufällige Farbe erzeugen und den konkreten Farbnamen
-                // speichern,
-                // nicht den Platzhalter "Zufällig"
+                // speichern, nicht den Platzhalter "Zufällig"
                 if (colorName.equals(ColorChooser.RANDOM_COLOR_OPTION)) {
                     color = ColorChooser.generateRandomColor();
                     colorName = ColorChooser.getColorName(color);
@@ -444,6 +548,8 @@ public class FunctionInputPanel {
                 // Add to function list - wir speichern den konkreten Farbnamen, nicht
                 // "Zufällig"
                 String listEntry = "f(x) = " + func + " [" + colorName + "]";
+                // Neue Funktionen sind standardmäßig sichtbar
+                listEntry = "[x] " + listEntry;
                 functionListModel.addElement(listEntry);
                 debug("Funktion zur Liste hinzugefügt: " + listEntry);
 
@@ -485,5 +591,47 @@ public class FunctionInputPanel {
      */
     public String[] getColorNames() {
         return ColorChooser.getColorNames();
+    }
+
+    /**
+     * Benutzerdefinierter CellRenderer für die Funktionsliste mit Checkboxen
+     */
+    private class FunctionListCellRenderer extends DefaultListCellRenderer {
+        private JCheckBox checkbox = new JCheckBox();
+
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                int index, boolean isSelected,
+                boolean cellHasFocus) {
+
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            String text = value.toString();
+
+            // Prüfe auf Sichtbarkeitsmarkierung
+            Matcher matcher = visibilityPattern.matcher(text);
+            if (matcher.find()) {
+                // Entferne Markierung aus angezeigtem Text
+                checkbox.setSelected(matcher.group(1).equals("[x]"));
+                label.setText(matcher.group(2));
+            } else {
+                // Keine Markierung, Funktion ist standardmäßig sichtbar
+                checkbox.setSelected(true);
+                label.setText(text);
+            }
+
+            JPanel panel = new JPanel(new BorderLayout());
+            panel.add(checkbox, BorderLayout.WEST);
+            panel.add(label, BorderLayout.CENTER);
+
+            if (isSelected) {
+                panel.setBackground(list.getSelectionBackground());
+                panel.setForeground(list.getSelectionForeground());
+            } else {
+                panel.setBackground(list.getBackground());
+                panel.setForeground(list.getForeground());
+            }
+
+            return panel;
+        }
     }
 }

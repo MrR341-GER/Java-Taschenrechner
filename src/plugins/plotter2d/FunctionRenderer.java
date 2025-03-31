@@ -48,20 +48,68 @@ public class FunctionRenderer {
     }
 
     /**
+     * Toggles the visibility of a function
+     * 
+     * @param index Index of the function
+     * @return new visibility state (true if visible, false if hidden)
+     */
+    public boolean toggleFunctionVisibility(int index) {
+        if (index >= 0 && index < functions.size()) {
+            FunctionInfo function = functions.get(index);
+            function.setVisible(!function.isVisible());
+            return function.isVisible();
+        }
+        return false;
+    }
+
+    /**
+     * Sets the visibility of a function
+     * 
+     * @param index   Index of the function
+     * @param visible true to make visible, false to hide
+     */
+    public void setFunctionVisibility(int index, boolean visible) {
+        if (index >= 0 && index < functions.size()) {
+            functions.get(index).setVisible(visible);
+        }
+    }
+
+    /**
+     * Checks if a function is visible
+     * 
+     * @param index Index of the function
+     * @return true if function is visible, false otherwise
+     */
+    public boolean isFunctionVisible(int index) {
+        if (index >= 0 && index < functions.size()) {
+            return functions.get(index).isVisible();
+        }
+        return false;
+    }
+
+    /**
      * Draws all functions, with the selected ones highlighted
      */
     public void drawFunctions(Graphics2D g2d, List<Integer> selectedIndices) {
         // First draw all non-selected functions
         for (int i = 0; i < functions.size(); i++) {
+            FunctionInfo function = functions.get(i);
+            if (!function.isVisible()) {
+                continue; // Skip invisible functions
+            }
+
             if (!selectedIndices.contains(i)) {
-                drawFunctionWithEdges(g2d, functions.get(i), false);
+                drawFunctionWithEdges(g2d, function, false);
             }
         }
 
         // Then draw the selected functions (if any) on top
         for (int index : selectedIndices) {
             if (index >= 0 && index < functions.size()) {
-                drawFunctionWithEdges(g2d, functions.get(index), true);
+                FunctionInfo function = functions.get(index);
+                if (function.isVisible()) {
+                    drawFunctionWithEdges(g2d, function, true);
+                }
             }
         }
     }
@@ -265,6 +313,7 @@ public class FunctionRenderer {
     public static class FunctionInfo {
         private final FunctionParser function;
         private final Color color;
+        private boolean visible = true; // New visibility flag, default is visible
 
         public FunctionInfo(FunctionParser function, Color color) {
             this.function = function;
@@ -287,6 +336,31 @@ public class FunctionRenderer {
          */
         public Color getColor() {
             return color;
+        }
+
+        /**
+         * Prüft, ob die Funktion sichtbar ist
+         *
+         * @return true wenn sichtbar, false wenn ausgeblendet
+         */
+        public boolean isVisible() {
+            return visible;
+        }
+
+        /**
+         * Setzt die Sichtbarkeit der Funktion
+         *
+         * @param visible true um die Funktion anzuzeigen, false um sie auszublenden
+         */
+        public void setVisible(boolean visible) {
+            this.visible = visible;
+        }
+
+        /**
+         * Wechselt den Sichtbarkeitsstatus der Funktion
+         */
+        public void toggleVisibility() {
+            this.visible = !this.visible;
         }
     }
 }

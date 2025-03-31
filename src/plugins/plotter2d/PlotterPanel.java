@@ -270,7 +270,7 @@ public class PlotterPanel extends JPanel {
     }
 
     /**
-     * Updates the graph from the function list
+     * Updates the graph from the function list with visibility support
      */
     public void updateGraphFromList() {
         debug("Aktualisiere Graphen aus der Funktionsliste");
@@ -280,6 +280,16 @@ public class PlotterPanel extends JPanel {
 
         for (int i = 0; i < listModel.size(); i++) {
             String entry = listModel.get(i);
+
+            // Prüfe auf Sichtbarkeitsmarkierung
+            boolean isVisible = true;
+            if (entry.startsWith("[x] ")) {
+                entry = entry.substring(4); // Entferne "[x] "
+                isVisible = true;
+            } else if (entry.startsWith("[ ] ")) {
+                entry = entry.substring(4); // Entferne "[ ] "
+                isVisible = false;
+            }
 
             // Extract the actual function from the list entry
             int equalsPos = entry.indexOf('=');
@@ -315,10 +325,19 @@ public class PlotterPanel extends JPanel {
             // Add function
             graphPanel.addFunction(funcPart, color);
             debug("Funktion hinzugefügt: " + funcPart);
+
+            // Set visibility based on checkbox
+            if (!isVisible) {
+                List<FunctionRenderer.FunctionInfo> functions = graphPanel.getFunctionRenderer().getFunctions();
+                if (i < functions.size()) {
+                    functions.get(i).setVisible(false);
+                    debug("Funktion '" + funcPart + "' auf unsichtbar gesetzt");
+                }
+            }
         }
 
         // Update intersections if enabled
-        if (intersectionPanel.isShowingIntersections()) {
+        if (isShowingIntersections()) {
             graphPanel.toggleIntersections(true);
             updateIntersectionList();
             debug("Schnittpunkte aktualisiert");

@@ -482,6 +482,16 @@ public class GraphPanel extends JPanel {
     }
 
     /**
+     * Getter für den FunctionRenderer
+     * Benötigt für direkten Zugriff auf die Funktionsliste
+     * 
+     * @return Der FunctionRenderer
+     */
+    public FunctionRenderer getFunctionRenderer() {
+        return functionRenderer;
+    }
+
+    /**
      * Adds a new function to the plotter and selects it
      */
     public void addFunctionAndSelect(String expression, Color color, boolean addToSelection) {
