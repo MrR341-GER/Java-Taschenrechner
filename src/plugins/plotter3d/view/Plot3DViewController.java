@@ -236,6 +236,9 @@ public class Plot3DViewController {
             renderer.setRotation(currentRotationX, currentRotationY, currentRotationZ);
             renderer.setScale(currentScale);
 
+            // Clear intersection cache when view resets
+            renderer.clearIntersectionCache();
+
             debug("Ansicht auf Standardwerte zurückgesetzt");
 
             // Explizites Neuzeichnen, wenn verfügbar

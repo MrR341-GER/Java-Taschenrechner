@@ -1,0 +1,11 @@
+sin(sqrt(x^2+y^2))
+cos(x) * sin(y)
+x^2 + y^2
+sin(x) + cos(y)
+exp(-(x^2+y^2)/4)
+sin(x*y)
+sqrt(abs(x) + abs(y))
+1/(1+x^2+y^2)
+sin(3*x) * cos(3*y) / 3
+cos(sqrt(x^2+y^2)) * exp(-0.1*(x^2+y^2))
+sin(x) * sin(y)

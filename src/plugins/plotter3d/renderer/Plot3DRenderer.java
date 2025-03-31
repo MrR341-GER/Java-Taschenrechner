@@ -22,7 +22,7 @@ public class Plot3DRenderer {
     private final Plot3DColorScheme colorScheme;
     private boolean useHeatmap = true;
     private boolean useSolidSurface = false;
-    private boolean showIntersections = true; // Neue Option für Schnittlinien
+    private boolean showIntersections = true; // Option für Schnittlinien
 
     /**
      * Creates a new 3D renderer with the specified bounds and resolution
@@ -74,6 +74,7 @@ public class Plot3DRenderer {
         model.addFunction(functionExpression, color);
         calculateAllFunctionValues();
         transformAndProjectAllPoints();
+        functionChanged(); // Cache leeren
     }
 
     /**
@@ -81,6 +82,7 @@ public class Plot3DRenderer {
      */
     public void clearFunctions() {
         model.clearFunctions();
+        functionChanged(); // Cache leeren
     }
 
     /**
@@ -88,6 +90,7 @@ public class Plot3DRenderer {
      */
     public void removeFunction(int index) {
         model.removeFunction(index);
+        functionChanged(); // Cache leeren
     }
 
     /**
@@ -240,7 +243,7 @@ public class Plot3DRenderer {
 
         // Schnittlinien zwischen Funktionen zeichnen, wenn aktiviert
         if (showIntersections && model.getFunctions().size() >= 2) {
-            drawIntersectionCurves(g2d, displayScale, xOffset, yOffset);
+            drawIntersectionCurves(g2d, displayScale, xOffset, yOffset, width, height);
         }
 
         // Informationslabels zeichnen
@@ -251,92 +254,41 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Zeichnet die berechneten Schnittlinien zwischen den Funktionen
+     * Zeichnet Schnittlinien zwischen Funktionen mit optimierter pixelbasierter
+     * Berechnung
      */
-    private void drawIntersectionCurves(Graphics2D g2d, double displayScale, int xOffset, int yOffset) {
-        // Transformationsparameter für den Transformator berechnen
-        double xCenter = (view.getXMax() + view.getXMin()) / 2;
-        double yCenter = (view.getYMax() + view.getYMin()) / 2;
-        double zCenter = (model.getZMax() + model.getZMin()) / 2;
+    private void drawIntersectionCurves(Graphics2D g2d, double displayScale, int xOffset, int yOffset, int width,
+            int height) {
+        // Verwende den pixelbasierten Schnittlinien-Rechner
+        List<List<Plot3DPoint>> intersections = PixelBasedIntersectionCalculator.calculateVisibleIntersections(
+                model, view, displayScale, width, height);
 
-        // Berechne den Normalisierungsfaktor für die Koordinaten
-        double xRange = view.getXMax() - view.getXMin();
-        double yRange = view.getYMax() - view.getYMin();
-        double zRange = model.getZMax() - model.getZMin();
-        double maxRange = Math.max(xRange, Math.max(yRange, zRange));
-        double factor = 1.0 / maxRange;
+        // Zeichne die Schnittlinien mit der optimierten Methode
+        PixelBasedIntersectionCalculator.drawIntersectionCurves(
+                g2d, transformer, intersections, model, view,
+                displayScale, xOffset, yOffset);
+    }
 
-        // Rotationswinkel in Bogenmaß umrechnen
-        double angleX = Math.toRadians(view.getRotationX());
-        double angleY = Math.toRadians(view.getRotationY());
-        double angleZ = Math.toRadians(view.getRotationZ());
+    /**
+     * Informiert den Renderer über Funktionsänderungen, um den Cache zu leeren
+     */
+    public void functionChanged() {
+        // Cache leeren, wenn Funktionen hinzugefügt/entfernt/geändert werden
+        PixelBasedIntersectionCalculator.clearCache();
+    }
 
-        // Sinus und Kosinus der Rotationswinkel berechnen
-        double sinX = Math.sin(angleX);
-        double cosX = Math.cos(angleX);
-        double sinY = Math.sin(angleY);
-        double cosY = Math.cos(angleY);
-        double sinZ = Math.sin(angleZ);
-        double cosZ = Math.cos(angleZ);
+    /**
+     * Leert den Schnittlinien-Cache
+     */
+    public void clearIntersectionCache() {
+        PixelBasedIntersectionCalculator.clearCache();
+    }
 
-        // Alle Schnittkurven analytisch berechnen
-        List<List<Plot3DPoint>> allIntersections = Plot3DIntersectionCalculator.calculateAllIntersections(
-                model, view.getXMin(), view.getXMax(), view.getYMin(), view.getYMax());
-
-        // Original-Strich speichern
-        Stroke originalStroke = g2d.getStroke();
-
-        // Farbe und Strich für Schnittlinien setzen
-        g2d.setColor(Plot3DIntersectionCalculator.getIntersectionColor());
-        g2d.setStroke(new BasicStroke(2.0f));
-
-        // Alle Schnittlinien zeichnen
-        for (List<Plot3DPoint> intersectionCurve : allIntersections) {
-            if (intersectionCurve.size() < 2)
-                continue;
-
-            Plot3DPoint lastPoint = null;
-
-            for (Plot3DPoint point : intersectionCurve) {
-                // NaN-Punkt als Separator für getrennte Kurven
-                if (Double.isNaN(point.getX()) || Double.isNaN(point.getY()) || Double.isNaN(point.getZ())) {
-                    lastPoint = null;
-                    continue;
-                }
-
-                // Punkt transformieren
-                Plot3DPoint transformedPoint = transformer.transformPoint(
-                        point.getX(), point.getY(), point.getZ(),
-                        xCenter, yCenter, zCenter, factor, view.getScale(),
-                        sinX, cosX, sinY, cosY, sinZ, cosZ,
-                        view.getPanX(), view.getPanY());
-
-                // Projektion auf die 2D-Ebene
-                int[] screenPos = transformer.projectToScreen(transformedPoint, displayScale, xOffset, yOffset);
-
-                // Wenn es einen vorherigen Punkt gibt, zeichne eine Linie
-                if (lastPoint != null) {
-                    // Letzten Punkt ebenfalls transformieren
-                    Plot3DPoint transformedLastPoint = transformer.transformPoint(
-                            lastPoint.getX(), lastPoint.getY(), lastPoint.getZ(),
-                            xCenter, yCenter, zCenter, factor, view.getScale(),
-                            sinX, cosX, sinY, cosY, sinZ, cosZ,
-                            view.getPanX(), view.getPanY());
-
-                    // Projektion des letzten Punktes
-                    int[] lastScreenPos = transformer.projectToScreen(
-                            transformedLastPoint, displayScale, xOffset, yOffset);
-
-                    // Linie zwischen den Punkten zeichnen
-                    g2d.drawLine(lastScreenPos[0], lastScreenPos[1], screenPos[0], screenPos[1]);
-                }
-
-                lastPoint = point;
-            }
-        }
-
-        // Original-Strich wiederherstellen
-        g2d.setStroke(originalStroke);
+    /**
+     * Gibt verwendete Ressourcen frei
+     */
+    public void shutdown() {
+        PixelBasedIntersectionCalculator.shutdown();
     }
 
     /**
