@@ -9,3 +9,6 @@ sqrt(abs(x) + abs(y))
 sin(3*x) * cos(3*y) / 3
 cos(sqrt(x^2+y^2)) * exp(-0.1*(x^2+y^2))
 sin(x) * sin(y)
+abs(sin(x) * cos(y))
+(e^-((x^2+y^2)/10))*sin(5*sqrt(x^2 + y^2))
+(e^-((x^2+y^2)/10))*sin(5*sqrt(x^2 + y^2))+sin(sqrt(x^2+y))
