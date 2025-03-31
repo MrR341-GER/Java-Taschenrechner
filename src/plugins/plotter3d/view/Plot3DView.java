@@ -1,28 +1,28 @@
 package plugins.plotter3d.view;
 
 /**
- * Manages view-related parameters for 3D plotting
- * Handles bounds, rotation, scale, and display options
+ * Verwaltet ansichtsbezogene Parameter für 3D-Darstellungen
+ * Behandelt Grenzen, Rotation, Skalierung und Anzeigeoptionen
  */
 public class Plot3DView {
-    // View bounds
+    // Ansichtsgrenzen
     private double xMin, xMax, yMin, yMax;
-    private double originalXMin, originalXMax, originalYMin, originalYMax; // For reset
+    private double originalXMin, originalXMax, originalYMin, originalYMax; // Für Zurücksetzen
 
-    // Resolution (grid density)
+    // Auflösung (Gitterdichte)
     private int resolution;
 
-    // Rotation angles (in degrees)
-    private double rotationX; // Rotation around X-axis
-    private double rotationY; // Rotation around Y-axis
-    private double rotationZ; // Rotation around Z-axis
+    // Rotationswinkel (in Grad)
+    private double rotationX; // Rotation um die X-Achse
+    private double rotationY; // Rotation um die Y-Achse
+    private double rotationZ; // Rotation um die Z-Achse
 
-    // Scale and pan
+    // Skalierung und Verschiebung
     private double scale = 1.0;
     private double panX = 0.0;
     private double panY = 0.0;
 
-    // Display options
+    // Anzeigeoptionen
     private boolean showCoordinateSystem = true;
     private boolean showGrid = true;
     private boolean showHelperLines = true;
@@ -33,7 +33,7 @@ public class Plot3DView {
     private boolean useHeatmap = true; // Standardmäßig Heatmap verwenden
 
     /**
-     * Creates a new view with the specified bounds and resolution
+     * Erzeugt eine neue Ansicht mit den angegebenen Grenzen und der Auflösung
      */
     public Plot3DView(double xMin, double xMax, double yMin, double yMax, int resolution) {
         this.xMin = xMin;
@@ -41,15 +41,15 @@ public class Plot3DView {
         this.yMin = yMin;
         this.yMax = yMax;
 
-        // Store original bounds for reset
+        // Speichert die ursprünglichen Grenzen für das Zurücksetzen
         this.originalXMin = xMin;
         this.originalXMax = xMax;
         this.originalYMin = yMin;
         this.originalYMax = yMax;
 
-        this.resolution = Math.max(10, Math.min(100, resolution)); // Min 10, Max 100
+        this.resolution = Math.max(10, Math.min(100, resolution)); // Minimum 10, Maximum 100
 
-        // Default rotation
+        // Standardrotation
         this.rotationX = 30;
         this.rotationY = 0;
         this.rotationZ = 30;
@@ -86,7 +86,7 @@ public class Plot3DView {
     }
 
     /**
-     * Resets the view to its original state
+     * Setzt die Ansicht auf ihren ursprünglichen Zustand zurück
      */
     public void resetView() {
         xMin = originalXMin;
@@ -118,7 +118,7 @@ public class Plot3DView {
     }
 
     /**
-     * Sets new bounds
+     * Setzt neue Grenzen
      */
     public void setBounds(double xMin, double xMax, double yMin, double yMax) {
         this.xMin = xMin;
@@ -128,7 +128,7 @@ public class Plot3DView {
     }
 
     /**
-     * Sets rotation angles
+     * Setzt die Rotationswinkel
      */
     public void setRotation(double rotationX, double rotationY, double rotationZ) {
         this.rotationX = rotationX;
@@ -137,21 +137,21 @@ public class Plot3DView {
     }
 
     /**
-     * Sets scale factor
+     * Setzt den Skalierungsfaktor
      */
     public void setScale(double scale) {
-        this.scale = Math.max(0.1, Math.min(10.0, scale)); // Limit scale to reasonable range
+        this.scale = Math.max(0.1, Math.min(10.0, scale)); // Skalierung auf einen vernünftigen Bereich begrenzen
     }
 
     /**
-     * Zooms by the given factor
+     * Zoomt um den angegebenen Faktor
      */
     public void zoom(double factor) {
         setScale(scale * factor);
     }
 
     /**
-     * Sets pan values
+     * Setzt die Verschiebungswerte
      */
     public void setPan(double panX, double panY) {
         this.panX = panX;
@@ -159,7 +159,7 @@ public class Plot3DView {
     }
 
     /**
-     * Adds to the current pan values
+     * Erhöht die aktuellen Verschiebungswerte
      */
     public void addPan(double deltaPanX, double deltaPanY) {
         this.panX += deltaPanX;
@@ -167,34 +167,34 @@ public class Plot3DView {
     }
 
     /**
-     * Sets the resolution (grid density)
+     * Setzt die Auflösung (Gitterdichte)
      */
     public void setResolution(int resolution) {
-        this.resolution = Math.max(10, Math.min(100, resolution)); // Min 10, Max 100
+        this.resolution = Math.max(10, Math.min(100, resolution)); // Minimum 10, Maximum 100
     }
 
     /**
-     * Toggles coordinate system visibility
+     * Schaltet die Sichtbarkeit des Koordinatensystems um
      */
     public void setShowCoordinateSystem(boolean show) {
         this.showCoordinateSystem = show;
     }
 
     /**
-     * Toggles grid visibility
+     * Schaltet die Sichtbarkeit des Gitters um
      */
     public void setShowGrid(boolean show) {
         this.showGrid = show;
     }
 
     /**
-     * Toggles helper lines visibility
+     * Schaltet die Sichtbarkeit der Hilfslinien um
      */
     public void setShowHelperLines(boolean show) {
         this.showHelperLines = show;
     }
 
-    // Getters
+    // Getter
 
     public double getXMin() {
         return xMin;

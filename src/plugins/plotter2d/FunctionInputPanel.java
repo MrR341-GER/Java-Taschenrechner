@@ -14,12 +14,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Panel for function input, color selection, and function list management
+ * Panel für Funktionseingabe, Farbauswahl und Verwaltung der Funktionsliste
  */
 public class FunctionInputPanel {
     private final PlotterPanel plotter;
 
-    // UI components
+    // UI-Komponenten
     private final JTextField functionField;
     private final JComboBox<String> colorComboBox;
     private final DefaultListModel<String> functionListModel;
@@ -33,16 +33,16 @@ public class FunctionInputPanel {
     private final Pattern visibilityPattern = Pattern.compile("^(\\[x\\]|\\[ \\]) (.+)$");
 
     /**
-     * Creates a new function input panel
+     * Erzeugt ein neues Funktionseingabepanel
      */
     public FunctionInputPanel(PlotterPanel plotter) {
         this.plotter = plotter;
 
-        // Function input field
+        // Funktions-Eingabefeld
         functionField = new JTextField();
         functionField.setToolTipText("Funktion eingeben, z.B. sin(x) oder x^2");
 
-        // Prepare color names with "Zufällig" as first option
+        // Bereite Farbnamen vor, wobei "Zufällig" als erste Option steht
         String[] originalColorNames = ColorChooser.getColorNames();
 
         // Verwende eine Liste für die Sortierung, um Größenprobleme zu vermeiden
@@ -76,14 +76,14 @@ public class FunctionInputPanel {
         // Konvertiere die Liste in ein Array für die ComboBox
         String[] sortedColorNames = sortedColorList.toArray(new String[0]);
 
-        // Color combo box with sorted colors
+        // Farbauswahl-ComboBox mit sortierten Farben
         colorComboBox = new JComboBox<>(sortedColorNames);
         colorComboBox.setPreferredSize(new Dimension(120, functionField.getPreferredSize().height));
 
-        // Default to "Zufällig"
+        // Standardmäßig "Zufällig"
         colorComboBox.setSelectedItem(ColorChooser.RANDOM_COLOR_OPTION);
 
-        // Handle "Weitere..." option
+        // Verarbeite Option "Weitere..."
         colorComboBox.addActionListener(e -> {
             if (colorComboBox.getSelectedItem() != null &&
                     colorComboBox.getSelectedItem().toString().equals("Weitere...")) {
@@ -100,7 +100,7 @@ public class FunctionInputPanel {
                     String colorName = ColorChooser.getColorName(selectedColor);
                     debug("Benutzerdefinierte Farbe gewählt: " + colorName);
 
-                    // Überprüfen, ob die Farbe bereits in der Liste ist
+                    // Überprüfe, ob die Farbe bereits in der Liste ist
                     boolean exists = false;
                     for (int i = 0; i < colorComboBox.getItemCount() - 1; i++) {
                         if (colorComboBox.getItemAt(i).equals(colorName)) {
@@ -124,16 +124,16 @@ public class FunctionInputPanel {
             }
         });
 
-        // Function list with checkboxes
+        // Funktionsliste mit Checkboxen
         functionListModel = new DefaultListModel<>();
         functionList = new JList<>(functionListModel) {
             @Override
             public String getToolTipText(MouseEvent evt) {
-                // Provide a tooltip with the function expression
+                // Liefert einen Tooltip mit dem Funktionsausdruck
                 int index = locationToIndex(evt.getPoint());
                 if (index != -1) {
                     String item = getModel().getElementAt(index);
-                    // Extract the function expression
+                    // Extrahiere den Funktionsausdruck
                     Matcher matcher = functionPattern.matcher(item);
                     if (matcher.find()) {
                         return matcher.group(1);
@@ -160,9 +160,9 @@ public class FunctionInputPanel {
                 Rectangle checkBoxBounds = new Rectangle(0, 0, 20, functionList.getCellBounds(index, index).height);
                 checkBoxBounds.y = functionList.getCellBounds(index, index).y;
 
-                // Check if click was on the checkbox area
+                // Überprüfe, ob der Klick im Bereich der Checkbox war
                 if (checkBoxBounds.contains(e.getPoint())) {
-                    // Toggle visibility
+                    // Sichtbarkeit umschalten
                     toggleFunctionVisibility(index);
                     functionList.repaint();
                     return;
@@ -235,28 +235,28 @@ public class FunctionInputPanel {
         List<FunctionRenderer.FunctionInfo> functions = graphPanel.getFunctionRenderer().getFunctions();
 
         if (index < functions.size()) {
-            // Toggle visibility in the model
+            // Sichtbarkeit im Modell umschalten
             functions.get(index).toggleVisibility();
 
-            // Update the list display
+            // Aktualisiere die Anzeige der Liste
             String item = functionListModel.getElementAt(index);
 
-            // Check if item already has visibility marker
+            // Überprüfe, ob der Eintrag bereits eine Sichtbarkeitsmarkierung hat
             Matcher matcher = visibilityPattern.matcher(item);
             if (matcher.find()) {
-                // Item already has visibility marker, update it
+                // Eintrag hat bereits eine Sichtbarkeitsmarkierung, aktualisiere sie
                 boolean isCurrentlyVisible = matcher.group(1).equals("[x]");
                 String newPrefix = isCurrentlyVisible ? "[ ] " : "[x] ";
                 String restOfItem = matcher.group(2);
                 functionListModel.set(index, newPrefix + restOfItem);
             } else {
-                // Add visibility marker
+                // Füge Sichtbarkeitsmarkierung hinzu
                 boolean isVisible = functions.get(index).isVisible();
                 String prefix = isVisible ? "[x] " : "[ ] ";
                 functionListModel.set(index, prefix + item);
             }
 
-            // Repaint the graph
+            // Graph neu zeichnen
             graphPanel.repaint();
             debug("Sichtbarkeit der Funktion #" + (index + 1) + " geändert: " +
                     (functions.get(index).isVisible() ? "sichtbar" : "ausgeblendet"));
@@ -264,7 +264,7 @@ public class FunctionInputPanel {
     }
 
     /**
-     * Helper-Methode zum Loggen von Debug-Informationen über PlotterPanel
+     * Hilfsmethode zum Loggen von Debug-Informationen über PlotterPanel
      */
     private void debug(String message) {
         if (plotter != null) {
@@ -339,7 +339,7 @@ public class FunctionInputPanel {
             FunctionEditDialog.FunctionEditResult result = FunctionEditDialog.showDialog(
                     parentFrame, function, currentColor);
 
-            // Wenn Dialog bestätigt wurde
+            // Wenn der Dialog bestätigt wurde
             if (result != null) {
                 String newFunction = result.getFunction();
                 Color newColor = result.getColor();
@@ -372,14 +372,14 @@ public class FunctionInputPanel {
                 String prefix = isVisible ? "[x] " : "[ ] ";
                 newEntry = prefix + newEntry;
 
-                // Aktualisiere Eintrag in der Liste
+                // Aktualisiere den Eintrag in der Liste
                 functionListModel.set(selectedIndex, newEntry);
                 debug("Listeneintrag aktualisiert: " + newEntry);
 
                 // Graph aktualisieren
                 plotter.updateGraphFromList();
 
-                // Update intersection list if visible
+                // Aktualisiere Schnittpunktliste, falls sichtbar
                 if (plotter.isShowingIntersections()) {
                     plotter.updateIntersectionList();
                 }
@@ -401,7 +401,7 @@ public class FunctionInputPanel {
             functionListModel.remove(selectedIndex);
             plotter.updateGraphFromList();
 
-            // Update intersection list if visible
+            // Aktualisiere Schnittpunktliste, falls sichtbar
             if (plotter.isShowingIntersections()) {
                 plotter.updateIntersectionList();
             }
@@ -409,7 +409,7 @@ public class FunctionInputPanel {
     }
 
     /**
-     * Creates the function input area with label and color selector
+     * Erstellt den Funktions-Eingabebereich mit Beschriftung und Farbauswahl
      */
     public JPanel createFunctionInputPanel() {
         JPanel functionPanel = new JPanel(new BorderLayout(5, 5));
@@ -424,7 +424,7 @@ public class FunctionInputPanel {
     }
 
     /**
-     * Creates the action button panel (add, remove, clear)
+     * Erstellt das Aktionsbutton-Panel (Hinzufügen, Entfernen, Alle löschen)
      */
     public JPanel createActionButtonPanel() {
         // Verwende GridLayout für gleichmäßige Aufteilung der Buttons
@@ -436,25 +436,25 @@ public class FunctionInputPanel {
         JButton clearButton = new JButton("Alle löschen");
         JButton combineButton = new JButton("Kombinieren");
 
-        // Add button action
+        // Aktion für den "Hinzufügen"-Button
         addButton.addActionListener(e -> {
             debug("'Hinzufügen'-Button geklickt");
             addFunction();
         });
 
-        // Remove button action
+        // Aktion für den "Entfernen"-Button
         removeButton.addActionListener(e -> {
             debug("'Entfernen'-Button geklickt");
             removeSelectedFunction();
         });
 
-        // Clear button action
+        // Aktion für den "Alle löschen"-Button
         clearButton.addActionListener(e -> {
             debug("'Alle löschen'-Button geklickt");
             functionListModel.clear();
             plotter.getGraphPanel().clearFunctions();
 
-            // Update intersection list if visible
+            // Aktualisiere Schnittpunktliste, falls sichtbar
             if (plotter.isShowingIntersections()) {
                 plotter.updateIntersectionList();
             }
@@ -465,7 +465,7 @@ public class FunctionInputPanel {
             plotter.combineSelectedFunctions();
         });
 
-        // Enter key in function field adds the function
+        // Die Enter-Taste im Funktionsfeld fügt die Funktion hinzu
         functionField.addActionListener(e -> {
             debug("Enter in Funktionsfeld gedrückt");
             addFunction();
@@ -480,16 +480,16 @@ public class FunctionInputPanel {
     }
 
     /**
-     * Creates the function list panel
+     * Erstellt das Panel für die Funktionsliste
      */
     public JPanel createFunctionListPanel() {
         JPanel functionsPanel = new JPanel(new BorderLayout(5, 5));
         functionsPanel.setBorder(BorderFactory.createTitledBorder("Funktionen"));
 
-        // Function list with scrollable area
+        // Funktionsliste mit Scrollbereich
         JScrollPane listScrollPane = new JScrollPane(functionList);
 
-        // Optimierte Größenkonfiguration für Spalten-Layout
+        // Optimierte Größenkonfiguration für das Spalten-Layout
         listScrollPane.setMinimumSize(new Dimension(100, 100));
         listScrollPane.setPreferredSize(new Dimension(150, 150));
 
@@ -514,14 +514,14 @@ public class FunctionInputPanel {
     }
 
     /**
-     * Adds a function to the list and graph
+     * Fügt der Liste und dem Graphen eine Funktion hinzu
      */
     private void addFunction() {
         String func = functionField.getText().trim();
         if (!func.isEmpty()) {
             debug("Füge neue Funktion hinzu: " + func);
             try {
-                // Get selected color name
+                // Erhalte den ausgewählten Farbnamen
                 String colorName = (String) colorComboBox.getSelectedItem();
                 debug("Gewählte Farboption: " + colorName);
 
@@ -545,7 +545,7 @@ public class FunctionInputPanel {
                     debug("Vorgegebene Farbe verwendet: " + colorName);
                 }
 
-                // Add to function list - wir speichern den konkreten Farbnamen, nicht
+                // Zur Funktionsliste hinzufügen - wir speichern den konkreten Farbnamen, nicht
                 // "Zufällig"
                 String listEntry = "f(x) = " + func + " [" + colorName + "]";
                 // Neue Funktionen sind standardmäßig sichtbar
@@ -553,10 +553,10 @@ public class FunctionInputPanel {
                 functionListModel.addElement(listEntry);
                 debug("Funktion zur Liste hinzugefügt: " + listEntry);
 
-                // Update graph
+                // Graph aktualisieren
                 plotter.updateGraphFromList();
 
-                // Clear input field
+                // Eingabefeld leeren
                 functionField.setText("");
                 debug("Funktionsfeld geleert");
 
@@ -573,21 +573,21 @@ public class FunctionInputPanel {
     }
 
     /**
-     * Returns the function list model
+     * Gibt das Funktionslistenmodell zurück
      */
     public DefaultListModel<String> getFunctionListModel() {
         return functionListModel;
     }
 
     /**
-     * Returns the available colors
+     * Gibt die verfügbaren Farben zurück
      */
     public Color[] getAvailableColors() {
         return ColorChooser.getColors();
     }
 
     /**
-     * Returns the color names
+     * Gibt die Farbnamen zurück
      */
     public String[] getColorNames() {
         return ColorChooser.getColorNames();
@@ -610,7 +610,7 @@ public class FunctionInputPanel {
             // Prüfe auf Sichtbarkeitsmarkierung
             Matcher matcher = visibilityPattern.matcher(text);
             if (matcher.find()) {
-                // Entferne Markierung aus angezeigtem Text
+                // Entferne die Markierung aus dem angezeigten Text
                 checkbox.setSelected(matcher.group(1).equals("[x]"));
                 label.setText(matcher.group(2));
             } else {

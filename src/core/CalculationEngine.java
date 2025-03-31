@@ -1,4 +1,3 @@
-
 package core;
 
 import java.util.ArrayList;
@@ -8,7 +7,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 /**
- * Engine for mathematical calculations in the calculator
+ * Rechen-Engine für mathematische Berechnungen im Taschenrechner
  */
 public class CalculationEngine {
     private final Taschenrechner calculator;
@@ -21,13 +20,13 @@ public class CalculationEngine {
     }
 
     /**
-     * Calculates the result of a formula
+     * Berechnet das Ergebnis einer Formel
      */
     public void berechneFormel() {
         try {
             String formel = calculator.getDisplayText().trim();
 
-            // Check if formula is empty
+            // Überprüfe, ob die Formel leer ist
             if (formel.isEmpty()) {
                 calculator.setDisplayText("0");
                 calculator.debug("Leere Formel, auf 0 zurückgesetzt");
@@ -39,27 +38,27 @@ public class CalculationEngine {
             // Prüfe, ob die Formel eine Funktion sein könnte
             if (checkIfFunction(formel)) {
                 calculator.debug("Mögliche Funktion erkannt: " + formel);
-                // Frage Benutzer, ob er die Funktion plotten möchte
+                // Frage den Benutzer, ob er die Funktion plotten möchte
                 askToPlotFunction(formel);
                 return;
             }
 
-            // Simple preprocessing - correctly handle double operators
-            // --3 becomes +3, +-3 remains -3
+            // Einfache Vorverarbeitung – behandelt korrekt doppelte Operatoren
+            // "--3" wird zu "+3", "+-3" bleibt "-3"
             formel = formel.replace("--", "+");
             formel = formel.replaceAll("\\+\\+", "+");
             formel = formel.replace("+-", "-");
 
-            // Handle implicit multiplications (e.g. 2(5+5) to 2*(5+5))
+            // Behandle implizite Multiplikationen (z.B. 2(5+5) wird zu 2*(5+5))
             formel = ergaenzeImpliziteMultiplikationen(formel);
 
             calculator.debug("Vorverarbeitete Formel: " + formel);
 
-            // Calculate the result
+            // Berechne das Ergebnis
             double ergebnis = berechneAusdruck(formel);
             calculator.debug("Berechnetes Ergebnis: " + ergebnis);
 
-            // Format the result
+            // Formatiere das Ergebnis
             String ergebnisText;
             if (ergebnis == (int) ergebnis) {
                 ergebnisText = String.valueOf((int) ergebnis);
@@ -71,7 +70,7 @@ public class CalculationEngine {
                 calculator.debug("Formatiertes Ergebnis (double): " + ergebnisText);
             }
 
-            // Add to history
+            // Zur Verlaufsliste hinzufügen
             calculator.addToHistory(formel, ergebnisText);
 
         } catch (Exception e) {
@@ -122,25 +121,25 @@ public class CalculationEngine {
         // Bestimme, ob es sich um eine Konstante oder Funktion handelt
         boolean isConstant = isConstantExpression(function);
 
-        // Die Variable zur Bestimmung, ob es eine 3D-Funktion sein könnte
-        // Konstanten sind immer 2D, sonst prüfen, ob 'y' im Ausdruck vorkommt
+        // Variable zur Bestimmung, ob es eine 3D-Funktion sein könnte:
+        // Konstanten sind immer 2D, ansonsten prüfen, ob 'y' im Ausdruck vorkommt
         final boolean could3D = !isConstant && function.contains("y");
 
         String message;
         String title;
 
         if (isConstant) {
-            // Für Konstanten angepasste Nachricht
+            // Angepasste Nachricht für Konstanten
             message = "Die Eingabe \"" + function + "\" ist ein konstanter Wert.\n" +
                     "Möchten Sie diesen Wert als horizontale Linie im Funktionsplotter darstellen?";
             title = "Konstante plotten?";
         } else if (could3D) {
-            // Für 3D-Funktionen
+            // Nachricht für 3D-Funktionen
             message = "Die Eingabe \"" + function + "\" enthält die Variable y und könnte eine 3D-Funktion sein.\n" +
                     "Möchten Sie diese Funktion im 3D-Funktionsplotter zeichnen?";
             title = "3D-Funktion plotten?";
         } else {
-            // Für 2D-Funktionen
+            // Nachricht für 2D-Funktionen
             message = "Die Eingabe \"" + function + "\" sieht wie eine Funktion aus.\n" +
                     "Möchten Sie diese Funktion im Funktionsplotter zeichnen?";
             title = "Funktion plotten?";
@@ -197,7 +196,7 @@ public class CalculationEngine {
     private void transferToPlotter(String function) {
         calculator.debug("Übertrage Funktion zum Plotter: " + function);
 
-        // Prüfen, ob wir eine GrafischerTaschenrechner-Instanz haben
+        // Prüfen, ob eine Instanz von GrafischerTaschenrechner vorliegt
         if (calculator instanceof GrafischerTaschenrechner) {
             GrafischerTaschenrechner graphCalc = (GrafischerTaschenrechner) calculator;
             graphCalc.transferFunctionToPlotter(function);
@@ -207,7 +206,7 @@ public class CalculationEngine {
     }
 
     /**
-     * Helper method for handling implicit multiplications
+     * Hilfsmethode zur Behandlung impliziter Multiplikationen
      */
     public String ergaenzeImpliziteMultiplikationen(String formel) {
         calculator.debug("Prüfe auf implizite Multiplikationen in: " + formel);
@@ -218,24 +217,26 @@ public class CalculationEngine {
             char aktuellesZeichen = formel.charAt(i);
             result.append(aktuellesZeichen);
 
-            // If the current character is not the last one
+            // Falls das aktuelle Zeichen nicht das letzte ist
             if (i < formel.length() - 1) {
                 char naechstesZeichen = formel.charAt(i + 1);
 
-                // Case 1: Number followed by opening parenthesis -> Insert multiplication sign
+                // Fall 1: Zahl gefolgt von einer öffnenden Klammer -> Multiplikationszeichen
+                // einfügen
                 if (Character.isDigit(aktuellesZeichen) && naechstesZeichen == '(') {
                     result.append('*');
                     calculator.debug("Implizite Multiplikation erkannt: Zahl(" + aktuellesZeichen + ") vor Klammer");
                 }
 
-                // Case 2: Closing parenthesis followed by number -> Insert multiplication sign
+                // Fall 2: Schließende Klammer gefolgt von einer Zahl -> Multiplikationszeichen
+                // einfügen
                 else if (aktuellesZeichen == ')' && Character.isDigit(naechstesZeichen)) {
                     result.append('*');
                     calculator.debug("Implizite Multiplikation erkannt: Klammer vor Zahl(" + naechstesZeichen + ")");
                 }
 
-                // Case 3: Closing parenthesis followed by opening parenthesis -> Insert
-                // multiplication sign
+                // Fall 3: Schließende Klammer gefolgt von einer öffnenden Klammer ->
+                // Multiplikationszeichen einfügen
                 else if (aktuellesZeichen == ')' && naechstesZeichen == '(') {
                     result.append('*');
                     calculator.debug("Implizite Multiplikation erkannt: Klammer vor Klammer");
@@ -252,12 +253,12 @@ public class CalculationEngine {
     }
 
     /**
-     * Custom implementation of a simple expression parser
+     * Eigene Implementierung eines einfachen Ausdrucksparsers
      */
     public double berechneAusdruck(String ausdruck) {
         calculator.debug("Berechne Ausdruck: " + ausdruck);
 
-        // Evaluate parentheses first
+        // Zuerst Klammern auswerten
         while (ausdruck.contains("(")) {
             int offen = ausdruck.lastIndexOf("(");
             int geschlossen = ausdruck.indexOf(")", offen);
@@ -276,11 +277,11 @@ public class CalculationEngine {
             calculator.debug("Ausdruck nach Klammer-Ersetzung: " + ausdruck);
         }
 
-        // Addition and subtraction
+        // Addition und Subtraktion
         ArrayList<Double> zahlen = new ArrayList<>();
         ArrayList<Character> operatoren = new ArrayList<>();
 
-        // Split into numbers and operators
+        // Aufteilen in Zahlen und Operatoren
         StringBuilder aktuelleZahl = new StringBuilder();
         boolean istErsteZahl = true;
         boolean letzteWarOperator = false;
@@ -289,7 +290,8 @@ public class CalculationEngine {
             char c = ausdruck.charAt(i);
 
             if (c == '+' || c == '-') {
-                // If it's the first number or comes after an operator, it's a sign
+                // Wenn es die erste Zahl ist oder nach einem Operator kommt, ist es ein
+                // Vorzeichen
                 if (istErsteZahl || letzteWarOperator) {
                     aktuelleZahl.append(c);
                     letzteWarOperator = false;
@@ -324,7 +326,7 @@ public class CalculationEngine {
         calculator.debug("Zahlen: " + zahlen);
         calculator.debug("Operatoren: " + operatoren);
 
-        // First calculate ^ (power)
+        // Zuerst berechne ^ (Potenz)
         for (int i = 0; i < operatoren.size(); i++) {
             if (operatoren.get(i) == '^') {
                 double ergebnis;
@@ -341,7 +343,7 @@ public class CalculationEngine {
             }
         }
 
-        // Then calculate * and /
+        // Danach berechne * und /
         for (int i = 0; i < operatoren.size(); i++) {
             if (operatoren.get(i) == '*' || operatoren.get(i) == '/') {
                 double ergebnis;
@@ -366,7 +368,7 @@ public class CalculationEngine {
             }
         }
 
-        // Then calculate + and -
+        // Danach berechne + und -
         double ergebnis = zahlen.get(0);
 
         for (int i = 0; i < operatoren.size(); i++) {
@@ -386,17 +388,16 @@ public class CalculationEngine {
     }
 
     /**
-     * Finds the current number being worked on
+     * Findet die aktuelle Zahl, an der gearbeitet wird
      */
     public String findeAktuelleZahl(String ausdruck) {
-        // If the expression is empty or consists only of operators
+        // Falls der Ausdruck leer ist oder nur aus Operatoren besteht
         if (ausdruck.isEmpty() || ausdruck.matches("[+\\-*/()^]+")) {
             return "";
         }
 
-        // Regular expression to find the last number
-        // Looks for a number (with or without decimal point) at the end of the
-        // expression
+        // Regulärer Ausdruck, um die letzte Zahl zu finden
+        // Sucht eine Zahl (mit oder ohne Dezimalpunkt) am Ende des Ausdrucks
         Pattern pattern = Pattern.compile("[0-9]+(\\.[0-9]*)?$");
         Matcher matcher = pattern.matcher(ausdruck);
 
@@ -408,7 +409,7 @@ public class CalculationEngine {
     }
 
     /**
-     * Helper method to evaluate the last partial number in the expression
+     * Hilfsmethode zur Auswertung der letzten Teilszahl im Ausdruck
      */
     public double evaluiereLetzteTeilzahl(String ausdruck) {
         String letzteZahl = findeAktuelleZahl(ausdruck);
@@ -419,7 +420,7 @@ public class CalculationEngine {
     }
 
     /**
-     * Helper method to replace the last number in the expression
+     * Hilfsmethode zum Ersetzen der letzten Zahl im Ausdruck
      */
     public String ersetzeLetzteZahl(String ausdruck, double neuerWert) {
         String letzteZahl = findeAktuelleZahl(ausdruck);
@@ -427,7 +428,7 @@ public class CalculationEngine {
             return ausdruck + neuerWert;
         }
 
-        // Format the new value
+        // Formatiere den neuen Wert
         String formatierterWert;
         if (neuerWert == (int) neuerWert) {
             formatierterWert = String.valueOf((int) neuerWert);
@@ -435,82 +436,82 @@ public class CalculationEngine {
             formatierterWert = String.valueOf(neuerWert);
         }
 
-        // Replace the last number with the new value
+        // Ersetze die letzte Zahl durch den neuen Wert
         return ausdruck.substring(0, ausdruck.length() - letzteZahl.length()) + formatierterWert;
     }
 
     /**
-     * Helper method to flip the sign of the current number (explicitly show as +/-)
+     * Hilfsmethode, um das Vorzeichen der aktuellen Zahl zu ändern (explizit als
+     * +/- anzeigen)
      */
     public String toggleVorzeichen(String ausdruck) {
         calculator.debug("Toggle-Vorzeichen für Ausdruck: " + ausdruck);
 
-        // Empty expression or just 0
+        // Leerer Ausdruck oder nur 0
         if (ausdruck.isEmpty() || ausdruck.equals("0")) {
             return "0";
         }
 
-        // If we're just starting a new number (after an operator)
+        // Falls wir gerade eine neue Zahl beginnen (nach einem Operator)
         if (calculator.isNeueZahlBegonnen()) {
-            // Check if the last character is an operator
+            // Überprüfe, ob das letzte Zeichen ein Operator ist
             char letzterChar = ausdruck.charAt(ausdruck.length() - 1);
             if (istOperator(letzterChar)) {
-                // Add an explicit minus sign
+                // Füge ein explizites Minuszeichen hinzu
                 return ausdruck + "-";
             }
         }
 
-        // For an existing calculation, we analyze the expression to find the last
-        // number
+        // Bei einer bestehenden Berechnung analysieren wir den Ausdruck, um die letzte
+        // Zahl zu finden
 
-        // One way would be to go back from the end of the string until we find an
-        // operator
+        // Eine Möglichkeit besteht darin, vom Ende des Strings zurückzugehen, bis ein
+        // Operator gefunden wird
         int letztesZeichenPos = ausdruck.length() - 1;
 
-        // First check if we have digits at the end (normal number)
+        // Zuerst prüfen, ob am Ende Ziffern stehen (normale Zahl)
         while (letztesZeichenPos >= 0 &&
                 (Character.isDigit(ausdruck.charAt(letztesZeichenPos)) ||
                         ausdruck.charAt(letztesZeichenPos) == '.')) {
             letztesZeichenPos--;
         }
 
-        // If we're at the beginning of the expression or there's an operator before the
-        // number
+        // Falls wir am Anfang des Ausdrucks sind oder vor der Zahl ein Operator steht
         if (letztesZeichenPos < 0 || istOperator(ausdruck.charAt(letztesZeichenPos))) {
-            // Check if there's a minus sign before the number that belongs to the number
+            // Überprüfe, ob vor der Zahl ein Minuszeichen steht, das zur Zahl gehört
             if (letztesZeichenPos >= 0 && ausdruck.charAt(letztesZeichenPos) == '-') {
-                // There's a minus sign - check if it's a sign or an operator
+                // Es gibt ein Minuszeichen – prüfe, ob es ein Vorzeichen oder ein Operator ist
                 if (letztesZeichenPos == 0 || istOperator(ausdruck.charAt(letztesZeichenPos - 1))) {
-                    // It's a sign - remove it
+                    // Es ist ein Vorzeichen – entferne es
                     return ausdruck.substring(0, letztesZeichenPos) + ausdruck.substring(letztesZeichenPos + 1);
                 }
             }
 
-            // No minus sign - add one
+            // Kein Minuszeichen – füge eines hinzu
             if (letztesZeichenPos < 0) {
-                // The entire number is negative
+                // Die gesamte Zahl ist negativ
                 return "-" + ausdruck;
             } else {
-                // Insert a minus sign after the operator
+                // Füge nach dem Operator ein Minuszeichen ein
                 return ausdruck.substring(0, letztesZeichenPos + 1) + "-" + ausdruck.substring(letztesZeichenPos + 1);
             }
         }
 
-        // For more complex cases (with parentheses etc.)
+        // Für komplexere Fälle (mit Klammern etc.)
         calculator.debug("Kein einfacher Fall erkannt, toggle nicht möglich");
         return ausdruck;
     }
 
     /**
-     * Helper method to check if a character is an operator
+     * Hilfsmethode, um zu prüfen, ob ein Zeichen ein Operator ist
      */
     public boolean istOperator(char c) {
         return c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' || c == '^';
     }
 
     /**
-     * Helper method to check if a character is a normal operator (without
-     * parentheses)
+     * Hilfsmethode, um zu prüfen, ob ein Zeichen ein normaler Operator ist (ohne
+     * Klammern)
      */
     public boolean istNormalerOperator(char c) {
         return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';

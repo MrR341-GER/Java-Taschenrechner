@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.renderer;
 
 import java.awt.*;
@@ -9,25 +8,26 @@ import plugins.plotter3d.model.Plot3DPoint;
 import plugins.plotter3d.view.Plot3DView;
 
 /**
- * Renders coordinate grid, axes, ticks, labels, and helper lines for 3D
- * plotting
+ * Stellt das Koordinatengitter, die Achsen, Teilstriche, Beschriftungen und
+ * Hilfslinien
+ * für die 3D-Darstellung dar
  */
 public class Plot3DGridRenderer {
-    // Colors for grid elements
-    private Color gridColor = new Color(200, 200, 200, 100); // Translucent grid
-    private Color axisColor = Color.BLACK; // Axes
-    private Color tickColor = Color.BLACK; // Tick marks
-    private Color labelColor = Color.BLACK; // Labels
-    private Color gridLineColor = new Color(220, 220, 220, 80); // More translucent grid lines
-    private Color helperLineColor = new Color(0, 0, 0, 100); // Translucent helper lines
+    // Farben für die Gitterelemente
+    private Color gridColor = new Color(200, 200, 200, 100); // Transluzentes Gitter
+    private Color axisColor = Color.BLACK; // Achsen
+    private Color tickColor = Color.BLACK; // Teilstriche
+    private Color labelColor = Color.BLACK; // Beschriftungen
+    private Color gridLineColor = new Color(220, 220, 220, 80); // Noch transluzentere Gitterlinien
+    private Color helperLineColor = new Color(0, 0, 0, 100); // Transluzente Hilfslinien
 
-    // Constants
-    private static final int AXIS_EXTENSION = 1; // How far to extend axes beyond data range
-    private static final int NUM_TICKS = 5; // Number of ticks per axis
-    private static final int NUM_HELPER_LINES = 10; // Number of helper lines per direction
-    private static final int TICK_LENGTH = 5; // Length of tick marks in pixels
+    // Konstanten
+    private static final int AXIS_EXTENSION = 1; // Wie weit die Achsen über den Datenbereich hinaus verlängert werden
+    private static final int NUM_TICKS = 5; // Anzahl der Teilstriche pro Achse
+    private static final int NUM_HELPER_LINES = 10; // Anzahl der Hilfslinien pro Richtung
+    private static final int TICK_LENGTH = 5; // Länge der Teilstriche in Pixeln
 
-    // Transformer for coordinate conversion
+    // Transformer für die Koordinatenumrechnung
     private final Plot3DTransformer transformer;
 
     public Plot3DGridRenderer(Plot3DTransformer transformer) {
@@ -35,31 +35,31 @@ public class Plot3DGridRenderer {
     }
 
     /**
-     * Draws the coordinate grid
+     * Zeichnet das Koordinatengitter
      */
     public void drawCoordinateGrid(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double displayScale, int xOffset, int yOffset) {
-        // Set up the graphics context
+        // Grafikkontext einrichten
         g2d.setColor(gridLineColor);
         g2d.setStroke(new BasicStroke(0.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-                10.0f, new float[] { 2.0f, 2.0f }, 0.0f)); // Dashed line
+                10.0f, new float[] { 2.0f, 2.0f }, 0.0f)); // Unterbrochene Linie
 
-        // Value ranges
+        // Wertebereiche
         double xRange = view.getXMax() - view.getXMin();
         double yRange = view.getYMax() - view.getYMin();
         double zRange = model.getZMax() - model.getZMin();
 
-        // Calculate appropriate grid spacings
+        // Berechne passende Gitterabstände
         double xStep = calculateGridSpacing(xRange);
         double yStep = calculateGridSpacing(yRange);
         double zStep = calculateGridSpacing(zRange);
 
-        // Get transformation parameters
+        // Hole Transformationsparameter
         double angleX = Math.toRadians(view.getRotationX());
         double angleY = Math.toRadians(view.getRotationY());
         double angleZ = Math.toRadians(view.getRotationZ());
 
-        // Precalculate sine and cosine values
+        // Berechne Sinus- und Kosinuswerte vorab
         double sinX = Math.sin(angleX);
         double cosX = Math.cos(angleX);
         double sinY = Math.sin(angleY);
@@ -67,19 +67,19 @@ public class Plot3DGridRenderer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // Normalization factor
+        // Normierungsfaktor
         double maxRange = Math.max(xRange, Math.max(yRange, zRange));
         double factor = 1.0 / maxRange;
 
-        // Center coordinates
+        // Mittelkoordinaten
         double xCenter = (view.getXMax() + view.getXMin()) / 2;
         double yCenter = (view.getYMax() + view.getYMin()) / 2;
         double zCenter = (model.getZMax() + model.getZMin()) / 2;
 
-        // Draw grid on the XY-plane (Z = zMin)
-        double yStart = Math.ceil(view.getYMin() / yStep) * yStep; // Start at a "nice" value
+        // Zeichne Gitter auf der XY-Ebene (Z = zMin)
+        double yStart = Math.ceil(view.getYMin() / yStep) * yStep; // Beginne bei einem "schönen" Wert
         for (double y = yStart; y <= view.getYMax(); y += yStep) {
-            // Draw X-line at this Y position
+            // Zeichne X-Linie an dieser Y-Position
             drawTransformedLine(g2d, view.getXMin(), y, model.getZMin(), view.getXMax(), y, model.getZMin(),
                     xCenter, yCenter, zCenter, factor, view.getScale(),
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -87,9 +87,9 @@ public class Plot3DGridRenderer {
                     displayScale, xOffset, yOffset);
         }
 
-        double xStart = Math.ceil(view.getXMin() / xStep) * xStep; // Start at a "nice" value
+        double xStart = Math.ceil(view.getXMin() / xStep) * xStep; // Beginne bei einem "schönen" Wert
         for (double x = xStart; x <= view.getXMax(); x += xStep) {
-            // Draw Y-line at this X position
+            // Zeichne Y-Linie an dieser X-Position
             drawTransformedLine(g2d, x, view.getYMin(), model.getZMin(), x, view.getYMax(), model.getZMin(),
                     xCenter, yCenter, zCenter, factor, view.getScale(),
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -97,10 +97,10 @@ public class Plot3DGridRenderer {
                     displayScale, xOffset, yOffset);
         }
 
-        // Draw grid on the XZ-plane (Y = yMin)
-        double zStart = Math.ceil(model.getZMin() / zStep) * zStep; // Start at a "nice" value
+        // Zeichne Gitter auf der XZ-Ebene (Y = yMin)
+        double zStart = Math.ceil(model.getZMin() / zStep) * zStep; // Beginne bei einem "schönen" Wert
         for (double z = zStart; z <= model.getZMax(); z += zStep) {
-            // Draw X-line at this Z position
+            // Zeichne X-Linie an dieser Z-Position
             drawTransformedLine(g2d, view.getXMin(), view.getYMin(), z, view.getXMax(), view.getYMin(), z,
                     xCenter, yCenter, zCenter, factor, view.getScale(),
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -108,9 +108,9 @@ public class Plot3DGridRenderer {
                     displayScale, xOffset, yOffset);
         }
 
-        // X grid lines at different Z positions
+        // X-Gitterlinien bei verschiedenen Z-Positionen
         for (double x = xStart; x <= view.getXMax(); x += xStep) {
-            // Draw Z-line at this X position
+            // Zeichne Z-Linie an dieser X-Position
             drawTransformedLine(g2d, x, view.getYMin(), model.getZMin(), x, view.getYMin(), model.getZMax(),
                     xCenter, yCenter, zCenter, factor, view.getScale(),
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -118,9 +118,9 @@ public class Plot3DGridRenderer {
                     displayScale, xOffset, yOffset);
         }
 
-        // Draw grid on the YZ-plane (X = xMin)
+        // Zeichne Gitter auf der YZ-Ebene (X = xMin)
         for (double z = zStart; z <= model.getZMax(); z += zStep) {
-            // Draw Y-line at this Z position
+            // Zeichne Y-Linie an dieser Z-Position
             drawTransformedLine(g2d, view.getXMin(), view.getYMin(), z, view.getXMin(), view.getYMax(), z,
                     xCenter, yCenter, zCenter, factor, view.getScale(),
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -128,9 +128,9 @@ public class Plot3DGridRenderer {
                     displayScale, xOffset, yOffset);
         }
 
-        // Y grid lines at different Z positions
+        // Y-Gitterlinien bei verschiedenen Z-Positionen
         for (double y = yStart; y <= view.getYMax(); y += yStep) {
-            // Draw Z-line at this Y position
+            // Zeichne Z-Linie an dieser Y-Position
             drawTransformedLine(g2d, view.getXMin(), y, model.getZMin(), view.getXMin(), y, model.getZMax(),
                     xCenter, yCenter, zCenter, factor, view.getScale(),
                     sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -140,31 +140,31 @@ public class Plot3DGridRenderer {
     }
 
     /**
-     * Draws helper lines for better spatial orientation
+     * Zeichnet Hilfslinien für eine bessere räumliche Orientierung
      */
     public void drawHelperLines(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double displayScale, int xOffset, int yOffset) {
-        // Special settings for helper lines
+        // Spezielle Einstellungen für Hilfslinien
         g2d.setColor(helperLineColor);
         g2d.setStroke(new BasicStroke(0.7f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-                10.0f, new float[] { 1.0f, 2.0f }, 0.0f)); // Dotted line
+                10.0f, new float[] { 1.0f, 2.0f }, 0.0f)); // Gepunktete Linie
 
-        // Value ranges
+        // Wertebereiche
         double xRange = view.getXMax() - view.getXMin();
         double yRange = view.getYMax() - view.getYMin();
         double zRange = model.getZMax() - model.getZMin();
 
-        // Calculate appropriate step sizes
+        // Berechne passende Schrittweiten
         double xStep = xRange / (NUM_HELPER_LINES - 1);
         double yStep = yRange / (NUM_HELPER_LINES - 1);
         double zStep = zRange / (NUM_HELPER_LINES - 1);
 
-        // Get transformation parameters
+        // Hole Transformationsparameter
         double angleX = Math.toRadians(view.getRotationX());
         double angleY = Math.toRadians(view.getRotationY());
         double angleZ = Math.toRadians(view.getRotationZ());
 
-        // Precalculate sine and cosine values
+        // Berechne Sinus- und Kosinuswerte vorab
         double sinX = Math.sin(angleX);
         double cosX = Math.cos(angleX);
         double sinY = Math.sin(angleY);
@@ -172,22 +172,22 @@ public class Plot3DGridRenderer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // Normalization factor
+        // Normierungsfaktor
         double maxRange = Math.max(xRange, Math.max(yRange, zRange));
         double factor = 1.0 / maxRange;
 
-        // Center coordinates
+        // Mittelkoordinaten
         double xCenter = (view.getXMax() + view.getXMin()) / 2;
         double yCenter = (view.getYMax() + view.getYMin()) / 2;
         double zCenter = (model.getZMax() + model.getZMin()) / 2;
 
-        // Z height lines (X-Y planes at different Z values)
+        // Z-Höhenlinien (X-Y-Ebenen bei unterschiedlichen Z-Werten)
         for (int k = 1; k < NUM_HELPER_LINES - 1; k++) {
             double z = model.getZMin() + k * zStep;
 
-            // Draw grid at this Z position
+            // Zeichne Gitter an dieser Z-Position
             for (int i = 0; i < NUM_HELPER_LINES; i += 2) {
-                // X lines
+                // X-Linien
                 double y = view.getYMin() + i * yStep;
                 drawTransformedLine(g2d, view.getXMin(), y, z, view.getXMax(), y, z,
                         xCenter, yCenter, zCenter, factor, view.getScale(),
@@ -197,7 +197,7 @@ public class Plot3DGridRenderer {
             }
 
             for (int j = 0; j < NUM_HELPER_LINES; j += 2) {
-                // Y lines
+                // Y-Linien
                 double x = view.getXMin() + j * xStep;
                 drawTransformedLine(g2d, x, view.getYMin(), z, x, view.getYMax(), z,
                         xCenter, yCenter, zCenter, factor, view.getScale(),
@@ -207,11 +207,11 @@ public class Plot3DGridRenderer {
             }
         }
 
-        // X-Y lines through 3D space (at different Y values)
+        // X-Y-Linien durch den 3D-Raum (bei unterschiedlichen Y-Werten)
         for (int j = 2; j < NUM_HELPER_LINES - 2; j += 2) {
             double y = view.getYMin() + j * yStep;
 
-            // Vertical lines at this Y position
+            // Vertikale Linien an dieser Y-Position
             for (int i = 2; i < NUM_HELPER_LINES - 2; i += 2) {
                 double x = view.getXMin() + i * xStep;
                 drawTransformedLine(g2d, x, y, model.getZMin(), x, y, model.getZMax(),
@@ -222,11 +222,11 @@ public class Plot3DGridRenderer {
             }
         }
 
-        // X-Z lines (vertical lines at specific X positions)
+        // X-Z-Linien (vertikale Linien an bestimmten X-Positionen)
         for (int i = 2; i < NUM_HELPER_LINES - 2; i += 2) {
             double x = view.getXMin() + i * xStep;
 
-            // Lines at different Z positions
+            // Linien an unterschiedlichen Z-Positionen
             for (int k = 1; k < NUM_HELPER_LINES - 1; k += 2) {
                 double z = model.getZMin() + k * zStep;
                 drawTransformedLine(g2d, x, view.getYMin(), z, x, view.getYMax(), z,
@@ -239,14 +239,14 @@ public class Plot3DGridRenderer {
     }
 
     /**
-     * Draws the coordinate axes
+     * Zeichnet die Koordinatenachsen
      */
     public void drawAxes(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double displayScale, int xOffset, int yOffset) {
         g2d.setStroke(new BasicStroke(2.0f));
         g2d.setColor(axisColor);
 
-        // Value ranges and centers
+        // Wertebereiche und Mittelwerte
         double xMin = view.getXMin();
         double xMax = view.getXMax();
         double yMin = view.getYMin();
@@ -262,16 +262,16 @@ public class Plot3DGridRenderer {
         double yRange = yMax - yMin;
         double zRange = zMax - zMin;
 
-        // Normalization factor
+        // Normierungsfaktor
         double maxRange = Math.max(xRange, Math.max(yRange, zRange));
         double factor = 1.0 / maxRange;
 
-        // Transformation parameters
+        // Transformationsparameter
         double angleX = Math.toRadians(view.getRotationX());
         double angleY = Math.toRadians(view.getRotationY());
         double angleZ = Math.toRadians(view.getRotationZ());
 
-        // Precalculate sine and cosine values
+        // Berechne Sinus- und Kosinuswerte vorab
         double sinX = Math.sin(angleX);
         double cosX = Math.cos(angleX);
         double sinY = Math.sin(angleY);
@@ -279,62 +279,62 @@ public class Plot3DGridRenderer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // Determine actual axis positions
-        // X axis position
+        // Bestimme die tatsächlichen Achsenpositionen
+        // X-Achsen-Position
         double xPosX = 0, yPosX = 0, zPosX = 0;
         if (yMin > 0)
-            yPosX = yMin; // Keep at bottom
+            yPosX = yMin; // Unten halten
         else if (yMax < 0)
-            yPosX = yMax; // Keep at top
+            yPosX = yMax; // Oben halten
         if (zMin > 0)
-            zPosX = zMin; // Keep at front
+            zPosX = zMin; // Vorne halten
         else if (zMax < 0)
-            zPosX = zMax; // Keep at back
+            zPosX = zMax; // Hinten halten
 
-        // Y axis position
+        // Y-Achsen-Position
         double xPosY = 0, yPosY = 0, zPosY = 0;
         if (xMin > 0)
-            xPosY = xMin; // Keep at left
+            xPosY = xMin; // Links halten
         else if (xMax < 0)
-            xPosY = xMax; // Keep at right
+            xPosY = xMax; // Rechts halten
         if (zMin > 0)
-            zPosY = zMin; // Keep at front
+            zPosY = zMin; // Vorne halten
         else if (zMax < 0)
-            zPosY = zMax; // Keep at back
+            zPosY = zMax; // Hinten halten
 
-        // Z axis position
+        // Z-Achsen-Position
         double xPosZ = 0, yPosZ = 0;
         if (xMin > 0)
-            xPosZ = xMin; // Keep at left
+            xPosZ = xMin; // Links halten
         else if (xMax < 0)
-            xPosZ = xMax; // Keep at right
+            xPosZ = xMax; // Rechts halten
         if (yMin > 0)
-            yPosZ = yMin; // Keep at bottom
+            yPosZ = yMin; // Unten halten
         else if (yMax < 0)
-            yPosZ = yMax; // Keep at top
+            yPosZ = yMax; // Oben halten
 
-        // Draw X axis
+        // Zeichne X-Achse
         drawTransformedLine(g2d, xMin, yPosX, zPosX, xMax, yPosX, zPosX,
                 xCenter, yCenter, zCenter, factor, view.getScale(),
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 view.getPanX(), view.getPanY(),
                 displayScale, xOffset, yOffset);
 
-        // Draw Y axis
+        // Zeichne Y-Achse
         drawTransformedLine(g2d, xPosY, yMin, zPosY, xPosY, yMax, zPosY,
                 xCenter, yCenter, zCenter, factor, view.getScale(),
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 view.getPanX(), view.getPanY(),
                 displayScale, xOffset, yOffset);
 
-        // Draw Z axis
+        // Zeichne Z-Achse
         drawTransformedLine(g2d, xPosZ, yPosZ, zMin, xPosZ, yPosZ, zMax,
                 xCenter, yCenter, zCenter, factor, view.getScale(),
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 view.getPanX(), view.getPanY(),
                 displayScale, xOffset, yOffset);
 
-        // Draw axis labels
+        // Zeichne Achsenbeschriftungen
         drawAxisLabels(g2d, model, view, xPosX, yPosX, zPosX, xPosY, yPosY, zPosY, xPosZ, yPosZ,
                 xCenter, yCenter, zCenter, factor,
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
@@ -342,7 +342,7 @@ public class Plot3DGridRenderer {
     }
 
     /**
-     * Draws axis labels
+     * Zeichnet Achsenbeschriftungen
      */
     private void drawAxisLabels(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double xPosX, double yPosX, double zPosX,
@@ -355,7 +355,7 @@ public class Plot3DGridRenderer {
         Font originalFont = g2d.getFont();
         g2d.setFont(new Font("SansSerif", Font.BOLD, 12));
 
-        // X axis label
+        // X-Achsen-Beschriftung
         Plot3DPoint labelPoint = transformer.transformPoint(
                 view.getXMax(), yPosX, zPosX,
                 xCenter, yCenter, zCenter,
@@ -366,7 +366,7 @@ public class Plot3DGridRenderer {
         int[] screenPos = transformer.projectToScreen(labelPoint, displayScale, xOffset, yOffset);
         g2d.drawString("X", screenPos[0] + 10, screenPos[1]);
 
-        // Y axis label
+        // Y-Achsen-Beschriftung
         labelPoint = transformer.transformPoint(
                 xPosY, view.getYMax(), zPosY,
                 xCenter, yCenter, zCenter,
@@ -377,7 +377,7 @@ public class Plot3DGridRenderer {
         screenPos = transformer.projectToScreen(labelPoint, displayScale, xOffset, yOffset);
         g2d.drawString("Y", screenPos[0], screenPos[1] - 10);
 
-        // Z axis label
+        // Z-Achsen-Beschriftung
         labelPoint = transformer.transformPoint(
                 xPosZ, yPosZ, model.getZMax(),
                 xCenter, yCenter, zCenter,
@@ -388,46 +388,46 @@ public class Plot3DGridRenderer {
         screenPos = transformer.projectToScreen(labelPoint, displayScale, xOffset, yOffset);
         g2d.drawString("Z", screenPos[0], screenPos[1]);
 
-        // Restore original font
+        // Ursprüngliche Schriftart wiederherstellen
         g2d.setFont(originalFont);
     }
 
     /**
-     * Draws ticks and labels on the axes
+     * Zeichnet Teilstriche und Beschriftungen an den Achsen
      */
     public void drawTicksAndLabels(Graphics2D g2d, Plot3DModel model, Plot3DView view,
             double displayScale, int xOffset, int yOffset) {
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
         g2d.setStroke(new BasicStroke(1.0f));
 
-        // Format for tick labels
+        // Format für Teilstrich-Beschriftungen
         DecimalFormat df = new DecimalFormat("0.##");
 
-        // Center coordinates
+        // Mittelkoordinaten
         double xCenter = (view.getXMax() + view.getXMin()) / 2;
         double yCenter = (view.getYMax() + view.getYMin()) / 2;
         double zCenter = (model.getZMax() + model.getZMin()) / 2;
 
-        // Value ranges
+        // Wertebereiche
         double xRange = view.getXMax() - view.getXMin();
         double yRange = view.getYMax() - view.getYMin();
         double zRange = model.getZMax() - model.getZMin();
 
-        // Calculate appropriate grid spacings
+        // Berechne passende Gitterabstände
         double xSpacing = calculateGridSpacing(xRange);
         double ySpacing = calculateGridSpacing(yRange);
         double zSpacing = calculateGridSpacing(zRange);
 
-        // Normalization factor
+        // Normierungsfaktor
         double maxRange = Math.max(xRange, Math.max(yRange, zRange));
         double factor = 1.0 / maxRange;
 
-        // Transformation parameters
+        // Transformationsparameter
         double angleX = Math.toRadians(view.getRotationX());
         double angleY = Math.toRadians(view.getRotationY());
         double angleZ = Math.toRadians(view.getRotationZ());
 
-        // Precalculate sine and cosine values
+        // Berechne Sinus- und Kosinuswerte vorab
         double sinX = Math.sin(angleX);
         double cosX = Math.cos(angleX);
         double sinY = Math.sin(angleY);
@@ -435,8 +435,8 @@ public class Plot3DGridRenderer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // Determine actual axis positions (as in drawAxes)
-        double yPosX = 0, zPosX = 0; // X-axis position
+        // Bestimme die tatsächlichen Achsenpositionen (wie in drawAxes)
+        double yPosX = 0, zPosX = 0; // X-Achse
         if (view.getYMin() > 0)
             yPosX = view.getYMin();
         else if (view.getYMax() < 0)
@@ -446,7 +446,7 @@ public class Plot3DGridRenderer {
         else if (model.getZMax() < 0)
             zPosX = model.getZMax();
 
-        double xPosY = 0, zPosY = 0; // Y-axis position
+        double xPosY = 0, zPosY = 0; // Y-Achse
         if (view.getXMin() > 0)
             xPosY = view.getXMin();
         else if (view.getXMax() < 0)
@@ -456,7 +456,7 @@ public class Plot3DGridRenderer {
         else if (model.getZMax() < 0)
             zPosY = model.getZMax();
 
-        double xPosZ = 0, yPosZ = 0; // Z-axis position
+        double xPosZ = 0, yPosZ = 0; // Z-Achse
         if (view.getXMin() > 0)
             xPosZ = view.getXMin();
         else if (view.getXMax() < 0)
@@ -466,14 +466,14 @@ public class Plot3DGridRenderer {
         else if (view.getYMax() < 0)
             yPosZ = view.getYMax();
 
-        // X-axis ticks and labels
+        // X-Achsen-Teilstriche und Beschriftungen
         double xStart = Math.ceil(view.getXMin() / xSpacing) * xSpacing;
         for (double tickValue = xStart; tickValue <= view.getXMax(); tickValue += xSpacing) {
-            // Skip the origin (it will have 0 label)
+            // Überspringe den Ursprung (er erhält die Beschriftung 0)
             if (Math.abs(tickValue) < 1e-10)
                 continue;
 
-            // Position on X axis
+            // Position auf der X-Achse
             Plot3DPoint tickPoint = transformer.transformPoint(
                     tickValue, yPosX, zPosX,
                     xCenter, yCenter, zCenter,
@@ -483,24 +483,24 @@ public class Plot3DGridRenderer {
 
             int[] screenPos = transformer.projectToScreen(tickPoint, displayScale, xOffset, yOffset);
 
-            // Draw tick mark
+            // Zeichne Teilstrich
             g2d.setColor(tickColor);
             g2d.drawLine(screenPos[0] - 2, screenPos[1] - 2, screenPos[0] + 2, screenPos[1] + 2);
 
-            // Draw label
+            // Zeichne Beschriftung
             g2d.setColor(labelColor);
             String label = df.format(tickValue);
             g2d.drawString(label, screenPos[0] - 10, screenPos[1] + 15);
         }
 
-        // Y-axis ticks and labels
+        // Y-Achsen-Teilstriche und Beschriftungen
         double yStart = Math.ceil(view.getYMin() / ySpacing) * ySpacing;
         for (double tickValue = yStart; tickValue <= view.getYMax(); tickValue += ySpacing) {
-            // Skip the origin
+            // Überspringe den Ursprung
             if (Math.abs(tickValue) < 1e-10)
                 continue;
 
-            // Position on Y axis
+            // Position auf der Y-Achse
             Plot3DPoint tickPoint = transformer.transformPoint(
                     xPosY, tickValue, zPosY,
                     xCenter, yCenter, zCenter,
@@ -510,24 +510,24 @@ public class Plot3DGridRenderer {
 
             int[] screenPos = transformer.projectToScreen(tickPoint, displayScale, xOffset, yOffset);
 
-            // Draw tick mark
+            // Zeichne Teilstrich
             g2d.setColor(tickColor);
             g2d.drawLine(screenPos[0] - 2, screenPos[1] - 2, screenPos[0] + 2, screenPos[1] + 2);
 
-            // Draw label
+            // Zeichne Beschriftung
             g2d.setColor(labelColor);
             String label = df.format(tickValue);
             g2d.drawString(label, screenPos[0] + 5, screenPos[1] + 4);
         }
 
-        // Z-axis ticks and labels
+        // Z-Achsen-Teilstriche und Beschriftungen
         double zStart = Math.ceil(model.getZMin() / zSpacing) * zSpacing;
         for (double tickValue = zStart; tickValue <= model.getZMax(); tickValue += zSpacing) {
-            // Skip the origin
+            // Überspringe den Ursprung
             if (Math.abs(tickValue) < 1e-10)
                 continue;
 
-            // Position on Z axis
+            // Position auf der Z-Achse
             Plot3DPoint tickPoint = transformer.transformPoint(
                     xPosZ, yPosZ, tickValue,
                     xCenter, yCenter, zCenter,
@@ -537,17 +537,17 @@ public class Plot3DGridRenderer {
 
             int[] screenPos = transformer.projectToScreen(tickPoint, displayScale, xOffset, yOffset);
 
-            // Draw tick mark
+            // Zeichne Teilstrich
             g2d.setColor(tickColor);
             g2d.drawLine(screenPos[0] - 2, screenPos[1] - 2, screenPos[0] + 2, screenPos[1] + 2);
 
-            // Draw label
+            // Zeichne Beschriftung
             g2d.setColor(labelColor);
             String label = df.format(tickValue);
             g2d.drawString(label, screenPos[0] + 5, screenPos[1] - 5);
         }
 
-        // Origin label (0)
+        // Ursprungsbeschriftung (0)
         Plot3DPoint originPoint = transformer.transformPoint(
                 0, 0, 0,
                 xCenter, yCenter, zCenter,
@@ -560,22 +560,22 @@ public class Plot3DGridRenderer {
     }
 
     /**
-     * Draws the color scale legend
+     * Zeichnet die Farbskalenlegende
      */
     public void drawColorScale(Graphics2D g2d, Plot3DModel model, Plot3DColorScheme colorScheme,
             int x, int y, int width, int height) {
-        // Draw the color gradient
+        // Zeichne den Farbverlauf
         for (int i = 0; i < height; i++) {
             double normalizedValue = 1.0 - (double) i / height;
             g2d.setColor(colorScheme.getColorForValue(normalizedValue));
             g2d.fillRect(x, y + i, width, 1);
         }
 
-        // Draw a border
+        // Zeichne einen Rahmen
         g2d.setColor(Color.BLACK);
         g2d.drawRect(x, y, width, height);
 
-        // Add min/max labels
+        // Füge Min-/Max-Beschriftungen hinzu
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
         DecimalFormat df = new DecimalFormat("0.##");
         g2d.drawString(df.format(model.getZMax()), x + width + 2, y + 10);
@@ -583,26 +583,26 @@ public class Plot3DGridRenderer {
     }
 
     /**
-     * Draws info labels
+     * Zeichnet Informationsbeschriftungen
      */
     public void drawInfoLabels(Graphics2D g2d, Plot3DModel model, Plot3DView view, int width, int height) {
         g2d.setColor(Color.BLACK);
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 10));
 
-        // Show axis information
+        // Zeige Achseninformationen
         g2d.drawString("Achsen:", width - 80, height - 30);
         g2d.drawString("X - horizontal", width - 80, height - 20);
         g2d.drawString("Y - vertikal", width - 80, height - 10);
         g2d.drawString("Z - tiefe", width - 80, height);
 
-        // Show value ranges
+        // Zeige Wertebereiche
         g2d.drawString(String.format("X: [%.2f, %.2f]", view.getXMin(), view.getXMax()), 10, height - 40);
         g2d.drawString(String.format("Y: [%.2f, %.2f]", view.getYMin(), view.getYMax()), 10, height - 25);
         g2d.drawString(String.format("Z: [%.2f, %.2f]", model.getZMin(), model.getZMax()), 10, height - 10);
     }
 
     /**
-     * Helper method to draw a 3D line with transformations
+     * Hilfsmethode, um eine 3D-Linie mit Transformationen zu zeichnen
      */
     private void drawTransformedLine(Graphics2D g2d,
             double x1, double y1, double z1,
@@ -614,7 +614,7 @@ public class Plot3DGridRenderer {
             double sinZ, double cosZ,
             double panX, double panY,
             double displayScale, int xOffset, int yOffset) {
-        // Transform the first point
+        // Transformiere den ersten Punkt
         Plot3DPoint p1 = transformer.transformPoint(
                 x1, y1, z1,
                 xCenter, yCenter, zCenter,
@@ -622,7 +622,7 @@ public class Plot3DGridRenderer {
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 panX, panY);
 
-        // Transform the second point
+        // Transformiere den zweiten Punkt
         Plot3DPoint p2 = transformer.transformPoint(
                 x2, y2, z2,
                 xCenter, yCenter, zCenter,
@@ -630,27 +630,27 @@ public class Plot3DGridRenderer {
                 sinX, cosX, sinY, cosY, sinZ, cosZ,
                 panX, panY);
 
-        // Project to screen coordinates
+        // Projiziere in Bildschirmkoordinaten
         int[] screenPos1 = transformer.projectToScreen(p1, displayScale, xOffset, yOffset);
         int[] screenPos2 = transformer.projectToScreen(p2, displayScale, xOffset, yOffset);
 
-        // Draw the line
+        // Zeichne die Linie
         g2d.drawLine(screenPos1[0], screenPos1[1], screenPos2[0], screenPos2[1]);
     }
 
     /**
-     * Calculates an appropriate grid spacing based on the value range
+     * Berechnet einen geeigneten Gitterabstand basierend auf dem Wertebereich
      */
     private double calculateGridSpacing(double range) {
-        // Goal: About 6 grid lines in the visible area
+        // Ziel: Etwa 6 Gitterlinien im sichtbaren Bereich
         double targetSteps = 6;
         double rawSpacing = range / targetSteps;
 
-        // Normalize to powers of ten
+        // Normiere auf Zehnerpotenzen
         double exponent = Math.floor(Math.log10(rawSpacing));
         double mantissa = rawSpacing / Math.pow(10, exponent);
 
-        // Round to "nice" values: 1, 2, 5, 10
+        // Runde auf "schöne" Werte: 1, 2, 5, 10
         if (mantissa < 1.5) {
             return Math.pow(10, exponent);
         } else if (mantissa < 3.5) {

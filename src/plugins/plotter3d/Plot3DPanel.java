@@ -19,7 +19,6 @@ import java.text.ParseException;
 
 /**
  * Panel für 3D-Funktionsplots mit Unterstützung für mehrere Funktionen
- * (Refactored version with components split into smaller classes)
  */
 public class Plot3DPanel extends JPanel {
     private final GrafischerTaschenrechner calculator;

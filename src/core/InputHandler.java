@@ -1,4 +1,3 @@
-
 package core;
 
 import java.awt.event.ActionEvent;
@@ -6,7 +5,7 @@ import java.awt.event.ActionListener;
 import javax.swing.JOptionPane;
 
 /**
- * Handles key input for the calculator
+ * Verarbeitet Tastatureingaben für den Taschenrechner
  */
 public class InputHandler implements ActionListener {
     private final Taschenrechner calculator;
@@ -24,7 +23,7 @@ public class InputHandler implements ActionListener {
 
         calculator.debug("Taste gedrückt: " + eingabe);
 
-        // Logic for different key actions
+        // Logik für unterschiedliche Tastenaktionen
         switch (eingabe) {
             case "0":
             case "1":
@@ -36,13 +35,13 @@ public class InputHandler implements ActionListener {
             case "7":
             case "8":
             case "9":
-                // If display is '0' or a new number is being started
+                // Falls das Display "0" anzeigt oder eine neue Zahl begonnen wird
                 if (aktuellerText.equals("0")) {
                     calculator.setDisplayText(eingabe);
                     calculator.debug("Null ersetzt durch: " + eingabe);
                 } else if (calculator.isNeueZahlBegonnen()) {
-                    // Critical fix: Don't replace the entire calculation,
-                    // but append to the existing calculation
+                    // Wichtige Korrektur: Ersetze nicht den gesamten Ausdruck,
+                    // sondern hänge die neue Zahl an den bestehenden Ausdruck an
                     calculator.setDisplayText(aktuellerText + eingabe);
                     calculator.debug("Neue Zahl angehängt an Ausdruck: " + aktuellerText + eingabe);
                     calculator.setNeueZahlBegonnen(false);
@@ -56,15 +55,15 @@ public class InputHandler implements ActionListener {
             case "-":
             case "*":
             case "/":
-                // Check if the last character is already an operator
+                // Überprüfe, ob das letzte Zeichen bereits ein normaler Operator ist
                 if (!aktuellerText.isEmpty()
                         && engine.istNormalerOperator(aktuellerText.charAt(aktuellerText.length() - 1))) {
-                    // Replace the previous operator with the new one
+                    // Ersetze den vorherigen Operator durch den neuen
                     String neuerText = aktuellerText.substring(0, aktuellerText.length() - 1) + eingabe;
                     calculator.setDisplayText(neuerText);
                     calculator.debug("Operator ersetzt: " + aktuellerText + " -> " + neuerText);
                 } else {
-                    // Operator key - new number begins after operator
+                    // Operator-Taste – nach dem Operator beginnt eine neue Zahl
                     calculator.setDisplayText(aktuellerText + eingabe);
                     calculator.debug("Operator hinzugefügt: " + aktuellerText + eingabe + ", neue Zahl wird erwartet");
                 }
@@ -72,10 +71,10 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "x^y":
-                // Add power function - like a normal operator
+                // Fügt die Potenzfunktion hinzu – wie ein normaler Operator
                 if (!aktuellerText.isEmpty()
                         && engine.istNormalerOperator(aktuellerText.charAt(aktuellerText.length() - 1))) {
-                    // Replace the previous operator
+                    // Ersetze den vorherigen Operator
                     String neuerText = aktuellerText.substring(0, aktuellerText.length() - 1) + "^";
                     calculator.setDisplayText(neuerText);
                     calculator.debug("Operator ersetzt durch Potenz: " + aktuellerText + " -> " + neuerText);
@@ -87,10 +86,10 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "x²":
-                // Square function - adds ^2
+                // Quadratfunktion – fügt ^2 hinzu
                 try {
                     double zahl = engine.evaluiereLetzteTeilzahl(aktuellerText);
-                    // Replace the last number with its squared form
+                    // Ersetze die letzte Zahl durch ihre quadrierte Form
                     String neuerText = engine.ersetzeLetzteZahl(aktuellerText, zahl * zahl);
                     calculator.setDisplayText(neuerText);
                     calculator.debug("Quadriert: " + zahl + "² = " + (zahl * zahl));
@@ -101,10 +100,10 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "x³":
-                // Cubic function - adds ^3
+                // Kubikfunktion – fügt ^3 hinzu
                 try {
                     double zahl = engine.evaluiereLetzteTeilzahl(aktuellerText);
-                    // Replace the last number with its cubic form
+                    // Ersetze die letzte Zahl durch ihre kubische Form
                     String neuerText = engine.ersetzeLetzteZahl(aktuellerText, zahl * zahl * zahl);
                     calculator.setDisplayText(neuerText);
                     calculator.debug("Kubiert: " + zahl + "³ = " + (zahl * zahl * zahl));
@@ -115,14 +114,14 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "√x":
-                // Square root function
+                // Quadratwurzelfunktion
                 try {
                     double zahl = engine.evaluiereLetzteTeilzahl(aktuellerText);
                     if (zahl < 0) {
                         calculator.setDisplayText("Fehler");
                         calculator.debug("Fehler: Wurzel aus negativer Zahl nicht erlaubt");
                     } else {
-                        // Replace the last number with its square root
+                        // Ersetze die letzte Zahl durch ihre Quadratwurzel
                         String neuerText = engine.ersetzeLetzteZahl(aktuellerText, Math.sqrt(zahl));
                         calculator.setDisplayText(neuerText);
                         calculator.debug("Quadratwurzel: √" + zahl + " = " + Math.sqrt(zahl));
@@ -134,11 +133,11 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "³√x":
-                // Cubic root function
+                // Kubikwurzelfunktion
                 try {
                     double zahl = engine.evaluiereLetzteTeilzahl(aktuellerText);
-                    // For cubic roots, calculation is also possible for negative numbers
-                    // Replace the last number with its cubic root
+                    // Bei Kubikwurzeln ist die Berechnung auch für negative Zahlen möglich
+                    // Ersetze die letzte Zahl durch ihre Kubikwurzel
                     double kubikwurzel = Math.cbrt(zahl);
                     String neuerText = engine.ersetzeLetzteZahl(aktuellerText, kubikwurzel);
                     calculator.setDisplayText(neuerText);
@@ -150,11 +149,11 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "y√x":
-                // Y-th root of X
+                // y-te Wurzel aus x
                 try {
-                    // For this operation we need two numbers:
-                    // - y (the root exponent - which we ask via popup)
-                    // - x (the number from which to take the root - the current number)
+                    // Für diesen Vorgang benötigen wir zwei Zahlen:
+                    // - y (den Wurzelexponenten – wird per Popup abgefragt)
+                    // - x (die Zahl, aus der die Wurzel gezogen werden soll – die aktuelle Zahl)
                     double x = engine.evaluiereLetzteTeilzahl(aktuellerText);
 
                     if (x < 0) {
@@ -163,7 +162,7 @@ public class InputHandler implements ActionListener {
                         return;
                     }
 
-                    // Ask for the root exponent y
+                    // Frage nach dem Wurzelexponenten y
                     String yInput = JOptionPane.showInputDialog(
                             calculator,
                             "Bitte Wurzelexponent eingeben:",
@@ -184,7 +183,7 @@ public class InputHandler implements ActionListener {
                             return;
                         }
 
-                        // Calculation: x^(1/y)
+                        // Berechnung: x^(1/y)
                         double ergebnis = Math.pow(x, 1.0 / y);
                         String neuerText = engine.ersetzeLetzteZahl(aktuellerText, ergebnis);
                         calculator.setDisplayText(neuerText);
@@ -202,7 +201,7 @@ public class InputHandler implements ActionListener {
 
             case "(":
             case ")":
-                // Add parentheses
+                // Füge Klammern hinzu
                 if (aktuellerText.equals("0")) {
                     calculator.setDisplayText(eingabe);
                 } else {
@@ -213,13 +212,13 @@ public class InputHandler implements ActionListener {
                 break;
 
             case ".":
-                // Add decimal point if not already present
+                // Füge einen Dezimalpunkt hinzu, falls noch nicht vorhanden
                 if (calculator.isNeueZahlBegonnen()) {
                     calculator.setDisplayText(aktuellerText + "0.");
                     calculator.setNeueZahlBegonnen(false);
                     calculator.debug("Neue Dezimalzahl begonnen: " + aktuellerText + "0.");
                 } else {
-                    // Check if the current number already has a decimal point
+                    // Überprüfe, ob die aktuelle Zahl bereits einen Dezimalpunkt enthält
                     String aktuelleZahl = engine.findeAktuelleZahl(aktuellerText);
                     if (!aktuelleZahl.contains(".")) {
                         calculator.setDisplayText(aktuellerText + ".");
@@ -235,44 +234,44 @@ public class InputHandler implements ActionListener {
                 break;
 
             case "+/-":
-                // Invert sign of current number
+                // Invertiere das Vorzeichen der aktuellen Zahl
                 String neuerText = engine.toggleVorzeichen(aktuellerText);
                 calculator.setDisplayText(neuerText);
                 calculator.debug("Nach +/- Taste: " + neuerText);
-                // +/- does not change the isNeueZahlBegonnen status
+                // +/– ändert nicht den Status von isNeueZahlBegonnen
                 break;
 
             case "C":
-                // Reset
+                // Zurücksetzen
                 calculator.setDisplayText("0");
                 calculator.setNeueZahlBegonnen(true);
                 calculator.debug("Display zurückgesetzt");
                 break;
 
             case "←":
-                // Return/Backspace function - delete last character
+                // Rücktaste/Backspace-Funktion – lösche das letzte Zeichen
                 handleReturnButton(aktuellerText);
                 break;
         }
     }
 
     /**
-     * Helper method for the Return/Backspace button
+     * Hilfsmethode für die Rücktaste/Backspace-Taste
      */
     private void handleReturnButton(String aktuellerText) {
         calculator.debug("Return/Backspace-Taste gedrückt für: " + aktuellerText);
 
         if (aktuellerText.length() <= 1) {
-            // If only one character left or empty, reset to 0
+            // Wenn nur ein Zeichen übrig ist oder der Ausdruck leer ist, auf 0 zurücksetzen
             calculator.setDisplayText("0");
             calculator.setNeueZahlBegonnen(true);
             calculator.debug("Zurückgesetzt auf 0, da keine weiteren Zeichen");
         } else {
-            // Remove last character
+            // Lösche das letzte Zeichen
             String neuerText = aktuellerText.substring(0, aktuellerText.length() - 1);
             calculator.setDisplayText(neuerText);
 
-            // Check if the last character is an operator
+            // Überprüfe, ob das letzte Zeichen ein Operator ist
             char letzterChar = neuerText.charAt(neuerText.length() - 1);
             if (engine.istOperator(letzterChar)) {
                 calculator.setNeueZahlBegonnen(true);

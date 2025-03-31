@@ -1,4 +1,3 @@
-
 package util.history;
 
 import javax.swing.*;
@@ -9,7 +8,7 @@ import java.awt.*;
 import java.util.ArrayList;
 
 /**
- * Manages the calculation history
+ * Verwaltet den Berechnungsverlauf
  */
 public class HistoryManager {
     private JList<String> historyList;
@@ -24,10 +23,10 @@ public class HistoryManager {
     }
 
     /**
-     * Initializes the history panel components
+     * Initialisiert die Komponenten des Verlaufs-Panels
      */
     private void initializeHistoryPanel() {
-        // Initialize the history model and list
+        // Initialisiere das Verlaufsmodell und die Verlaufs-Liste
         historyModel = new DefaultListModel<>();
         historyList = new JList<>(historyModel);
         historyList.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -36,7 +35,7 @@ public class HistoryManager {
             if (!e.getValueIsAdjusting() && historyList.getSelectedIndex() != -1) {
                 String selected = historyList.getSelectedValue();
                 if (selected != null && !selected.isEmpty()) {
-                    // Extract the formula from the history entry (format: "Formula = Result")
+                    // Extrahiere die Formel aus dem Verlaufseintrag (Format: "Formel = Ergebnis")
                     String formel = selected.split("=")[0].trim();
                     calculator.setDisplayText(formel);
                     calculator.debug("Formel aus History geladen: " + formel);
@@ -44,12 +43,12 @@ public class HistoryManager {
             }
         });
 
-        // Create dialog for the history
+        // Erstelle den Verlaufsdialog
         createHistoryDialog();
     }
 
     /**
-     * Creates the dialog for displaying history
+     * Erstellt den Dialog zur Anzeige des Verlaufs
      */
     private void createHistoryDialog() {
         // Erstelle den Dialog, wenn er noch nicht existiert
@@ -97,21 +96,21 @@ public class HistoryManager {
     }
 
     /**
-     * Adds a calculation to the history
+     * Fügt eine Berechnung zum Verlauf hinzu
      */
     public void addToHistory(String calculation, String result) {
         String historyEntry = calculation + " = " + result;
         calculationHistory.add(historyEntry);
         historyModel.addElement(historyEntry);
 
-        // Scroll to the latest entry
+        // Scrolle zum neuesten Eintrag
         historyList.ensureIndexIsVisible(historyModel.getSize() - 1);
 
         calculator.debug("Zur History hinzugefügt: " + historyEntry);
     }
 
     /**
-     * Shows the history dialog
+     * Zeigt den Verlaufsdialog an
      */
     public void showHistoryDialog() {
         if (historyDialog != null) {
@@ -120,7 +119,7 @@ public class HistoryManager {
     }
 
     /**
-     * Hides the history dialog
+     * Blendet den Verlaufsdialog aus
      */
     public void hideHistoryDialog() {
         if (historyDialog != null) {
@@ -129,14 +128,14 @@ public class HistoryManager {
     }
 
     /**
-     * Returns if the history dialog is visible
+     * Gibt zurück, ob der Verlaufsdialog sichtbar ist
      */
     public boolean isVisible() {
         return historyDialog != null && historyDialog.isVisible();
     }
 
     /**
-     * Updates the dialog position relative to the parent window
+     * Aktualisiert die Position des Dialogs relativ zum Hauptfenster
      */
     public void updateDialogPosition() {
         if (historyDialog != null && calculator != null) {

@@ -1,4 +1,3 @@
-
 package plugins.plotter2d;
 
 import java.awt.*;
@@ -6,14 +5,14 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 
 /**
- * Handles drawing the grid and axes for the GraphPanel
+ * Behandelt das Zeichnen des Gitters und der Achsen für das GraphPanel
  */
 public class GridRenderer {
     private final GraphPanel panel;
     private final CoordinateTransformer transformer;
 
-    // Constants
-    private static final int TICK_LENGTH = 5; // Length of axis ticks
+    // Konstanten
+    private static final int TICK_LENGTH = 5; // Länge der Achsenstriche
 
     public GridRenderer(GraphPanel panel, CoordinateTransformer transformer) {
         this.panel = panel;
@@ -21,21 +20,21 @@ public class GridRenderer {
     }
 
     /**
-     * Draws the coordinate grid
+     * Zeichnet das Koordinatengitter
      */
     public void drawGrid(Graphics2D g2d) {
-        g2d.setColor(new Color(240, 240, 240)); // Light gray
+        g2d.setColor(new Color(240, 240, 240)); // Hellgrau
         g2d.setStroke(new BasicStroke(0.5f));
 
-        // Calculate grid line spacing in world coordinates - use the Y range for both
-        // axes
+        // Berechnet den Abstand der Gitterlinien in Weltkoordinaten – verwendet den
+        // Y-Bereich für beide Achsen
         double gridSpacing = calculateGridSpacing(transformer.getYMax() - transformer.getYMin());
 
-        // Available drawing area
+        // Verfügbare Zeichenfläche
         int drawingWidth = panel.getWidth() - 2 * GraphPanel.AXIS_MARGIN;
         int drawingHeight = panel.getHeight() - 2 * GraphPanel.AXIS_MARGIN;
 
-        // X grid lines
+        // X-Gitterlinien
         double x = Math.ceil(transformer.getXMin() / gridSpacing) * gridSpacing;
         while (x <= transformer.getXMax()) {
             int screenX = transformer.worldToScreenX(x);
@@ -44,7 +43,7 @@ public class GridRenderer {
             x += gridSpacing;
         }
 
-        // Y grid lines
+        // Y-Gitterlinien
         double y = Math.ceil(transformer.getYMin() / gridSpacing) * gridSpacing;
         while (y <= transformer.getYMax()) {
             int screenY = transformer.worldToScreenY(y);
@@ -55,17 +54,17 @@ public class GridRenderer {
     }
 
     /**
-     * Draws the X and Y axes with labels
+     * Zeichnet die X- und Y-Achsen mit Beschriftungen
      */
     public void drawAxes(Graphics2D g2d) {
         g2d.setColor(Color.BLACK);
         g2d.setStroke(new BasicStroke(1.5f));
 
-        // Available drawing area
+        // Verfügbare Zeichenfläche
         int drawingWidth = panel.getWidth() - 2 * GraphPanel.AXIS_MARGIN;
         int drawingHeight = panel.getHeight() - 2 * GraphPanel.AXIS_MARGIN;
 
-        // X axis
+        // X-Achse
         int yAxisPos = transformer.worldToScreenY(0);
         if (yAxisPos < transformer.getYOffset())
             yAxisPos = transformer.getYOffset();
@@ -75,7 +74,7 @@ public class GridRenderer {
         g2d.draw(new Line2D.Double(transformer.getXOffset(), yAxisPos,
                 transformer.getXOffset() + drawingWidth, yAxisPos));
 
-        // Y axis
+        // Y-Achse
         int xAxisPos = transformer.worldToScreenX(0);
         if (xAxisPos < transformer.getXOffset())
             xAxisPos = transformer.getXOffset();
@@ -85,61 +84,61 @@ public class GridRenderer {
         g2d.draw(new Line2D.Double(xAxisPos, transformer.getYOffset(),
                 xAxisPos, transformer.getYOffset() + drawingHeight));
 
-        // Axis labels
+        // Achsenbeschriftungen
         g2d.setFont(new Font("Arial", Font.PLAIN, 10));
 
-        // Common spacing for both axes
+        // Gemeinsamer Abstand für beide Achsen
         double gridSpacing = calculateGridSpacing(transformer.getYMax() - transformer.getYMin());
 
-        // X axis ticks and labels
+        // X-Achsenstriche und Beschriftungen
         double x = Math.ceil(transformer.getXMin() / gridSpacing) * gridSpacing;
 
         while (x <= transformer.getXMax()) {
             int screenX = transformer.worldToScreenX(x);
 
-            // Only draw if within bounds
+            // Nur zeichnen, wenn innerhalb der Grenzen
             if (screenX >= transformer.getXOffset() && screenX <= transformer.getXOffset() + drawingWidth) {
-                // Tick mark
+                // Strich
                 g2d.draw(new Line2D.Double(screenX, yAxisPos - TICK_LENGTH, screenX, yAxisPos + TICK_LENGTH));
 
-                // Label (not at 0, since that's where the axis label is)
-                if (Math.abs(x) > 1e-10) { // Consider small values as zero
+                // Beschriftung (nicht bei 0, da dort die Achsenbeschriftung ist)
+                if (Math.abs(x) > 1e-10) { // Kleine Werte als null betrachten
                     String label = transformer.getAxisFormat().format(x);
                     FontMetrics fm = g2d.getFontMetrics();
 
-                    // Save the current transformation state
+                    // Speichere den aktuellen Transformationszustand
                     AffineTransform originalTransform = g2d.getTransform();
 
-                    // Constant distance for all labels
-                    int yOffset = 5; // Distance from the tick mark
+                    // Konstanter Abstand für alle Beschriftungen
+                    int yOffset = 5; // Abstand vom Strich
 
-                    // Position the text so it starts BELOW the axis
+                    // Positioniere den Text so, dass er UNTER der Achse beginnt
                     g2d.translate(screenX, yAxisPos + TICK_LENGTH + yOffset);
-                    g2d.rotate(Math.PI / 2); // 90 degrees clockwise
+                    g2d.rotate(Math.PI / 2); // 90 Grad im Uhrzeigersinn
 
-                    // Draw text centered on the line
+                    // Zeichne den Text zentriert an der Linie
                     g2d.drawString(label, 0, 0);
 
-                    // Restore the original transformation state
+                    // Stelle den ursprünglichen Transformationszustand wieder her
                     g2d.setTransform(originalTransform);
                 }
             }
             x += gridSpacing;
         }
 
-        // Y axis ticks and labels
+        // Y-Achsenstriche und Beschriftungen
         double y = Math.ceil(transformer.getYMin() / gridSpacing) * gridSpacing;
 
         while (y <= transformer.getYMax()) {
             int screenY = transformer.worldToScreenY(y);
 
-            // Only draw if within bounds
+            // Nur zeichnen, wenn innerhalb der Grenzen
             if (screenY >= transformer.getYOffset() && screenY <= transformer.getYOffset() + drawingHeight) {
-                // Tick mark
+                // Strich
                 g2d.draw(new Line2D.Double(xAxisPos - TICK_LENGTH, screenY, xAxisPos + TICK_LENGTH, screenY));
 
-                // Label (not at 0, since that's where the axis label is)
-                if (Math.abs(y) > 1e-10) { // Consider small values as zero
+                // Beschriftung (nicht bei 0, da dort die Achsenbeschriftung ist)
+                if (Math.abs(y) > 1e-10) { // Kleine Werte als null betrachten
                     String label = transformer.getAxisFormat().format(y);
                     FontMetrics fm = g2d.getFontMetrics();
                     int labelWidth = fm.stringWidth(label);
@@ -149,30 +148,30 @@ public class GridRenderer {
             y += gridSpacing;
         }
 
-        // Origin label
+        // Ursprungsbeschriftung
         if (xAxisPos >= transformer.getXOffset() && xAxisPos <= transformer.getXOffset() + drawingWidth &&
                 yAxisPos >= transformer.getYOffset() && yAxisPos <= transformer.getYOffset() + drawingHeight) {
             g2d.drawString("0", xAxisPos + 4, yAxisPos + 12);
         }
 
-        // Axis labels
+        // Achsenbeschriftungen
         g2d.setFont(new Font("Arial", Font.BOLD, 12));
         g2d.drawString("x", transformer.getXOffset() + drawingWidth + 10, yAxisPos + 4);
         g2d.drawString("y", xAxisPos - 4, transformer.getYOffset() - 10);
     }
 
     /**
-     * Calculates a suitable spacing for grid lines
+     * Berechnet einen passenden Abstand für Gitterlinien
      */
     public double calculateGridSpacing(double range) {
-        // Goal: About 10 grid lines in the visible area
+        // Ziel: Etwa 10 Gitterlinien im sichtbaren Bereich
         double rawSpacing = range / 10;
 
-        // Normalize to powers of ten
+        // Normalisiere auf Zehnerpotenzen
         double exponent = Math.floor(Math.log10(rawSpacing));
         double mantissa = rawSpacing / Math.pow(10, exponent);
 
-        // Round to "nice" values: 1, 2, 5, 10
+        // Runde auf „schöne“ Werte: 1, 2, 5, 10
         if (mantissa < 1.5)
             return Math.pow(10, exponent);
         else if (mantissa < 3.5)

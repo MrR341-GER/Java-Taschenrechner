@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.renderer;
 
 import plugins.plotter3d.model.Plot3DModel;
@@ -6,8 +5,8 @@ import plugins.plotter3d.model.Plot3DPoint;
 import plugins.plotter3d.view.Plot3DView;
 
 /**
- * Handles transformations from 3D world coordinates to 2D screen coordinates
- * Applies rotation, scale, and panning
+ * Behandelt Transformationen von 3D-Weltkoordinaten zu 2D-Bildschirmkoordinaten
+ * Wendet Rotation, Skalierung und Verschiebung an
  */
 public class Plot3DTransformer {
     private static final int ORIGINAL = 0;
@@ -15,11 +14,11 @@ public class Plot3DTransformer {
     private static final int PROJECTED = 2;
 
     /**
-     * Transforms and projects all grid points for all functions
+     * Transformiert und projiziert alle Gitterpunkte für alle Funktionen
      * 
-     * @param model   The data model containing functions
-     * @param view    The view parameters
-     * @param zCenter The center z-coordinate for normalization
+     * @param model   Das Datenmodell, das die Funktionen enthält
+     * @param view    Die Ansichtsparameter
+     * @param zCenter Die zentrale z-Koordinate für die Normalisierung
      */
     public void transformAndProjectAllPoints(Plot3DModel model, Plot3DView view, double zCenter) {
         for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
@@ -33,17 +32,17 @@ public class Plot3DTransformer {
     }
 
     /**
-     * Calculates the z-value range for a function
+     * Berechnet den z-Wertebereich für eine Funktion
      */
     private double calculateZRange(Plot3DModel.Function3DInfo functionInfo) {
         double zMin = Double.POSITIVE_INFINITY;
         double zMax = Double.NEGATIVE_INFINITY;
 
         if (functionInfo.getGridPoints() == null) {
-            return 1.0; // Default range if no points
+            return 1.0; // Standardbereich, wenn keine Punkte vorhanden sind
         }
 
-        // Find min/max Z values across all grid points
+        // Ermittle min/max Z-Werte über alle Gitterpunkte
         for (int i = 0; i < functionInfo.getGridPoints().length; i++) {
             for (int j = 0; j < functionInfo.getGridPoints()[i].length; j++) {
                 Plot3DPoint original = functionInfo.getGridPoints()[i][j][0];
@@ -57,26 +56,27 @@ public class Plot3DTransformer {
             }
         }
 
-        // Ensure range is valid
+        // Stelle sicher, dass der Bereich gültig ist
         if (zMin == Double.POSITIVE_INFINITY || zMax == Double.NEGATIVE_INFINITY || Math.abs(zMax - zMin) < 1e-10) {
-            return 1.0; // Default range if no valid points or too small range
+            return 1.0; // Standardbereich, wenn keine gültigen Punkte vorhanden sind oder der Bereich
+                        // zu klein ist
         }
 
         return zMax - zMin;
     }
 
     /**
-     * Transforms and projects the grid points for a single function
+     * Transformiert und projiziert die Gitterpunkte für eine einzelne Funktion
      */
     private void transformAndProjectPoints(Plot3DModel.Function3DInfo functionInfo,
             Plot3DView view,
             double xCenter, double yCenter, double zCenter) {
-        // Convert rotation angles to radians
+        // Wandelt Rotationswinkel in Bogenmaß um
         double angleX = Math.toRadians(view.getRotationX());
         double angleY = Math.toRadians(view.getRotationY());
         double angleZ = Math.toRadians(view.getRotationZ());
 
-        // Pre-calculate sine and cosine values for efficiency
+        // Berechne Sinus- und Kosinuswerte vorab für mehr Effizienz
         double sinX = Math.sin(angleX);
         double cosX = Math.cos(angleX);
         double sinY = Math.sin(angleY);
@@ -84,70 +84,71 @@ public class Plot3DTransformer {
         double sinZ = Math.sin(angleZ);
         double cosZ = Math.cos(angleZ);
 
-        // Determine the normalization factor for coordinates
+        // Bestimme den Normalisierungsfaktor für die Koordinaten
         double xRange = view.getXMax() - view.getXMin();
         double yRange = view.getYMax() - view.getYMin();
-        // We don't have access to model here, so we'll use the grid points themselves
-        // to calculate a zRange
+        // Da wir hier keinen Zugriff auf das Modell haben, verwenden wir die
+        // Gitterpunkte selbst,
+        // um einen z-Bereich zu berechnen
         double zRange = calculateZRange(functionInfo);
         double maxRange = Math.max(xRange, Math.max(yRange, zRange));
         double factor = 1.0 / maxRange;
 
-        // Scale for the current transformation
+        // Skalierung für die aktuelle Transformation
         double scale = view.getScale();
 
-        // Adjusted pan values
+        // Angepasste Verschiebungswerte
         double adjustedPanX = view.getPanX() * scale;
         double adjustedPanY = view.getPanY() * scale;
 
-        // Get grid points array for this function
+        // Hole das Gitterpunkt-Array für diese Funktion
         Plot3DPoint[][][] gridPoints = functionInfo.getGridPoints();
         int resolution = gridPoints.length;
 
-        // Process each point in the grid
+        // Verarbeite jeden Punkt im Gitter
         for (int i = 0; i < resolution; i++) {
             for (int j = 0; j < resolution; j++) {
-                // Get the original point
+                // Hole den ursprünglichen Punkt
                 Plot3DPoint original = gridPoints[i][j][ORIGINAL];
 
-                // Center and normalize the coordinates
+                // Zentriere und normalisiere die Koordinaten
                 double x = (original.getX() - xCenter) * factor;
                 double y = (original.getY() - yCenter) * factor;
                 double z = (original.getZ() - zCenter) * factor;
 
-                // Apply scaling
+                // Wende Skalierung an
                 x *= scale;
                 y *= scale;
                 z *= scale;
 
-                // Apply rotation around Z axis
+                // Wende Rotation um die Z-Achse an
                 double tempX = x * cosZ - y * sinZ;
                 double tempY = x * sinZ + y * cosZ;
                 x = tempX;
                 y = tempY;
 
-                // Apply rotation around Y axis
+                // Wende Rotation um die Y-Achse an
                 tempX = x * cosY + z * sinY;
                 double tempZ = -x * sinY + z * cosY;
                 x = tempX;
                 z = tempZ;
 
-                // Apply rotation around X axis
+                // Wende Rotation um die X-Achse an
                 tempY = y * cosX - z * sinX;
                 tempZ = y * sinX + z * cosX;
                 y = tempY;
                 z = tempZ;
 
-                // Apply panning
+                // Wende Verschiebung an
                 x += adjustedPanX;
                 y += adjustedPanY;
 
-                // Store the transformed point
+                // Speichere den transformierten Punkt
                 gridPoints[i][j][TRANSFORMED].setX(x);
                 gridPoints[i][j][TRANSFORMED].setY(y);
                 gridPoints[i][j][TRANSFORMED].setZ(z);
 
-                // Project to 2D (simple parallel projection)
+                // Projiziere auf 2D (einfache Parallelprojektion)
                 gridPoints[i][j][PROJECTED].setX(x);
                 gridPoints[i][j][PROJECTED].setY(y);
                 gridPoints[i][j][PROJECTED].setZ(0);
@@ -156,9 +157,9 @@ public class Plot3DTransformer {
     }
 
     /**
-     * Transforms a single 3D point for drawing lines
+     * Transformiert einen einzelnen 3D-Punkt zum Zeichnen von Linien
      * 
-     * @return The 2D projected point
+     * @return Der 2D-projizierte Punkt
      */
     public Plot3DPoint transformPoint(double x, double y, double z,
             double xCenter, double yCenter, double zCenter,
@@ -167,39 +168,39 @@ public class Plot3DTransformer {
             double sinY, double cosY,
             double sinZ, double cosZ,
             double panX, double panY) {
-        // Center and normalize
+        // Zentriere und normalisiere
         double nx = (x - xCenter) * factor * scale;
         double ny = (y - yCenter) * factor * scale;
         double nz = (z - zCenter) * factor * scale;
 
-        // Rotation around Z axis
+        // Rotation um die Z-Achse
         double tx = nx * cosZ - ny * sinZ;
         double ty = nx * sinZ + ny * cosZ;
 
-        // Rotation around Y axis
+        // Rotation um die Y-Achse
         double tempX = tx * cosY + nz * sinY;
         double tempZ = -tx * sinY + nz * cosY;
         tx = tempX;
 
-        // Rotation around X axis
+        // Rotation um die X-Achse
         double tempY = ty * cosX - tempZ * sinX;
         double tz = ty * sinX + tempZ * cosX;
         ty = tempY;
 
-        // Apply panning
+        // Wende Verschiebung an
         tx += panX * scale;
         ty += panY * scale;
 
-        // Return the transformed point
+        // Gib den transformierten Punkt zurück
         return new Plot3DPoint(tx, ty, tz);
     }
 
     /**
-     * Converts a transformed point to screen coordinates
+     * Konvertiert einen transformierten Punkt in Bildschirmkoordinaten
      */
     public int[] projectToScreen(Plot3DPoint point, double displayScale, int xOffset, int yOffset) {
         int screenX = xOffset + (int) (point.getX() * displayScale);
-        int screenY = yOffset - (int) (point.getY() * displayScale); // Y is inverted on screen
+        int screenY = yOffset - (int) (point.getY() * displayScale); // Y ist auf dem Bildschirm invertiert
 
         return new int[] { screenX, screenY };
     }

@@ -1,19 +1,18 @@
-
 package plugins.plotter3d.model;
 
 /**
- * Represents a 3D point in space with x, y, and z coordinates
- * Used throughout the 3D plotting system
+ * Repräsentiert einen 3D-Punkt im Raum mit x-, y- und z-Koordinaten.
+ * Wird im gesamten 3D-Darstellungssystem verwendet.
  */
 public class Plot3DPoint {
     private double x, y, z;
 
     /**
-     * Creates a new 3D point
+     * Erzeugt einen neuen 3D-Punkt.
      * 
-     * @param x X-coordinate
-     * @param y Y-coordinate
-     * @param z Z-coordinate
+     * @param x x-Koordinate
+     * @param y y-Koordinate
+     * @param z z-Koordinate
      */
     public Plot3DPoint(double x, double y, double z) {
         this.x = x;
@@ -22,15 +21,15 @@ public class Plot3DPoint {
     }
 
     /**
-     * Creates a copy of this point
+     * Erstellt eine Kopie dieses Punktes.
      * 
-     * @return A new point with the same coordinates
+     * @return Ein neuer Punkt mit denselben Koordinaten.
      */
     public Plot3DPoint copy() {
         return new Plot3DPoint(x, y, z);
     }
 
-    // Getters and setters
+    // Getter und Setter
 
     public double getX() {
         return x;

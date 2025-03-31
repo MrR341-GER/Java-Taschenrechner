@@ -1,30 +1,29 @@
-
 package plugins.plotter3d.renderer;
 
 import java.awt.Color;
 
 /**
- * Manages color schemes for 3D plotting
- * Maps z-values to colors using gradient schemes
+ * Verwaltet Farbschemata für die 3D-Darstellung
+ * Ordnet z-Werte Farbwerten mittels Gradientenschemata zu
  */
 public class Plot3DColorScheme {
-    // Array of color stops for the gradient
+    // Array von Farbstopps für den Farbverlauf
     private Color[] colors;
 
     /**
-     * Creates a color scheme with the specified color stops
-     * 
-     * @param colors An array of colors defining the gradient
+     * Erzeugt ein Farbschema mit den angegebenen Farbstopps
+     *
+     * @param colors Ein Array von Farben, das den Farbverlauf definiert
      */
     public Plot3DColorScheme(Color... colors) {
         if (colors == null || colors.length < 2) {
-            // Default color scheme if none provided
+            // Standard-Farbschema, falls keins angegeben wurde
             this.colors = new Color[] {
-                    new Color(0, 0, 255), // Blue (low values)
+                    new Color(0, 0, 255), // Blau (niedrige Werte)
                     new Color(0, 255, 255), // Cyan
-                    new Color(0, 255, 0), // Green
-                    new Color(255, 255, 0), // Yellow
-                    new Color(255, 0, 0) // Red (high values)
+                    new Color(0, 255, 0), // Grün
+                    new Color(255, 255, 0), // Gelb
+                    new Color(255, 0, 0) // Rot (hohe Werte)
             };
         } else {
             this.colors = colors;
@@ -32,23 +31,23 @@ public class Plot3DColorScheme {
     }
 
     /**
-     * Creates the default color scheme
+     * Erzeugt das Standard-Farbschema
      */
     public static Plot3DColorScheme createDefault() {
         return new Plot3DColorScheme(
-                new Color(0, 0, 255), // Blue (low values)
+                new Color(0, 0, 255), // Blau (niedrige Werte)
                 new Color(0, 255, 255), // Cyan
-                new Color(0, 255, 0), // Green
-                new Color(255, 255, 0), // Yellow
-                new Color(255, 0, 0) // Red (high values)
+                new Color(0, 255, 0), // Grün
+                new Color(255, 255, 0), // Gelb
+                new Color(255, 0, 0) // Rot (hohe Werte)
         );
     }
 
     /**
-     * Gets a color for a normalized value (0.0 to 1.0)
-     * 
-     * @param normalizedValue Value between 0.0 and 1.0
-     * @return The interpolated color from the scheme
+     * Ermittelt eine Farbe für einen normierten Wert (0,0 bis 1,0)
+     *
+     * @param normalizedValue Wert zwischen 0,0 und 1,0
+     * @return Die interpolierte Farbe aus dem Schema
      */
     public Color getColorForValue(double normalizedValue) {
         if (normalizedValue <= 0.0) {
@@ -59,16 +58,16 @@ public class Plot3DColorScheme {
             return colors[colors.length - 1];
         }
 
-        // Find the segment in the gradient
+        // Finde das Segment im Farbverlauf
         double segment = 1.0 / (colors.length - 1);
         int index = (int) (normalizedValue / segment);
         double remainder = (normalizedValue - index * segment) / segment;
 
-        // Get the two colors to interpolate between
+        // Hole die beiden Farben, zwischen denen interpoliert werden soll
         Color c1 = colors[index];
         Color c2 = colors[index + 1];
 
-        // Linear interpolation between the two colors
+        // Lineare Interpolation zwischen den beiden Farben
         int r = (int) (c1.getRed() + remainder * (c2.getRed() - c1.getRed()));
         int g = (int) (c1.getGreen() + remainder * (c2.getGreen() - c1.getGreen()));
         int b = (int) (c1.getBlue() + remainder * (c2.getBlue() - c1.getBlue()));
@@ -77,15 +76,15 @@ public class Plot3DColorScheme {
     }
 
     /**
-     * Gets a color based on a z-value and the current z-range
-     * 
-     * @param z    The z-value to map to a color
-     * @param zMin The minimum z-value in the current range
-     * @param zMax The maximum z-value in the current range
-     * @return The color corresponding to the z-value
+     * Ermittelt eine Farbe basierend auf einem z-Wert und dem aktuellen z-Bereich
+     *
+     * @param z    Der z-Wert, der einer Farbe zugeordnet werden soll
+     * @param zMin Der minimale z-Wert im aktuellen Bereich
+     * @param zMax Der maximale z-Wert im aktuellen Bereich
+     * @return Die Farbe, die dem z-Wert entspricht
      */
     public Color getColorForZ(double z, double zMin, double zMax) {
-        // Normalize z-value to 0.0-1.0 range
+        // Normalisiere den z-Wert in den Bereich 0,0 bis 1,0
         double normalizedZ = (z - zMin) / (zMax - zMin);
         return getColorForValue(normalizedZ);
     }

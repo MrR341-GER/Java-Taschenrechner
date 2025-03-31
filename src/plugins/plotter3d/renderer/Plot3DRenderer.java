@@ -9,11 +9,12 @@ import plugins.plotter3d.model.Plot3DPoint;
 import plugins.plotter3d.view.Plot3DView;
 
 /**
- * Main renderer class for 3D plotting
- * Coordinates the other renderer components and provides a public API
+ * Haupt-Renderer-Klasse für die 3D-Darstellung
+ * Koordiniert die anderen Renderer-Komponenten und stellt eine öffentliche API
+ * bereit
  */
 public class Plot3DRenderer {
-    // Core components
+    // Kernkomponenten
     private final Plot3DModel model;
     private final Plot3DView view;
     private final Plot3DTransformer transformer;
@@ -25,10 +26,11 @@ public class Plot3DRenderer {
     private boolean showIntersections = true; // Option für Schnittlinien
 
     /**
-     * Creates a new 3D renderer with the specified bounds and resolution
+     * Erzeugt einen neuen 3D-Renderer mit den angegebenen Bereichsgrenzen und der
+     * Auflösung
      */
     public Plot3DRenderer(double xMin, double xMax, double yMin, double yMax, int resolution) {
-        // Initialize components
+        // Initialisiere die Komponenten
         this.model = new Plot3DModel();
         this.view = new Plot3DView(xMin, xMax, yMin, yMax, resolution);
         this.transformer = new Plot3DTransformer();
@@ -68,7 +70,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Adds a new function
+     * Fügt eine neue Funktion hinzu
      */
     public void addFunction(String functionExpression, Color color) {
         model.addFunction(functionExpression, color);
@@ -78,7 +80,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Removes all functions
+     * Entfernt alle Funktionen
      */
     public void clearFunctions() {
         model.clearFunctions();
@@ -86,7 +88,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Removes a function at the specified index
+     * Entfernt eine Funktion am angegebenen Index
      */
     public void removeFunction(int index) {
         model.removeFunction(index);
@@ -94,7 +96,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Returns the list of functions
+     * Gibt die Liste der Funktionen zurück
      */
     public java.util.List<Plot3DModel.Function3DInfo> getFunctions() {
         return model.getFunctions();
@@ -108,7 +110,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Sets the rotation
+     * Setzt die Rotation
      */
     public void setRotation(double rotationX, double rotationY, double rotationZ) {
         view.setRotation(rotationX, rotationY, rotationZ);
@@ -116,7 +118,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Sets the scale
+     * Setzt den Skalierungsfaktor
      */
     public void setScale(double scale) {
         view.setScale(scale);
@@ -124,7 +126,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Zooms by the specified factor
+     * Zoomt um den angegebenen Faktor
      */
     public void zoom(double factor) {
         view.zoom(factor);
@@ -132,7 +134,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Sets the pan values
+     * Setzt die Pan-Werte
      */
     public void setPan(double panX, double panY) {
         view.setPan(panX, panY);
@@ -140,7 +142,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Adds to the current pan values
+     * Addiert zu den aktuellen Pan-Werten
      */
     public void addPan(double deltaPanX, double deltaPanY) {
         view.addPan(deltaPanX, deltaPanY);
@@ -148,7 +150,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Sets the resolution
+     * Setzt die Auflösung
      */
     public void setResolution(int resolution) {
         view.setResolution(resolution);
@@ -157,7 +159,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Sets the bounds
+     * Setzt die Bereichsgrenzen
      */
     public void setBounds(double xMin, double xMax, double yMin, double yMax) {
         view.setBounds(xMin, xMax, yMin, yMax);
@@ -166,21 +168,21 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Toggles coordinate system visibility
+     * Schaltet die Sichtbarkeit des Koordinatensystems um
      */
     public void setShowCoordinateSystem(boolean show) {
         view.setShowCoordinateSystem(show);
     }
 
     /**
-     * Toggles grid visibility
+     * Schaltet die Gitteranzeige um
      */
     public void setShowGrid(boolean show) {
         view.setShowGrid(show);
     }
 
     /**
-     * Toggles helper lines visibility
+     * Schaltet die Anzeige von Hilfslinien um
      */
     public void setShowHelperLines(boolean show) {
         view.setShowHelperLines(show);
@@ -194,7 +196,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Calculates all function values
+     * Berechnet alle Funktionswerte
      */
     private void calculateAllFunctionValues() {
         model.calculateAllFunctionValues(
@@ -204,7 +206,7 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Transforms and projects all points
+     * Transformiert und projiziert alle Punkte
      */
     private void transformAndProjectAllPoints() {
         transformer.transformAndProjectAllPoints(
@@ -246,7 +248,7 @@ public class Plot3DRenderer {
             drawIntersectionCurves(g2d, displayScale, xOffset, yOffset, width, height);
         }
 
-        // Informationslabels zeichnen
+        // Informationsbeschriftungen zeichnen
         gridRenderer.drawInfoLabels(g2d, model, view, width, height);
 
         // Farbskala zeichnen
@@ -292,13 +294,13 @@ public class Plot3DRenderer {
     }
 
     /**
-     * Creates a snapshot image of the current plot
+     * Erstellt ein Schnappschussbild des aktuellen Plots
      */
     public BufferedImage createImage(int width, int height) {
         return functionRenderer.createImage(null, model, view, colorScheme, gridRenderer, width, height, useHeatmap);
     }
 
-    // Getters for backward compatibility
+    // Getter für Rückwärtskompatibilität
 
     public double getXMin() {
         return view.getXMin();

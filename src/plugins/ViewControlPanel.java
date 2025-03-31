@@ -12,7 +12,7 @@ import java.text.ParseException;
 import java.util.Locale;
 
 /**
- * Panel for view control and centering
+ * Panel zur Steuerung und Zentrierung der Ansicht
  */
 public class ViewControlPanel {
     private final PlotterPanel plotter;
@@ -20,18 +20,18 @@ public class ViewControlPanel {
     private final JTextField yCenterField;
 
     /**
-     * Creates a new view control panel
+     * Erstellt ein neues Panel zur Steuerung der Ansicht
      */
     public ViewControlPanel(PlotterPanel plotter) {
         this.plotter = plotter;
 
-        // Center coordinate input fields
+        // Eingabefelder für die Zentrumkoordinaten
         xCenterField = new JTextField(5);
         yCenterField = new JTextField(5);
     }
 
     /**
-     * Creates the view centering panel
+     * Erstellt das Panel zur Zentrierung der Ansicht
      */
     public JPanel createViewControlPanel() {
         JPanel centeringPanel = new JPanel(new GridBagLayout());
@@ -42,7 +42,7 @@ public class ViewControlPanel {
         gbc.insets = new Insets(2, 2, 2, 2);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // X-Koordinate Label und Feld
+        // X-Koordinate: Label und Feld
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.1;
@@ -52,7 +52,7 @@ public class ViewControlPanel {
         gbc.weightx = 0.4;
         centeringPanel.add(xCenterField, gbc);
 
-        // Y-Koordinate Label und Feld
+        // Y-Koordinate: Label und Feld
         gbc.gridx = 2;
         gbc.weightx = 0.1;
         centeringPanel.add(new JLabel("y:"), gbc);
@@ -70,7 +70,7 @@ public class ViewControlPanel {
         JButton resetViewButton = new JButton("Ansicht zurücksetzen");
         resetViewButton.addActionListener(e -> {
             plotter.getGraphPanel().resetView();
-            // The centering fields will be updated by the property change listener
+            // Die Zentrierungsfelder werden durch den Property-Change-Listener aktualisiert
         });
 
         buttonPanel.add(centerButton);
@@ -82,11 +82,12 @@ public class ViewControlPanel {
         gbc.weightx = 1.0;
         centeringPanel.add(buttonPanel, gbc);
 
+        // UI-Komponenten zusammenfügen
         return centeringPanel;
     }
 
     /**
-     * Updates the centering fields with the current view center
+     * Aktualisiert die Zentrierungsfelder mit dem aktuellen Ansichts-Zentrum
      */
     public void updateCenteringFields() {
         Point2D.Double center = plotter.getGraphPanel().getViewCenter();
@@ -95,11 +96,11 @@ public class ViewControlPanel {
     }
 
     /**
-     * Centers the graph view on the entered X and Y coordinates
+     * Zentriert die Graph-Ansicht auf die eingegebenen X- und Y-Koordinaten
      */
     private void centerGraphView() {
         try {
-            // Extract the entered values
+            // Extrahiere die eingegebenen Werte
             String xText = xCenterField.getText().trim();
             String yText = yCenterField.getText().trim();
 
@@ -111,14 +112,15 @@ public class ViewControlPanel {
                 return;
             }
 
-            // Try to parse the values (supports both dot and comma)
+            // Versuche, die Werte zu parsen (unterstützt sowohl Punkt als auch Komma als
+            // Dezimaltrennzeichen)
             double xCenter = parseDecimal(xText);
             double yCenter = parseDecimal(yText);
 
-            // Call the method to center the view in the GraphPanel
+            // Rufe die Methode auf, die die Ansicht im GraphPanel zentriert
             plotter.getGraphPanel().centerViewAt(xCenter, yCenter);
 
-            // Also update the intersection list if intersections are shown
+            // Aktualisiere auch die Schnittpunktliste, falls Schnittpunkte angezeigt werden
             if (plotter.isShowingIntersections()) {
                 plotter.updateIntersectionList();
             }
@@ -133,20 +135,21 @@ public class ViewControlPanel {
     }
 
     /**
-     * Parses a decimal value from a string, supports both dot and comma
-     * as decimal separators
+     * Parst einen Dezimalwert aus einem String, unterstützt sowohl Punkt als auch
+     * Komma
+     * als Dezimaltrennzeichen
      */
     private double parseDecimal(String text) throws NumberFormatException, ParseException {
-        // First method: Direct parsing (for dot as decimal separator)
+        // Erste Methode: Direkte Umwandlung (für Punkt als Dezimaltrennzeichen)
         try {
             return Double.parseDouble(text);
         } catch (NumberFormatException e) {
-            // Second method: Replace comma with dot and try again
+            // Zweite Methode: Ersetze Komma durch Punkt und versuche es erneut
             String replacedText = text.replace(',', '.');
             try {
                 return Double.parseDouble(replacedText);
             } catch (NumberFormatException ex) {
-                // Third method: Use the current locale
+                // Dritte Methode: Verwende die aktuelle Locale
                 NumberFormat nf = NumberFormat.getNumberInstance(Locale.getDefault());
                 return nf.parse(text).doubleValue();
             }

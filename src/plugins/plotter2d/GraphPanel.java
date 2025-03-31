@@ -16,67 +16,69 @@ import java.util.List;
 import java.util.ArrayList;
 
 /**
- * GraphPanel - A panel for drawing function graphs in a coordinate system
+ * GraphPanel - Ein Panel zum Zeichnen von Funktionsgraphen in einem
+ * Koordinatensystem
  */
 public class GraphPanel extends JPanel {
-    // Constants for the display
-    public static final int AXIS_MARGIN = 40; // Distance of axes from the edge
-    private static final float ZOOM_FACTOR = 1.2f; // Factor for zoom operations
-    public static final int MIN_HEIGHT = 200; // Minimum height of the coordinate system
-    public static final int MIN_WIDTH = 300; // Minimum width of the coordinate system
-    private static final int INTERSECTION_HIT_RADIUS = 10; // Radius for detecting mouseover on intersections
-    private static final int HOVER_DETECTION_THRESHOLD = 5; // Pixel distance for hover detection
+    // Konstanten für die Anzeige
+    public static final int AXIS_MARGIN = 40; // Abstand der Achsen vom Rand
+    private static final float ZOOM_FACTOR = 1.2f; // Faktor für Zoom-Vorgänge
+    public static final int MIN_HEIGHT = 200; // Minimale Höhe des Koordinatensystems
+    public static final int MIN_WIDTH = 300; // Minimale Breite des Koordinatensystems
+    private static final int INTERSECTION_HIT_RADIUS = 10; // Radius zur Erkennung von Mausbewegungen über
+                                                           // Schnittpunkten
+    private static final int HOVER_DETECTION_THRESHOLD = 5; // Pixelabstand für Hover-Erkennung
 
-    // Helper classes for different aspects of the panel
+    // Hilfsklassen für verschiedene Aspekte des Panels
     private final CoordinateTransformer transformer;
     private final GridRenderer gridRenderer;
     private final FunctionRenderer functionRenderer;
     private final IntersectionCalculator intersectionCalculator;
 
-    // Mouse interaction
-    private Point lastMousePos; // Last mouse position (for pan)
-    private boolean isDragging = false; // Is currently being dragged?
-    private Point currentMousePosition = null; // Current mouse position for hover detection
-    private int closestFunctionIndex = -1; // Index of the function closest to mouse
-    private Point2D.Double closestPoint = null; // Closest point on any function to mouse
-    private List<Integer> selectedFunctionIndices = new ArrayList<>(); // Indices of selected functions
+    // Mausinteraktion
+    private Point lastMousePos; // Letzte Mausposition (zum Schwenken)
+    private boolean isDragging = false; // Wird aktuell gezogen?
+    private Point currentMousePosition = null; // Aktuelle Mausposition für Hover-Erkennung
+    private int closestFunctionIndex = -1; // Index der der Maus am nächsten liegenden Funktion
+    private Point2D.Double closestPoint = null; // Nächster Punkt auf einer Funktion zur Maus
+    private List<Integer> selectedFunctionIndices = new ArrayList<>(); // Indizes der ausgewählten Funktionen
 
-    // Tooltip support
+    // Tooltip-Unterstützung
     private IntersectionPoint currentTooltipPoint = null;
     private DecimalFormat tooltipFormat = new DecimalFormat("0.########");
 
-    // Property change support for notifications
+    // PropertyChange-Unterstützung für Benachrichtigungen
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     // Flag zum Anzeigen/Ausblenden des Koordinatensystems
     private boolean showGrid = true;
 
     /**
-     * Constructor - initializes the panel and adds mouse listeners
+     * Konstruktor - Initialisiert das Panel und fügt Maus-Listener hinzu
      */
     public GraphPanel() {
         setBackground(Color.WHITE);
         setPreferredSize(new Dimension(600, 400));
         setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
 
-        // Double buffering for smooth drawing
+        // Double Buffering für flüssiges Zeichnen
         setDoubleBuffered(true);
 
-        // Initialize helper classes
+        // Initialisiere Hilfsklassen
         transformer = new CoordinateTransformer(this);
         gridRenderer = new GridRenderer(this, transformer);
         functionRenderer = new FunctionRenderer(this, transformer);
         intersectionCalculator = new IntersectionCalculator(this, transformer, functionRenderer);
 
-        // Enable tooltips
+        // Aktiviere Tooltips
         ToolTipManager.sharedInstance().registerComponent(this);
-        ToolTipManager.sharedInstance().setInitialDelay(100); // Show tooltip faster
+        ToolTipManager.sharedInstance().setInitialDelay(100); // Tooltip schneller anzeigen
 
-        // Add mouse and component listeners
+        // Füge Maus- und Komponenten-Listener hinzu
         setupMouseListeners();
         setupComponentListeners();
 
-        // Initialize the view based on the current size
+        // Initialisiere die Ansicht basierend auf der aktuellen Größe
         resetView();
     }
 
@@ -96,10 +98,10 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Sets up mouse listeners for zoom, pan and tooltips
+     * Richtet Maus-Listener für Zoom, Schwenken und Tooltips ein
      */
     private void setupMouseListeners() {
-        // Mouse listener for press and release
+        // Mauslistener für Drücken und Loslassen
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -111,20 +113,21 @@ public class GraphPanel extends JPanel {
             public void mouseReleased(MouseEvent e) {
                 isDragging = false;
 
-                // If this was a click (not a significant drag), select the function
+                // Falls dies ein Klick war (keine signifikante Ziehbewegung), wähle die
+                // Funktion aus
                 if (e.getPoint().distance(lastMousePos) < 5) {
-                    // Find which function was clicked (if any)
+                    // Finde heraus, welche Funktion angeklickt wurde (falls vorhanden)
                     if (closestPoint != null && closestFunctionIndex >= 0) {
-                        // Check if CTRL is pressed for multi-selection
+                        // Prüfe, ob STRG für Mehrfachauswahl gedrückt ist
                         if (e.isControlDown()) {
-                            // Toggle selection of this function
+                            // Schalte die Auswahl dieser Funktion um
                             if (selectedFunctionIndices.contains(closestFunctionIndex)) {
                                 selectedFunctionIndices.remove(Integer.valueOf(closestFunctionIndex));
                             } else {
                                 selectedFunctionIndices.add(closestFunctionIndex);
                             }
                         } else {
-                            // Single selection - clear previous selection and select just this one
+                            // Einzelauswahl - lösche vorherige Auswahl und wähle nur diese Funktion aus
                             selectedFunctionIndices.clear();
                             selectedFunctionIndices.add(closestFunctionIndex);
                         }
@@ -135,7 +138,8 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                // If clicked on empty space and not using CTRL, deselect all functions
+                // Falls auf leeren Raum geklickt wird und STRG nicht gedrückt ist, hebe alle
+                // Funktionsauswahlen auf
                 if (closestPoint == null && !e.isControlDown()) {
                     selectedFunctionIndices.clear();
                     repaint();
@@ -143,26 +147,26 @@ public class GraphPanel extends JPanel {
             }
         });
 
-        // Modified mouse motion listener for dragging and tooltips
+        // Angepasster Mausbewegungs-Listener für Ziehen und Tooltips
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (isDragging) {
-                    // Calculate the displacement in screen coordinates
+                    // Berechne die Verschiebung in Bildschirmkoordinaten
                     int dx = e.getX() - lastMousePos.x;
                     int dy = e.getY() - lastMousePos.y;
 
-                    // Move the view
+                    // Verschiebe die Ansicht
                     transformer.pan(dx, dy);
                     lastMousePos = e.getPoint();
 
-                    // Redraw
+                    // Neu zeichnen
                     repaint();
 
-                    // Notify about the view change
+                    // Benachrichtige über die Änderung der Ansicht
                     fireViewChanged();
 
-                    // If intersection points are enabled, recalculate them
+                    // Falls Schnittpunkte aktiviert sind, berechne sie neu
                     if (intersectionCalculator.isShowingIntersections()) {
                         intersectionCalculator.calculateIntersections();
                     }
@@ -171,47 +175,48 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                // Save current mouse position
+                // Speichere die aktuelle Mausposition
                 currentMousePosition = e.getPoint();
 
-                // Find the closest point on any function
+                // Finde den nächsten Punkt auf einer beliebigen Funktion
                 findClosestPointOnFunction(currentMousePosition);
 
-                // First check if mouse is over an intersection point
+                // Überprüfe zunächst, ob die Maus über einem Schnittpunkt liegt
                 if (intersectionCalculator.isShowingIntersections()) {
                     IntersectionPoint point = findIntersectionPointNear(e.getPoint());
                     if (point != currentTooltipPoint) {
                         currentTooltipPoint = point;
-                        // Trigger tooltip update
-                        setToolTipText(null); // Force tooltip manager to call getToolTipText
+                        // Aktualisiere den Tooltip
+                        setToolTipText(null); // Erzwinge, dass der Tooltip-Manager getToolTipText aufruft
                     }
                 } else if (closestPoint != null) {
-                    // If we're not showing intersections but have a closest point, update tooltip
-                    setToolTipText(null); // Force tooltip manager to call getToolTipText
+                    // Falls keine Schnittpunkte angezeigt werden, aber ein nächster Punkt vorhanden
+                    // ist, aktualisiere den Tooltip
+                    setToolTipText(null); // Erzwinge, dass der Tooltip-Manager getToolTipText aufruft
                 }
 
-                // Repaint to show the hover marker
+                // Neu zeichnen, um den Hover-Marker anzuzeigen
                 repaint();
             }
         });
 
-        // Mouse wheel listener for zoom
+        // Mausrad-Listener für Zoom
         addMouseWheelListener(e -> {
-            // Save the original mouse position in screen coordinates
+            // Speichere die ursprüngliche Mausposition in Bildschirmkoordinaten
             Point mousePoint = e.getPoint();
 
-            // Zoom factor based on mouse wheel direction (reversed)
+            // Zoomfaktor basierend auf der Richtung des Mausrads (umgekehrt)
             double factor = (e.getWheelRotation() > 0) ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
 
-            // Zoom
+            // Zoomen
             transformer.zoom(factor, mousePoint);
 
             repaint();
 
-            // Notify about the view change
+            // Benachrichtige über die Änderung der Ansicht
             fireViewChanged();
 
-            // If intersection points are enabled, recalculate them
+            // Falls Schnittpunkte aktiviert sind, berechne sie neu
             if (intersectionCalculator.isShowingIntersections()) {
                 intersectionCalculator.calculateIntersections();
             }
@@ -219,16 +224,16 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Sets up component listeners for resize events
+     * Richtet Komponenten-Listener für Größenänderungen ein
      */
     private void setupComponentListeners() {
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                // On resize, adjust the view but maintain the center
+                // Bei Größenänderung, passe die Ansicht an, behalte jedoch das Zentrum bei
                 transformer.adjustViewToMaintainAspectRatio();
 
-                // If intersection points are enabled, recalculate them
+                // Falls Schnittpunkte aktiviert sind, berechne sie neu
                 if (intersectionCalculator.isShowingIntersections()) {
                     intersectionCalculator.calculateIntersections();
                 }
@@ -237,7 +242,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Find the closest point on any function to the mouse position
+     * Findet den nächsten Punkt auf einer beliebigen Funktion zur Mausposition
      */
     private void findClosestPointOnFunction(Point mousePos) {
         if (mousePos == null) {
@@ -257,46 +262,47 @@ public class GraphPanel extends JPanel {
         closestPoint = null;
         closestFunctionIndex = -1;
 
-        // Convert mouse position to world coordinates
+        // Konvertiere die Mausposition in Weltkoordinaten
         double mouseWorldX = transformer.screenToWorldX(mousePos.x);
 
-        // Search within a small range around the mouse X position
+        // Suche in einem kleinen Bereich um die Maus-X-Position
         double searchStep = (transformer.getXMax() - transformer.getXMin()) / 100;
         double searchRange = searchStep * 3;
 
-        // For each function
+        // Für jede Funktion
         for (int funcIndex = 0; funcIndex < functions.size(); funcIndex++) {
             FunctionParser parser = functions.get(funcIndex).getFunction();
 
-            // Search for the closest point in a range around mouse X
+            // Suche den nächsten Punkt in einem Bereich um die Maus-X-Position
             for (double x = mouseWorldX - searchRange; x <= mouseWorldX + searchRange; x += searchStep) {
                 try {
-                    // Skip if x is outside the view
+                    // Überspringe, falls x außerhalb der Ansicht liegt
                     if (x < transformer.getXMin() || x > transformer.getXMax())
                         continue;
 
                     double y = parser.evaluateAt(x);
 
-                    // Skip if y is outside the view or not a valid number
+                    // Überspringe, falls y außerhalb der Ansicht liegt oder keine gültige Zahl ist
                     if (Double.isNaN(y) || Double.isInfinite(y) ||
                             y < transformer.getYMin() || y > transformer.getYMax())
                         continue;
 
-                    // Convert to screen coordinates
+                    // Konvertiere in Bildschirmkoordinaten
                     int screenX = transformer.worldToScreenX(x);
                     int screenY = transformer.worldToScreenY(y);
 
-                    // Calculate distance to mouse
+                    // Berechne die Distanz zur Maus
                     double distance = mousePos.distance(screenX, screenY);
 
-                    // If this is closer than our threshold and previous closest
+                    // Falls dieser Punkt näher ist als unser Schwellwert und der bisher
+                    // nächstgelegene Punkt
                     if (distance < minDistance) {
                         minDistance = distance;
                         closestPoint = new Point2D.Double(x, y);
                         closestFunctionIndex = funcIndex;
                     }
                 } catch (Exception e) {
-                    // Skip errors in function evaluation
+                    // Überspringe Fehler bei der Funktionsauswertung
                     continue;
                 }
             }
@@ -304,7 +310,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Find the closest intersection point near the mouse position
+     * Findet den nächsten Schnittpunkt in der Nähe der Mausposition
      */
     private IntersectionPoint findIntersectionPointNear(Point mousePos) {
         if (!intersectionCalculator.isShowingIntersections()) {
@@ -316,7 +322,7 @@ public class GraphPanel extends JPanel {
         double minDistance = INTERSECTION_HIT_RADIUS;
 
         for (IntersectionPoint point : points) {
-            // Check if the point is in the visible area
+            // Prüfe, ob der Punkt im sichtbaren Bereich liegt
             if (point.x >= transformer.getXMin() && point.x <= transformer.getXMax() &&
                     point.y >= transformer.getYMin() && point.y <= transformer.getYMax()) {
 
@@ -335,12 +341,12 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Returns tooltip text for the current mouse position
+     * Gibt den Tooltip-Text für die aktuelle Mausposition zurück
      */
     @Override
     public String getToolTipText(MouseEvent event) {
         if (currentTooltipPoint != null) {
-            // Show intersection point tooltip
+            // Zeige Tooltip für Schnittpunkt
             String func1 = getFunctionExpressionByIndex(currentTooltipPoint.getFunctionIndex1());
             String func2 = getFunctionExpressionByIndex(currentTooltipPoint.getFunctionIndex2());
 
@@ -351,7 +357,7 @@ public class GraphPanel extends JPanel {
                     "- " + func1 + "<br>" +
                     "- " + func2 + "</html>";
         } else if (closestPoint != null) {
-            // Show function point tooltip
+            // Zeige Tooltip für Funktionspunkt
             String funcExpr = getFunctionExpressionByIndex(closestFunctionIndex);
 
             return "<html><b>Koordinate</b><br>" +
@@ -363,7 +369,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Helper method to get a function expression by its index
+     * Hilfsmethode, um einen Funktionsausdruck anhand seines Index zu erhalten
      */
     private String getFunctionExpressionByIndex(int index) {
         List<FunctionRenderer.FunctionInfo> functions = functionRenderer.getFunctions();
@@ -374,30 +380,30 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Adds a PropertyChangeListener
+     * Fügt einen PropertyChangeListener hinzu
      */
     public void addPropertyChangeListener(String propertyName, PropertyChangeListener listener) {
         pcs.addPropertyChangeListener(propertyName, listener);
     }
 
     /**
-     * Removes a PropertyChangeListener
+     * Entfernt einen PropertyChangeListener
      */
     public void removePropertyChangeListener(String propertyName, PropertyChangeListener listener) {
         pcs.removePropertyChangeListener(propertyName, listener);
     }
 
     /**
-     * Fires an event for view changes
+     * Löst ein Ereignis für Ansichtsänderungen aus
      */
     public void fireViewChanged() {
-        Point2D.Double oldCenter = null; // We don't need the old value
+        Point2D.Double oldCenter = null; // Wir benötigen den alten Wert nicht
         Point2D.Double newCenter = getViewCenter();
         pcs.firePropertyChange("viewChanged", oldCenter, newCenter);
     }
 
     /**
-     * Fires an event for intersection updates
+     * Löst ein Ereignis für Schnittpunkt-Aktualisierungen aus
      */
     public void fireIntersectionsUpdated(List<IntersectionPoint> oldIntersections,
             List<IntersectionPoint> newIntersections) {
@@ -405,71 +411,71 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Paints the panel including coordinate system and functions
+     * Zeichnet das Panel inklusive Koordinatensystem und Funktionen
      */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
-        // Enable anti-aliasing for smoother lines
+        // Aktiviere Anti-Aliasing für glattere Linien
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Update the axis format based on the zoom level
+        // Aktualisiere das Achsenformat basierend auf dem Zoomlevel
         transformer.updateAxisFormat();
 
-        // Draw the coordinate grid and axes only if enabled
+        // Zeichne das Koordinatengitter und die Achsen nur, wenn aktiviert
         if (showGrid) {
             gridRenderer.drawGrid(g2d);
             gridRenderer.drawAxes(g2d);
         }
 
-        // Draw the functions
+        // Zeichne die Funktionen
         functionRenderer.drawFunctions(g2d, selectedFunctionIndices);
 
-        // Draw intersection points if enabled
+        // Zeichne Schnittpunkte, falls aktiviert
         intersectionCalculator.drawIntersectionPoints(g2d);
 
-        // Draw hover marker if we have a closest point
+        // Zeichne den Hover-Marker, falls ein nächster Punkt vorhanden ist
         if (closestPoint != null) {
             int screenX = transformer.worldToScreenX(closestPoint.x);
             int screenY = transformer.worldToScreenY(closestPoint.y);
 
-            // Draw a circle at the point
+            // Zeichne einen Kreis an der Stelle
             int markerSize = 8;
             g2d.setColor(Color.RED);
             g2d.setStroke(new BasicStroke(2.0f));
             g2d.drawOval(screenX - markerSize / 2, screenY - markerSize / 2, markerSize, markerSize);
 
-            // Draw coordinates near the point if not too close to an edge
+            // Zeichne die Koordinaten in der Nähe des Punkts, falls nicht zu nah am Rand
             String coordText = "(" + tooltipFormat.format(closestPoint.x) +
                     ", " + tooltipFormat.format(closestPoint.y) + ")";
             FontMetrics fm = g2d.getFontMetrics();
             int textWidth = fm.stringWidth(coordText);
 
-            // Positioning logic to keep text on screen
+            // Positionierungslogik, um den Text auf dem Bildschirm zu halten
             int textX = screenX + 10;
             int textY = screenY - 10;
 
-            // Adjust if too close to right edge
+            // Anpassen, falls zu nah am rechten Rand
             if (textX + textWidth > getWidth() - 5) {
                 textX = screenX - textWidth - 10;
             }
 
-            // Draw with a background for better visibility
+            // Zeichne mit einem Hintergrund für bessere Sichtbarkeit
             g2d.setColor(new Color(255, 255, 255, 200));
             g2d.fillRect(textX - 2, textY - fm.getAscent(), textWidth + 4, fm.getHeight());
             g2d.setColor(Color.BLACK);
             g2d.drawString(coordText, textX, textY);
         }
 
-        // Info text
+        // Informationstext
         g2d.setColor(Color.BLACK);
         g2d.drawString("Zoom: Mausrad, Verschieben: Maus ziehen", 10, getHeight() - 10);
     }
 
     /**
-     * Adds a new function to the plotter
+     * Fügt dem Plotter eine neue Funktion hinzu
      */
     public void addFunction(String expression, Color color) {
         functionRenderer.addFunction(expression, color);
@@ -492,7 +498,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Adds a new function to the plotter and selects it
+     * Fügt dem Plotter eine neue Funktion hinzu und wählt sie aus
      */
     public void addFunctionAndSelect(String expression, Color color, boolean addToSelection) {
         int newIndex = functionRenderer.getFunctions().size();
@@ -507,7 +513,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Removes all functions
+     * Entfernt alle Funktionen
      */
     public void clearFunctions() {
         functionRenderer.clearFunctions();
@@ -516,14 +522,14 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Returns the coordinates of the current view center
+     * Gibt die Koordinaten des aktuellen Ansichts-Zentrums zurück
      */
     public Point2D.Double getViewCenter() {
         return transformer.getViewCenter();
     }
 
     /**
-     * Resets the view to standard values
+     * Setzt die Ansicht auf Standardwerte zurück
      */
     public void resetView() {
         transformer.resetView();
@@ -532,7 +538,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Centers the view on the specified point
+     * Zentriert die Ansicht auf den angegebenen Punkt
      */
     public void centerViewAt(double xCenter, double yCenter) {
         transformer.centerViewAt(xCenter, yCenter);
@@ -545,7 +551,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Toggles the display of intersection points
+     * Schaltet die Anzeige der Schnittpunkte um
      */
     public void toggleIntersections(boolean show) {
         intersectionCalculator.toggleIntersections(show);
@@ -553,25 +559,26 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Returns the list of intersection points
+     * Gibt die Liste der Schnittpunkte zurück
      */
     public List<IntersectionPoint> getIntersectionPoints() {
         return intersectionCalculator.getIntersectionPoints();
     }
 
     /**
-     * Returns the list of selected function indices
+     * Gibt die Liste der ausgewählten Funktionsindizes zurück
      */
     public List<Integer> getSelectedFunctionIndices() {
         return selectedFunctionIndices;
     }
 
     /**
-     * Selects a function with the given index
+     * Wählt eine Funktion mit dem angegebenen Index aus
      *
-     * @param index          The index of the function to select
-     * @param addToSelection If true, adds to the current selection; if false,
-     *                       replaces it
+     * @param index          Der Index der auszuwählenden Funktion
+     * @param addToSelection Wenn true, wird zur aktuellen Auswahl hinzugefügt; wenn
+     *                       false,
+     *                       wird sie ersetzt
      */
     public void selectFunction(int index, boolean addToSelection) {
         if (!addToSelection) {
@@ -586,7 +593,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Deselects a function with the given index
+     * Hebt die Auswahl der Funktion mit dem angegebenen Index auf
      */
     public void deselectFunction(int index) {
         selectedFunctionIndices.remove(Integer.valueOf(index));
@@ -594,7 +601,7 @@ public class GraphPanel extends JPanel {
     }
 
     /**
-     * Clears all function selections
+     * Löscht alle Funktionsauswahlen
      */
     public void clearFunctionSelection() {
         selectedFunctionIndices.clear();

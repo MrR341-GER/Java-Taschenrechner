@@ -1,4 +1,3 @@
-
 package plugins.plotter2d;
 
 import javax.swing.*;
@@ -10,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Panel with function examples that can be selected and saved
+ * Panel mit Funktionsbeispielen, die ausgewählt und gespeichert werden können
  */
 public class ExamplePanel {
     private final PlotterPanel plotter;
@@ -18,7 +17,7 @@ public class ExamplePanel {
     private DefaultListModel<String> exampleListModel;
     private JList<String> exampleList;
 
-    // Default function examples
+    // Standard-Funktionsbeispiele
     private final String[] defaultExamples = {
             "x^2", "sin(x)", "cos(x)", "tan(x)", "x^3-3*x", "sqrt(x)",
             "log(x)", "ln(x)", "abs(x)", "exp(x)", "sin(x)+cos(x)", "e^(0.05*x)*sin(x)"
@@ -28,7 +27,7 @@ public class ExamplePanel {
     private static final String EXAMPLES_FILE = "function_examples.txt";
 
     /**
-     * Creates a new example panel
+     * Erzeugt ein neues Beispiel-Panel
      */
     public ExamplePanel(PlotterPanel plotter, JTextField functionField) {
         this.plotter = plotter;
@@ -36,7 +35,8 @@ public class ExamplePanel {
     }
 
     /**
-     * Creates the example panel with a list of examples and buttons to manage them
+     * Erzeugt das Beispiel-Panel mit einer Liste von Beispielen und Buttons zur
+     * Verwaltung
      */
     public JPanel createExamplesPanel() {
         // Erstelle ein Panel mit BorderLayout
@@ -96,7 +96,7 @@ public class ExamplePanel {
         buttonPanel.add(addButton);
         buttonPanel.add(removeButton);
 
-        // Alles zusammenfügen
+        // Füge alle Komponenten zusammen
         examplesPanel.add(scrollPane, BorderLayout.CENTER);
         examplesPanel.add(buttonPanel, BorderLayout.SOUTH);
 
@@ -108,7 +108,7 @@ public class ExamplePanel {
      * Standardbeispiele
      */
     private void loadExamples() {
-        // Erst alle Standardbeispiele laden
+        // Zuerst alle Standardbeispiele laden
         for (String example : defaultExamples) {
             if (!exampleListModel.contains(example)) {
                 exampleListModel.addElement(example);

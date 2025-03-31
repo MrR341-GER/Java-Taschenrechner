@@ -1,36 +1,36 @@
-
 package plugins.plotter2d;
 
 import java.awt.geom.Point2D;
 import java.text.DecimalFormat;
 
 /**
- * Handles coordinate transformations and view management for GraphPanel
+ * Verwaltet Koordinatentransformationen und die Ansichtssteuerung für das
+ * GraphPanel
  */
 public class CoordinateTransformer {
-    // Constants for the display
-    private static final double DEFAULT_VIEW_RANGE = 20.0; // Standard range (-10 to +10)
-    private static final double MIN_PIXELS_PER_UNIT = 10.0; // Minimum pixels per unit for readability
+    // Konstanten für die Anzeige
+    private static final double DEFAULT_VIEW_RANGE = 20.0; // Standardbereich (-10 bis +10)
+    private static final double MIN_PIXELS_PER_UNIT = 10.0; // Mindestanzahl an Pixeln pro Einheit für gute Lesbarkeit
 
-    // Display parameters
-    private double xMin = -10; // Minimum X value in the visible area
-    private double xMax = 10; // Maximum X value in the visible area
-    private double yMin = -10; // Minimum Y value in the visible area
-    private double yMax = 10; // Maximum Y value in the visible area
-    private double xScale; // Scaling factor for X values (pixels per unit)
-    private double yScale; // Scaling factor for Y values (pixels per unit)
+    // Anzeigeparameter
+    private double xMin = -10; // Minimaler X-Wert im sichtbaren Bereich
+    private double xMax = 10; // Maximaler X-Wert im sichtbaren Bereich
+    private double yMin = -10; // Minimaler Y-Wert im sichtbaren Bereich
+    private double yMax = 10; // Maximaler Y-Wert im sichtbaren Bereich
+    private double xScale; // Skalierungsfaktor für X-Werte (Pixel pro Einheit)
+    private double yScale; // Skalierungsfaktor für Y-Werte (Pixel pro Einheit)
 
-    // Offsets for centered coordinate system
+    // Versätze für ein zentriertes Koordinatensystem
     private int xOffset;
     private int yOffset;
 
-    // Stores the center to maintain it during resizing
+    // Speichert das Zentrum, um es während Größenänderungen beizubehalten
     private Point2D.Double viewCenter = new Point2D.Double(0, 0);
 
-    // Formatter for axis labels - dynamically updated
+    // Formatierer für Achsenbeschriftungen – wird dynamisch aktualisiert
     private DecimalFormat axisFormat;
 
-    // Reference to the panel dimensions
+    // Referenz zu den Dimensionen des Panels
     private final GraphPanel panel;
 
     public CoordinateTransformer(GraphPanel panel) {
@@ -39,7 +39,7 @@ public class CoordinateTransformer {
     }
 
     /**
-     * Updates the stored center of the view
+     * Aktualisiert das gespeicherte Zentrum der Ansicht
      */
     public void updateViewCenter() {
         viewCenter.x = (xMax + xMin) / 2;
@@ -47,41 +47,41 @@ public class CoordinateTransformer {
     }
 
     /**
-     * Adjusts the view to maintain the correct aspect ratio based on the panel
-     * size,
-     * and ensures that the coordinate system remains readable
+     * Passt die Ansicht an, um basierend auf der Panelgröße das korrekte
+     * Seitenverhältnis beizubehalten
+     * und sicherzustellen, dass das Koordinatensystem gut lesbar bleibt.
      */
     public void adjustViewToMaintainAspectRatio() {
         int width = panel.getWidth() - 2 * GraphPanel.AXIS_MARGIN;
         int height = panel.getHeight() - 2 * GraphPanel.AXIS_MARGIN;
 
         if (width <= 0 || height <= 0)
-            return; // Prevent division by zero
+            return; // Division durch Null verhindern
 
-        // Calculate the panel's aspect ratio
+        // Berechne das Seitenverhältnis des Panels
         double panelAspectRatio = (double) width / height;
 
-        // Calculate the available pixels per unit
+        // Berechne die verfügbaren Pixel pro Einheit
         double pixelsPerUnitX = width / (xMax - xMin);
         double pixelsPerUnitY = height / (yMax - yMin);
 
-        // If one of the values is too low, adjust both ranges
+        // Falls einer der Werte zu niedrig ist, passe beide Bereiche an
         if (pixelsPerUnitX < MIN_PIXELS_PER_UNIT || pixelsPerUnitY < MIN_PIXELS_PER_UNIT) {
-            // Determine how many units in each direction can be displayed based on minimum
-            // readability
+            // Bestimme, wie viele Einheiten in jeder Richtung bei Mindestlesbarkeit
+            // angezeigt werden können
             double maxUnitsX = width / MIN_PIXELS_PER_UNIT;
             double maxUnitsY = height / MIN_PIXELS_PER_UNIT;
 
-            // Ensure that the aspect ratio is maintained
+            // Stelle sicher, dass das Seitenverhältnis beibehalten wird
             if (maxUnitsX / maxUnitsY < panelAspectRatio) {
-                // X direction is constraining
+                // X-Richtung begrenzt die Anzeige
                 maxUnitsY = maxUnitsX / panelAspectRatio;
             } else {
-                // Y direction is constraining
+                // Y-Richtung begrenzt die Anzeige
                 maxUnitsX = maxUnitsY * panelAspectRatio;
             }
 
-            // Calculate new limits based on the stored center
+            // Berechne neue Grenzen basierend auf dem gespeicherten Zentrum
             double halfX = maxUnitsX / 2;
             double halfY = maxUnitsY / 2;
             xMin = viewCenter.x - halfX;
@@ -89,38 +89,39 @@ public class CoordinateTransformer {
             yMin = viewCenter.y - halfY;
             yMax = viewCenter.y + halfY;
         } else {
-            // If readability is guaranteed, just adjust the limits to maintain the aspect
-            // ratio
+            // Falls die Lesbarkeit garantiert ist, passe die Grenzen an, um das
+            // Seitenverhältnis beizubehalten
             double xRange = xMax - xMin;
             double yRange = yMax - yMin;
             double currentAspectRatio = xRange / yRange;
 
-            if (Math.abs(currentAspectRatio - panelAspectRatio) > 0.01) { // Tolerance for floating point comparison
+            if (Math.abs(currentAspectRatio - panelAspectRatio) > 0.01) { // Toleranz für Gleitkomma-Vergleiche
                 if (currentAspectRatio < panelAspectRatio) {
-                    // X range needs to be increased
+                    // X-Bereich muss vergrößert werden
                     double newXRange = yRange * panelAspectRatio;
                     double halfDeltaX = (newXRange - xRange) / 2;
                     xMin -= halfDeltaX;
                     xMax += halfDeltaX;
                 } else {
-                    // Y range needs to be increased
+                    // Y-Bereich muss vergrößert werden
                     double newYRange = xRange / panelAspectRatio;
                     double halfDeltaY = (newYRange - yRange) / 2;
                     yMin -= halfDeltaY;
                     yMax += halfDeltaY;
                 }
 
-                // Update the center
+                // Aktualisiere das Zentrum
                 updateViewCenter();
             }
         }
 
-        // Update the scaling factors
+        // Aktualisiere die Skalierungsfaktoren
         updateScaleFactors();
     }
 
     /**
-     * Updates the scaling factors based on the current view and panel size
+     * Aktualisiert die Skalierungsfaktoren basierend auf der aktuellen Ansicht und
+     * der Panelgröße
      */
     private void updateScaleFactors() {
         int width = panel.getWidth() - 2 * GraphPanel.AXIS_MARGIN;
@@ -134,18 +135,18 @@ public class CoordinateTransformer {
     }
 
     /**
-     * Determines the appropriate number of decimal places based on the zoom level
+     * Bestimmt die geeignete Anzahl von Dezimalstellen basierend auf dem Zoomlevel
      */
     public void updateAxisFormat() {
-        // Calculate the value range (smaller value ranges = more decimal places)
+        // Berechne den Wertebereich (kleinere Bereiche = mehr Dezimalstellen)
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
 
-        // Use the smaller range for formatting
+        // Verwende den kleineren Bereich für das Formatieren
         double range = Math.min(xRange, yRange);
 
-        // Logarithmic scaling for the number of decimal places
-        int decimalPlaces = 2; // Minimum 2 decimal places
+        // Logarithmische Skalierung für die Anzahl der Dezimalstellen
+        int decimalPlaces = 2; // Mindestens 2 Dezimalstellen
 
         if (range < 0.1) {
             decimalPlaces = 5;
@@ -155,44 +156,44 @@ public class CoordinateTransformer {
             decimalPlaces = 3;
         }
 
-        // Create format string with variable number of decimal places
+        // Erstelle ein Formatmuster mit variabler Anzahl von Dezimalstellen
         StringBuilder pattern = new StringBuilder("0.");
         for (int i = 0; i < decimalPlaces; i++) {
             pattern.append("#");
         }
 
-        // Update the format
+        // Aktualisiere das Format
         axisFormat = new DecimalFormat(pattern.toString());
     }
 
     /**
-     * Resets the view to standard values
+     * Setzt die Ansicht auf Standardwerte zurück
      */
     public void resetView() {
-        // Set the center to the origin
+        // Setze das Zentrum auf den Ursprung
         viewCenter.x = 0;
         viewCenter.y = 0;
 
-        // Calculate a suitable view based on the window size
+        // Berechne eine passende Ansicht basierend auf der Fenstergröße
         int width = panel.getWidth() - 2 * GraphPanel.AXIS_MARGIN;
         int height = panel.getHeight() - 2 * GraphPanel.AXIS_MARGIN;
 
         if (width <= 0 || height <= 0) {
-            // If the panel doesn't have a size yet, use standard values
+            // Falls das Panel noch keine Größe hat, verwende Standardwerte
             xMin = -10;
             xMax = 10;
             yMin = -10;
             yMax = 10;
         } else {
-            // Calculate how many units can be displayed with minimum readability
+            // Berechne, wie viele Einheiten bei Mindestlesbarkeit angezeigt werden können
             double maxUnitsX = width / MIN_PIXELS_PER_UNIT;
             double maxUnitsY = height / MIN_PIXELS_PER_UNIT;
 
-            // Use the minimum or the standard view
+            // Verwende den kleineren Wert oder den Standardbereich
             double halfX = Math.min(maxUnitsX, DEFAULT_VIEW_RANGE) / 2;
             double halfY = Math.min(maxUnitsY, DEFAULT_VIEW_RANGE) / 2;
 
-            // Ensure that the aspect ratio is maintained
+            // Stelle sicher, dass das Seitenverhältnis beibehalten wird
             double panelAspectRatio = (double) width / height;
             if (halfX / halfY < panelAspectRatio) {
                 halfY = halfX / panelAspectRatio;
@@ -200,130 +201,131 @@ public class CoordinateTransformer {
                 halfX = halfY * panelAspectRatio;
             }
 
-            // Set the limits
+            // Setze die Grenzen
             xMin = -halfX;
             xMax = halfX;
             yMin = -halfY;
             yMax = halfY;
         }
 
-        // Make sure the view is properly adjusted
+        // Stelle sicher, dass die Ansicht richtig angepasst wird
         adjustViewToMaintainAspectRatio();
     }
 
     /**
-     * Centers the view on the specified point
+     * Zentriert die Ansicht auf den angegebenen Punkt
      */
     public void centerViewAt(double xCenter, double yCenter) {
-        // Store the new center
+        // Speichere das neue Zentrum
         viewCenter.x = xCenter;
         viewCenter.y = yCenter;
 
-        // Calculate the current range
+        // Berechne den aktuellen Bereich
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
 
-        // Set new limits around the target point
+        // Setze neue Grenzen um den Zielpunkt
         xMin = xCenter - xRange / 2;
         xMax = xCenter + xRange / 2;
         yMin = yCenter - yRange / 2;
         yMax = yCenter + yRange / 2;
 
-        // Update the scaling factors
+        // Aktualisiere die Skalierungsfaktoren
         updateScaleFactors();
     }
 
     /**
-     * Converts an X screen coordinate to an X world coordinate
+     * Wandelt eine X-Bildschirmkoordinate in eine X-Weltkoordinate um
      */
     public double screenToWorldX(int screenX) {
         return xMin + (screenX - xOffset) / xScale;
     }
 
     /**
-     * Converts a Y screen coordinate to a Y world coordinate
+     * Wandelt eine Y-Bildschirmkoordinate in eine Y-Weltkoordinate um
      */
     public double screenToWorldY(int screenY) {
         return yMax - (screenY - yOffset) / yScale;
     }
 
     /**
-     * Converts an X world coordinate to an X screen coordinate
+     * Wandelt eine X-Weltkoordinate in eine X-Bildschirmkoordinate um
      */
     public int worldToScreenX(double worldX) {
         return (int) (xOffset + (worldX - xMin) * xScale);
     }
 
     /**
-     * Converts a Y world coordinate to a Y screen coordinate
+     * Wandelt eine Y-Weltkoordinate in eine Y-Bildschirmkoordinate um
      */
     public int worldToScreenY(double worldY) {
         return (int) (yOffset + (yMax - worldY) * yScale);
     }
 
     /**
-     * Returns the coordinates of the current image center
+     * Gibt die Koordinaten des aktuellen Ansichts-Zentrums zurück
      */
     public Point2D.Double getViewCenter() {
         return new Point2D.Double(viewCenter.x, viewCenter.y);
     }
 
     /**
-     * Zooms the view by the specified factor, centered on the specified screen
-     * point
+     * Zoomt die Ansicht um den angegebenen Faktor, zentriert auf den angegebenen
+     * Bildschirm-Punkt
      */
     public void zoom(double factor, Point2D screenPoint) {
-        // Convert screen point to world coordinates
+        // Wandle den Bildschirm-Punkt in Weltkoordinaten um
         double worldMouseX = screenToWorldX((int) screenPoint.getX());
         double worldMouseY = screenToWorldY((int) screenPoint.getY());
 
-        // Store current ranges
+        // Speichere die aktuellen Bereiche
         double oldYRange = yMax - yMin;
         double oldXRange = xMax - xMin;
 
-        // Adjust ranges
+        // Passe die Bereiche an
         double newYRange = oldYRange * factor;
         double newXRange = oldXRange * factor;
 
-        // Determine the point to zoom on (position of the mouse pointer)
-        double relX = (worldMouseX - xMin) / oldXRange; // Position relative to width
-        double relY = (worldMouseY - yMin) / oldYRange; // Position relative to height
+        // Bestimme den Punkt, auf den gezoomt wird (Position des Mauszeigers)
+        double relX = (worldMouseX - xMin) / oldXRange; // Relative Position zur Breite
+        double relY = (worldMouseY - yMin) / oldYRange; // Relative Position zur Höhe
 
-        // Calculate new limits, so that the mouse point maintains its relative position
+        // Berechne neue Grenzen, sodass der Mauszeiger seine relative Position
+        // beibehält
         xMin = worldMouseX - relX * newXRange;
         xMax = xMin + newXRange;
         yMin = worldMouseY - relY * newYRange;
         yMax = yMin + newYRange;
 
-        // Update the center
+        // Aktualisiere das Zentrum
         updateViewCenter();
 
-        // Update the scaling factors
+        // Aktualisiere die Skalierungsfaktoren
         updateScaleFactors();
     }
 
     /**
-     * Pans the view by the specified pixel amount
+     * Verschiebt (pan) die Ansicht um den angegebenen Pixelbetrag
      */
     public void pan(int dx, int dy) {
-        // Calculate the displacement in world coordinates
+        // Berechne die Verschiebung in Weltkoordinaten
         double worldDx = dx / xScale;
         double worldDy = dy / yScale;
 
-        // Adjust the view
+        // Passe die Ansicht an
         xMin -= worldDx;
         xMax -= worldDx;
         yMin += worldDy;
         yMax += worldDy;
 
-        // Update the center
+        // Aktualisiere das Zentrum
         updateViewCenter();
 
-        // Update the scaling factors
+        // Aktualisiere die Skalierungsfaktoren
         updateScaleFactors();
     }
 
-    // Getters
+    // Getter
     public double getXMin() {
         return xMin;
     }
@@ -360,7 +362,7 @@ public class CoordinateTransformer {
         return axisFormat;
     }
 
-    // Setters
+    // Setter
     public void setXOffset(int xOffset) {
         this.xOffset = xOffset;
     }

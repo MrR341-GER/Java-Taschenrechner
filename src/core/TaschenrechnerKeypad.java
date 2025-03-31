@@ -1,4 +1,3 @@
-
 package core;
 
 import javax.swing.*;
@@ -6,11 +5,11 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 
 /**
- * Creates and manages the enhanced keypad of the calculator with advanced
- * functions
+ * Erstellt und verwaltet das erweiterte Tastenfeld des Taschenrechners mit
+ * erweiterten Funktionen
  */
 public class TaschenrechnerKeypad {
-    // Constants for text buffer (additional space around text)
+    // Konstanten für den Textpuffer (zusätzlicher Platz um den Text)
     private static final int TEXT_PADDING_HORIZONTAL = 16;
     private static final int TEXT_PADDING_VERTICAL = 10;
     private static final int MINIMUM_BUTTON_WIDTH = 40;
@@ -25,45 +24,45 @@ public class TaschenrechnerKeypad {
     }
 
     /**
-     * Creates the complete button panel
+     * Erstellt das komplette Tastenfeld-Panel
      */
     public JPanel createKeypadPanel() {
-        // Main button panel with BorderLayout
+        // Haupttastenfeld-Panel mit BorderLayout
         JPanel buttonPanel = new JPanel(new BorderLayout(5, 5));
 
-        // Control buttons
+        // Steuerungstasten
         JButton debugButton = new JButton("Debug");
         debugButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        debugButton.setBackground(new Color(255, 200, 200)); // Light red
+        debugButton.setBackground(new Color(255, 200, 200)); // Hellrot
         adjustButtonSize(debugButton);
         debugButton.addActionListener(e -> calculator.toggleDebug());
 
         JButton historyButton = new JButton("History");
         historyButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        historyButton.setBackground(new Color(200, 230, 255)); // Light blue
+        historyButton.setBackground(new Color(200, 230, 255)); // Hellblau
         adjustButtonSize(historyButton);
         historyButton.addActionListener(e -> calculator.toggleHistory());
 
-        // Panel for control buttons
+        // Panel für Steuerungstasten
         JPanel controlButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         controlButtonPanel.add(debugButton);
         controlButtonPanel.add(historyButton);
 
-        // Add functions info button
+        // Füge die Info-Taste für Funktionen hinzu
         JButton functionsInfoButton = new JButton("Funktionen Info");
         functionsInfoButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        functionsInfoButton.setBackground(new Color(220, 255, 220)); // Light green
+        functionsInfoButton.setBackground(new Color(220, 255, 220)); // Hellgrün
         adjustButtonSize(functionsInfoButton);
         functionsInfoButton.addActionListener(e -> showFunctionsInfo());
         controlButtonPanel.add(functionsInfoButton);
 
-        // Panels for different button groups with fixed spacing
+        // Panels für verschiedene Tasten-Gruppen mit festem Abstand
         JPanel ziffernPanel = new JPanel(new GridLayout(4, 3, 5, 5));
         JPanel operatorenPanel = new JPanel(new GridLayout(5, 1, 5, 5));
         JPanel funktionsPanel = new JPanel(new GridLayout(1, 4, 5, 5));
         JPanel wissenschaftlichPanel = new JPanel(new GridLayout(2, 6, 5, 5)); // Vergrößert auf 2 Zeilen
 
-        // Number buttons (0-9 and .)
+        // Zifferntasten (0-9 und .)
         String[] ziffern = { "7", "8", "9", "4", "5", "6", "1", "2", "3", "0", ".", "+/-" };
         for (String ziffer : ziffern) {
             JButton button = new JButton(ziffer);
@@ -73,43 +72,43 @@ public class TaschenrechnerKeypad {
             ziffernPanel.add(button);
         }
 
-        // Operators
+        // Operatoren
         String[] operatoren = { "/", "*", "-", "+", "=" };
         for (String operator : operatoren) {
             JButton button = new JButton(operator);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
-            button.setBackground(new Color(230, 230, 250)); // Light lilac
+            button.setBackground(new Color(230, 230, 250)); // Helllila
             adjustButtonSize(button);
             button.addActionListener(inputHandler);
             operatorenPanel.add(button);
         }
 
-        // Function buttons
+        // Funktionstasten
         String[] funktionen = { "C", "(", ")", "←" };
         for (String funktion : funktionen) {
             JButton button = new JButton(funktion);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
             adjustButtonSize(button);
 
-            // Special colors for function buttons
+            // Spezielle Farben für Funktionstasten
             if (funktion.equals("C")) {
-                button.setBackground(new Color(255, 200, 200)); // Light red
+                button.setBackground(new Color(255, 200, 200)); // Hellrot
             } else if (funktion.equals("←")) {
-                button.setBackground(new Color(255, 240, 200)); // Light yellow
+                button.setBackground(new Color(255, 240, 200)); // Hellgelb
             } else {
-                button.setBackground(new Color(200, 230, 255)); // Light blue for parentheses
+                button.setBackground(new Color(200, 230, 255)); // Hellblau für Klammern
             }
 
             button.addActionListener(inputHandler);
             funktionsPanel.add(button);
         }
 
-        // Scientific functions (erste Zeile)
+        // Wissenschaftliche Funktionen (erste Zeile)
         String[] wissenschaftlich1 = { "x²", "x³", "x^y", "√x", "³√x", "y√x" };
         for (String funktion : wissenschaftlich1) {
             JButton button = new JButton(funktion);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
-            button.setBackground(new Color(230, 230, 250)); // Light lilac
+            button.setBackground(new Color(230, 230, 250)); // Helllila
             adjustButtonSize(button);
             button.addActionListener(inputHandler);
             wissenschaftlichPanel.add(button);
@@ -120,7 +119,7 @@ public class TaschenrechnerKeypad {
         for (String funktion : wissenschaftlich2) {
             JButton button = new JButton(funktion);
             button.setFont(new Font("Arial", Font.PLAIN, 18));
-            button.setBackground(new Color(230, 250, 230)); // Light green
+            button.setBackground(new Color(230, 250, 230)); // Hellgrün
             adjustButtonSize(button);
             // Spezielle Aktion für Konstanten wie pi, die direkt eingefügt werden
             if (funktion.equals("pi")) {
@@ -151,7 +150,7 @@ public class TaschenrechnerKeypad {
             wissenschaftlichPanel.add(button);
         }
 
-        // Assemble the button layout
+        // Tastenlayout zusammenstellen
         JPanel allButtonsPanel = new JPanel(new BorderLayout(5, 5));
         allButtonsPanel.add(funktionsPanel, BorderLayout.NORTH);
 
@@ -162,7 +161,7 @@ public class TaschenrechnerKeypad {
         allButtonsPanel.add(centerPanel, BorderLayout.CENTER);
         allButtonsPanel.add(wissenschaftlichPanel, BorderLayout.SOUTH);
 
-        // Combine UI components
+        // UI-Komponenten zusammenfügen
         buttonPanel.add(allButtonsPanel, BorderLayout.CENTER);
         buttonPanel.add(controlButtonPanel, BorderLayout.SOUTH);
 
@@ -210,25 +209,25 @@ public class TaschenrechnerKeypad {
     }
 
     /**
-     * Helper method to dynamically adjust button size based on text
+     * Hilfsmethode, um die Tastengröße dynamisch basierend auf dem Text anzupassen
      */
     public void adjustButtonSize(JButton button) {
-        // Calculate text size
+        // Berechne die Textgröße
         FontMetrics metrics = button.getFontMetrics(button.getFont());
         int textWidth = metrics.stringWidth(button.getText());
         int textHeight = metrics.getHeight();
 
-        // Set minimum button size based on text size plus buffer
+        // Setze die minimale Tastengröße basierend auf der Textgröße plus Puffer
         int width = Math.max(textWidth + TEXT_PADDING_HORIZONTAL, MINIMUM_BUTTON_WIDTH);
         int height = Math.max(textHeight + TEXT_PADDING_VERTICAL, MINIMUM_BUTTON_HEIGHT);
 
         button.setMinimumSize(new Dimension(width, height));
         button.setPreferredSize(new Dimension(width, height));
 
-        // Small margins for better appearance
+        // Kleine Ränder für ein besseres Erscheinungsbild
         button.setMargin(new Insets(4, 4, 4, 4));
 
-        // Debug output for checking
+        // Debug-Ausgabe zur Überprüfung
         calculator.debug("Button '" + button.getText() + "' Größe angepasst: " + width + "x" + height +
                 " (Text: " + textWidth + "x" + textHeight + ")");
     }

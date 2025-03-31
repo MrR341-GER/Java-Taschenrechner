@@ -1,4 +1,3 @@
-
 package plugins.plotter2d.intersection;
 
 import java.awt.*;
@@ -12,7 +11,7 @@ import plugins.plotter2d.FunctionRenderer;
 import plugins.plotter2d.GraphPanel;
 
 /**
- * Calculates and renders intersection points between functions
+ * Berechnet und zeichnet Schnittpunkte zwischen Funktionen
  */
 public class IntersectionCalculator {
     private final GraphPanel panel;
@@ -22,10 +21,10 @@ public class IntersectionCalculator {
     private boolean showIntersections = false;
     private List<IntersectionPoint> intersectionPoints = new ArrayList<>();
 
-    // Constants for rendering
+    // Konstanten für die Darstellung
     private static final int POINT_SIZE = 8;
     private static final Color POINT_COLOR = Color.BLACK;
-    private static final Color HIGHLIGHT_COLOR = new Color(0, 102, 204); // Dunkelblau für Hervorhebung
+    private static final Color HIGHLIGHT_COLOR = new Color(0, 102, 204); // Dunkelblau für Hervorhebungen
 
     public IntersectionCalculator(GraphPanel panel, CoordinateTransformer transformer,
             FunctionRenderer functionRenderer) {
@@ -35,7 +34,7 @@ public class IntersectionCalculator {
     }
 
     /**
-     * Toggles the display of intersection points
+     * Schaltet die Anzeige von Schnittpunkten um
      */
     public void toggleIntersections(boolean show) {
         this.showIntersections = show;
@@ -48,21 +47,21 @@ public class IntersectionCalculator {
     }
 
     /**
-     * Returns if intersection points are currently shown
+     * Gibt zurück, ob Schnittpunkte aktuell angezeigt werden
      */
     public boolean isShowingIntersections() {
         return showIntersections;
     }
 
     /**
-     * Returns the list of intersection points
+     * Gibt die Liste der Schnittpunkte zurück
      */
     public List<IntersectionPoint> getIntersectionPoints() {
         return intersectionPoints;
     }
 
     /**
-     * Calculates all intersection points between the drawn functions
+     * Berechnet alle Schnittpunkte zwischen den gezeichneten Funktionen
      */
     public void calculateIntersections() {
         List<IntersectionPoint> oldIntersections = new ArrayList<>(intersectionPoints);
@@ -70,41 +69,41 @@ public class IntersectionCalculator {
 
         List<FunctionRenderer.FunctionInfo> functions = functionRenderer.getFunctions();
 
-        // We need at least two functions for intersection points
+        // Für Schnittpunkte werden mindestens zwei Funktionen benötigt
         if (functions.size() < 2) {
-            // Only fire an event if something changed
+            // Ereignis nur auslösen, wenn sich etwas geändert hat
             if (!oldIntersections.isEmpty()) {
                 panel.fireIntersectionsUpdated(oldIntersections, intersectionPoints);
             }
             return;
         }
 
-        // Calculate intersection points for all function pairs
+        // Berechne Schnittpunkte für alle Funktionspaare
         for (int i = 0; i < functions.size() - 1; i++) {
             for (int j = i + 1; j < functions.size(); j++) {
                 FunctionRenderer.FunctionInfo f1 = functions.get(i);
                 FunctionRenderer.FunctionInfo f2 = functions.get(j);
 
-                // Check if the functions are identical
+                // Überprüfe, ob die Funktionen identisch sind
                 if (areFunctionsIdentical(f1.getFunction(), f2.getFunction())) {
-                    continue; // Skip identical functions
+                    continue; // Identische Funktionen überspringen
                 }
 
-                // Function expressions (try to extract them from the function object)
+                // Funktionsausdrücke (versuche, diese aus dem Funktionsobjekt zu extrahieren)
                 String expr1 = "f" + (i + 1);
                 String expr2 = "f" + (j + 1);
 
-                // Find intersection points in the current view window
+                // Finde Schnittpunkte im aktuellen Sichtfenster
                 List<Point2D.Double> points = IntersectionFinder.findIntersections(
                         f1.getFunction(), f2.getFunction(), transformer.getXMin(), transformer.getXMax());
 
-                // Add the found intersection points as IntersectionPoint objects to the total
-                // list
+                // Füge die gefundenen Schnittpunkte als IntersectionPoint-Objekte zur
+                // Gesamtliste hinzu
                 for (Point2D.Double point : points) {
                     IntersectionPoint ip = new IntersectionPoint(
                             point.x, point.y, i, j, expr1, expr2);
 
-                    // Check for duplicates
+                    // Prüfe auf Duplikate
                     boolean isDuplicate = false;
                     for (IntersectionPoint existingPoint : intersectionPoints) {
                         if (Math.abs(existingPoint.x - point.x) < 1e-6 &&
@@ -121,10 +120,10 @@ public class IntersectionCalculator {
             }
         }
 
-        // Fire event if the intersection points changed
+        // Ereignis auslösen, falls sich die Schnittpunkte geändert haben
         boolean changed = oldIntersections.size() != intersectionPoints.size();
         if (!changed) {
-            // Check for different points
+            // Prüfe auf unterschiedliche Punkte
             for (int i = 0; i < intersectionPoints.size(); i++) {
                 if (i >= oldIntersections.size() ||
                         Math.abs(intersectionPoints.get(i).x - oldIntersections.get(i).x) > 1e-6 ||
@@ -141,69 +140,72 @@ public class IntersectionCalculator {
     }
 
     /**
-     * Checks if two functions are identical by comparing several test samples
+     * Prüft, ob zwei Funktionen identisch sind, indem mehrere Testwerte verglichen
+     * werden
      */
     private boolean areFunctionsIdentical(FunctionParser f1, FunctionParser f2) {
-        // Number of test points
+        // Anzahl der Testpunkte
         final int NUM_TEST_POINTS = 10;
 
-        // Range for the test points (current visible range)
+        // Bereich für die Testpunkte (aktueller sichtbarer Bereich)
         double min = transformer.getXMin();
         double max = transformer.getXMax();
         double step = (max - min) / (NUM_TEST_POINTS - 1);
 
-        // Test multiple points in the current range
+        // Teste mehrere Punkte im aktuellen Bereich
         for (int i = 0; i < NUM_TEST_POINTS; i++) {
             double x = min + i * step;
             try {
                 double y1 = f1.evaluateAt(x);
                 double y2 = f2.evaluateAt(x);
 
-                // If a y value is NaN or infinite, skip this point
+                // Falls ein y-Wert NaN oder unendlich ist, überspringe diesen Punkt
                 if (Double.isNaN(y1) || Double.isInfinite(y1) ||
                         Double.isNaN(y2) || Double.isInfinite(y2)) {
                     continue;
                 }
 
-                // If y values are different, the functions are not identical
+                // Falls die y-Werte unterschiedlich sind, sind die Funktionen nicht identisch
                 if (Math.abs(y1 - y2) > 1e-10) {
                     return false;
                 }
             } catch (Exception e) {
-                // If errors occur during evaluation, one of the points is considered different
+                // Falls bei der Auswertung Fehler auftreten, wird der Punkt als unterschiedlich
+                // betrachtet
                 return false;
             }
         }
 
-        // If all samples are identical, we assume the functions are the same
+        // Wenn alle Testpunkte identisch sind, gehen wir davon aus, dass die Funktionen
+        // gleich sind
         return true;
     }
 
     /**
-     * Draws the intersection points
+     * Zeichnet die Schnittpunkte
      */
     public void drawIntersectionPoints(Graphics2D g2d) {
         if (!showIntersections || intersectionPoints.isEmpty()) {
             return;
         }
 
-        // Settings for intersection points
+        // Einstellungen für die Schnittpunkte
         g2d.setColor(POINT_COLOR);
 
-        // Draw each intersection point as a small filled circle
+        // Zeichne jeden Schnittpunkt als kleinen gefüllten Kreis
         for (IntersectionPoint point : intersectionPoints) {
-            // Check if the point is in the visible area
+            // Überprüfe, ob der Punkt im sichtbaren Bereich liegt
             if (point.x >= transformer.getXMin() && point.x <= transformer.getXMax() &&
                     point.y >= transformer.getYMin() && point.y <= transformer.getYMax()) {
 
                 int screenX = transformer.worldToScreenX(point.x);
                 int screenY = transformer.worldToScreenY(point.y);
 
-                // Draw a filled circle
+                // Zeichne einen gefüllten Kreis
                 g2d.fillOval(screenX - POINT_SIZE / 2, screenY - POINT_SIZE / 2,
                         POINT_SIZE, POINT_SIZE);
 
-                // Draw the coordinates as text next to it with dynamic precision
+                // Zeichne die Koordinaten als Text daneben mit dynamischer Genauigkeit
                 g2d.setFont(new Font("Arial", Font.PLAIN, 10));
                 String coords = "(" + transformer.getAxisFormat().format(point.x) +
                         ", " + transformer.getAxisFormat().format(point.y) + ")";

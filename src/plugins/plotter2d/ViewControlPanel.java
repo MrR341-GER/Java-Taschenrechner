@@ -1,4 +1,3 @@
-
 package plugins.plotter2d;
 
 import javax.swing.*;
@@ -10,7 +9,7 @@ import java.text.ParseException;
 import java.util.Locale;
 
 /**
- * Panel for view control and centering
+ * Panel zur Steuerung und Zentrierung der Ansicht
  */
 public class ViewControlPanel {
     private final PlotterPanel plotter;
@@ -18,18 +17,18 @@ public class ViewControlPanel {
     private final JTextField yCenterField;
 
     /**
-     * Creates a new view control panel
+     * Erzeugt ein neues Panel zur Ansichtsteuerung
      */
     public ViewControlPanel(PlotterPanel plotter) {
         this.plotter = plotter;
 
-        // Center coordinate input fields
+        // Eingabefelder für die Zentrierung der Koordinaten
         xCenterField = new JTextField(5);
         yCenterField = new JTextField(5);
     }
 
     /**
-     * Creates the view centering panel
+     * Erstellt das Panel zur Zentrierung der Ansicht
      */
     public JPanel createViewControlPanel() {
         JPanel centeringPanel = new JPanel(new GridBagLayout());
@@ -68,7 +67,7 @@ public class ViewControlPanel {
         JButton resetViewButton = new JButton("Ansicht zurücksetzen");
         resetViewButton.addActionListener(e -> {
             plotter.getGraphPanel().resetView();
-            // The centering fields will be updated by the property change listener
+            // Die Zentrierungsfelder werden durch den Property-Change-Listener aktualisiert
         });
 
         buttonPanel.add(centerButton);
@@ -84,7 +83,7 @@ public class ViewControlPanel {
     }
 
     /**
-     * Updates the centering fields with the current view center
+     * Aktualisiert die Zentrierungsfelder mit dem aktuellen Mittelpunkt der Ansicht
      */
     public void updateCenteringFields() {
         Point2D.Double center = plotter.getGraphPanel().getViewCenter();
@@ -93,11 +92,11 @@ public class ViewControlPanel {
     }
 
     /**
-     * Centers the graph view on the entered X and Y coordinates
+     * Zentriert die Graphansicht auf die eingegebenen X- und Y-Koordinaten
      */
     private void centerGraphView() {
         try {
-            // Extract the entered values
+            // Liest die eingegebenen Werte aus
             String xText = xCenterField.getText().trim();
             String yText = yCenterField.getText().trim();
 
@@ -109,14 +108,15 @@ public class ViewControlPanel {
                 return;
             }
 
-            // Try to parse the values (supports both dot and comma)
+            // Versucht, die Werte zu parsen (unterstützt sowohl Punkt als auch Komma)
             double xCenter = parseDecimal(xText);
             double yCenter = parseDecimal(yText);
 
-            // Call the method to center the view in the GraphPanel
+            // Ruft die Methode zum Zentrieren der Ansicht im GraphPanel auf
             plotter.getGraphPanel().centerViewAt(xCenter, yCenter);
 
-            // Also update the intersection list if intersections are shown
+            // Aktualisiert auch die Schnittmengenliste, falls Schnittpunkte angezeigt
+            // werden
             if (plotter.isShowingIntersections()) {
                 plotter.updateIntersectionList();
             }
@@ -131,20 +131,21 @@ public class ViewControlPanel {
     }
 
     /**
-     * Parses a decimal value from a string, supports both dot and comma
-     * as decimal separators
+     * Parst einen Dezimalwert aus einem String, unterstützt sowohl Punkt als auch
+     * Komma
+     * als Dezimaltrennzeichen
      */
     private double parseDecimal(String text) throws NumberFormatException, ParseException {
-        // First method: Direct parsing (for dot as decimal separator)
+        // Erste Methode: Direktes Parsen (für Punkt als Dezimaltrennzeichen)
         try {
             return Double.parseDouble(text);
         } catch (NumberFormatException e) {
-            // Second method: Replace comma with dot and try again
+            // Zweite Methode: Ersetzt Komma durch Punkt und versucht es erneut
             String replacedText = text.replace(',', '.');
             try {
                 return Double.parseDouble(replacedText);
             } catch (NumberFormatException ex) {
-                // Third method: Use the current locale
+                // Dritte Methode: Verwendet die aktuelle Locale
                 NumberFormat nf = NumberFormat.getNumberInstance(Locale.getDefault());
                 return nf.parse(text).doubleValue();
             }
