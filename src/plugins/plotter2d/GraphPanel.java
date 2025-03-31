@@ -1,8 +1,8 @@
-
 package plugins.plotter2d;
 
 import javax.swing.*;
 
+import parser.FunctionParser;
 import plugins.plotter2d.intersection.IntersectionCalculator;
 import plugins.plotter2d.intersection.IntersectionPoint;
 
@@ -24,6 +24,7 @@ public class GraphPanel extends JPanel {
     public static final int MIN_HEIGHT = 200; // Minimum height of the coordinate system
     public static final int MIN_WIDTH = 300; // Minimum width of the coordinate system
     private static final int INTERSECTION_HIT_RADIUS = 10; // Radius for detecting mouseover on intersections
+    private static final int HOVER_DETECTION_THRESHOLD = 5; // Pixel distance for hover detection
 
     // Helper classes for different aspects of the panel
     private final CoordinateTransformer transformer;
@@ -34,6 +35,9 @@ public class GraphPanel extends JPanel {
     // Mouse interaction
     private Point lastMousePos; // Last mouse position (for pan)
     private boolean isDragging = false; // Is currently being dragged?
+    private Point currentMousePosition = null; // Current mouse position for hover detection
+    private int closestFunctionIndex = -1; // Index of the function closest to mouse
+    private Point2D.Double closestPoint = null; // Closest point on any function to mouse
 
     // Tooltip support
     private IntersectionPoint currentTooltipPoint = null;
@@ -107,7 +111,7 @@ public class GraphPanel extends JPanel {
             }
         });
 
-        // Mouse motion listener for dragging and tooltips
+        // Modified mouse motion listener for dragging and tooltips
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
@@ -135,7 +139,13 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                // Check if mouse is over an intersection point
+                // Save current mouse position
+                currentMousePosition = e.getPoint();
+
+                // Find the closest point on any function
+                findClosestPointOnFunction(currentMousePosition);
+
+                // First check if mouse is over an intersection point
                 if (intersectionCalculator.isShowingIntersections()) {
                     IntersectionPoint point = findIntersectionPointNear(e.getPoint());
                     if (point != currentTooltipPoint) {
@@ -143,7 +153,13 @@ public class GraphPanel extends JPanel {
                         // Trigger tooltip update
                         setToolTipText(null); // Force tooltip manager to call getToolTipText
                     }
+                } else if (closestPoint != null) {
+                    // If we're not showing intersections but have a closest point, update tooltip
+                    setToolTipText(null); // Force tooltip manager to call getToolTipText
                 }
+
+                // Repaint to show the hover marker
+                repaint();
             }
         });
 
@@ -189,6 +205,73 @@ public class GraphPanel extends JPanel {
     }
 
     /**
+     * Find the closest point on any function to the mouse position
+     */
+    private void findClosestPointOnFunction(Point mousePos) {
+        if (mousePos == null) {
+            closestPoint = null;
+            closestFunctionIndex = -1;
+            return;
+        }
+
+        List<FunctionRenderer.FunctionInfo> functions = functionRenderer.getFunctions();
+        if (functions.isEmpty()) {
+            closestPoint = null;
+            closestFunctionIndex = -1;
+            return;
+        }
+
+        double minDistance = HOVER_DETECTION_THRESHOLD;
+        closestPoint = null;
+        closestFunctionIndex = -1;
+
+        // Convert mouse position to world coordinates
+        double mouseWorldX = transformer.screenToWorldX(mousePos.x);
+
+        // Search within a small range around the mouse X position
+        double searchStep = (transformer.getXMax() - transformer.getXMin()) / 100;
+        double searchRange = searchStep * 3;
+
+        // For each function
+        for (int funcIndex = 0; funcIndex < functions.size(); funcIndex++) {
+            FunctionParser parser = functions.get(funcIndex).getFunction();
+
+            // Search for the closest point in a range around mouse X
+            for (double x = mouseWorldX - searchRange; x <= mouseWorldX + searchRange; x += searchStep) {
+                try {
+                    // Skip if x is outside the view
+                    if (x < transformer.getXMin() || x > transformer.getXMax())
+                        continue;
+
+                    double y = parser.evaluateAt(x);
+
+                    // Skip if y is outside the view or not a valid number
+                    if (Double.isNaN(y) || Double.isInfinite(y) ||
+                            y < transformer.getYMin() || y > transformer.getYMax())
+                        continue;
+
+                    // Convert to screen coordinates
+                    int screenX = transformer.worldToScreenX(x);
+                    int screenY = transformer.worldToScreenY(y);
+
+                    // Calculate distance to mouse
+                    double distance = mousePos.distance(screenX, screenY);
+
+                    // If this is closer than our threshold and previous closest
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestPoint = new Point2D.Double(x, y);
+                        closestFunctionIndex = funcIndex;
+                    }
+                } catch (Exception e) {
+                    // Skip errors in function evaluation
+                    continue;
+                }
+            }
+        }
+    }
+
+    /**
      * Find the closest intersection point near the mouse position
      */
     private IntersectionPoint findIntersectionPointNear(Point mousePos) {
@@ -225,6 +308,7 @@ public class GraphPanel extends JPanel {
     @Override
     public String getToolTipText(MouseEvent event) {
         if (currentTooltipPoint != null) {
+            // Show intersection point tooltip
             String func1 = getFunctionExpressionByIndex(currentTooltipPoint.getFunctionIndex1());
             String func2 = getFunctionExpressionByIndex(currentTooltipPoint.getFunctionIndex2());
 
@@ -234,6 +318,14 @@ public class GraphPanel extends JPanel {
                     "zwischen:<br>" +
                     "- " + func1 + "<br>" +
                     "- " + func2 + "</html>";
+        } else if (closestPoint != null) {
+            // Show function point tooltip
+            String funcExpr = getFunctionExpressionByIndex(closestFunctionIndex);
+
+            return "<html><b>Koordinate</b><br>" +
+                    "x = " + tooltipFormat.format(closestPoint.x) + "<br>" +
+                    "y = " + tooltipFormat.format(closestPoint.y) + "<br>" +
+                    "Funktion: " + funcExpr + "</html>";
         }
         return null;
     }
@@ -305,6 +397,39 @@ public class GraphPanel extends JPanel {
 
         // Draw intersection points if enabled
         intersectionCalculator.drawIntersectionPoints(g2d);
+
+        // Draw hover marker if we have a closest point
+        if (closestPoint != null) {
+            int screenX = transformer.worldToScreenX(closestPoint.x);
+            int screenY = transformer.worldToScreenY(closestPoint.y);
+
+            // Draw a circle at the point
+            int markerSize = 8;
+            g2d.setColor(Color.RED);
+            g2d.setStroke(new BasicStroke(2.0f));
+            g2d.drawOval(screenX - markerSize / 2, screenY - markerSize / 2, markerSize, markerSize);
+
+            // Draw coordinates near the point if not too close to an edge
+            String coordText = "(" + tooltipFormat.format(closestPoint.x) +
+                    ", " + tooltipFormat.format(closestPoint.y) + ")";
+            FontMetrics fm = g2d.getFontMetrics();
+            int textWidth = fm.stringWidth(coordText);
+
+            // Positioning logic to keep text on screen
+            int textX = screenX + 10;
+            int textY = screenY - 10;
+
+            // Adjust if too close to right edge
+            if (textX + textWidth > getWidth() - 5) {
+                textX = screenX - textWidth - 10;
+            }
+
+            // Draw with a background for better visibility
+            g2d.setColor(new Color(255, 255, 255, 200));
+            g2d.fillRect(textX - 2, textY - fm.getAscent(), textWidth + 4, fm.getHeight());
+            g2d.setColor(Color.BLACK);
+            g2d.drawString(coordText, textX, textY);
+        }
 
         // Info text
         g2d.setColor(Color.BLACK);
