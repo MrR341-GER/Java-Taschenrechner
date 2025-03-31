@@ -38,6 +38,7 @@ public class GraphPanel extends JPanel {
     private Point currentMousePosition = null; // Current mouse position for hover detection
     private int closestFunctionIndex = -1; // Index of the function closest to mouse
     private Point2D.Double closestPoint = null; // Closest point on any function to mouse
+    private int selectedFunctionIndex = -1; // Index of the currently selected function
 
     // Tooltip support
     private IntersectionPoint currentTooltipPoint = null;
@@ -108,6 +109,25 @@ public class GraphPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 isDragging = false;
+
+                // If this was a click (not a significant drag), select the function
+                if (e.getPoint().distance(lastMousePos) < 5) {
+                    // Find which function was clicked (if any)
+                    if (closestPoint != null && closestFunctionIndex >= 0) {
+                        // Select this function
+                        selectedFunctionIndex = closestFunctionIndex;
+                        repaint();
+                    }
+                }
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                // If clicked on empty space, deselect current function
+                if (closestPoint == null) {
+                    selectedFunctionIndex = -1;
+                    repaint();
+                }
             }
         });
 
@@ -393,7 +413,7 @@ public class GraphPanel extends JPanel {
         }
 
         // Draw the functions
-        functionRenderer.drawFunctions(g2d);
+        functionRenderer.drawFunctions(g2d, selectedFunctionIndex);
 
         // Draw intersection points if enabled
         intersectionCalculator.drawIntersectionPoints(g2d);
@@ -500,5 +520,20 @@ public class GraphPanel extends JPanel {
      */
     public List<IntersectionPoint> getIntersectionPoints() {
         return intersectionCalculator.getIntersectionPoints();
+    }
+
+    /**
+     * Returns the index of the currently selected function
+     */
+    public int getSelectedFunctionIndex() {
+        return selectedFunctionIndex;
+    }
+
+    /**
+     * Sets the selected function index
+     */
+    public void setSelectedFunctionIndex(int index) {
+        this.selectedFunctionIndex = index;
+        repaint();
     }
 }

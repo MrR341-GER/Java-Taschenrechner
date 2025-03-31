@@ -17,6 +17,8 @@ public class FunctionRenderer {
 
     // Constants
     private static final int MAX_PIXEL_JUMP = 100; // Maximum pixel jump between two points
+    private static final float NORMAL_STROKE_WIDTH = 2.0f; // Normal line thickness
+    private static final float SELECTED_STROKE_WIDTH = 4.0f; // Thickness for selected function
 
     public FunctionRenderer(GraphPanel panel, CoordinateTransformer transformer) {
         this.panel = panel;
@@ -46,20 +48,31 @@ public class FunctionRenderer {
     }
 
     /**
-     * Draws all functions
+     * Draws all functions, with the selected one highlighted
      */
-    public void drawFunctions(Graphics2D g2d) {
-        for (FunctionInfo function : functions) {
-            drawFunctionWithEdges(g2d, function);
+    public void drawFunctions(Graphics2D g2d, int selectedIndex) {
+        // First draw all non-selected functions
+        for (int i = 0; i < functions.size(); i++) {
+            if (i != selectedIndex) {
+                drawFunctionWithEdges(g2d, functions.get(i), false);
+            }
+        }
+
+        // Then draw the selected function (if any) on top
+        if (selectedIndex >= 0 && selectedIndex < functions.size()) {
+            drawFunctionWithEdges(g2d, functions.get(selectedIndex), true);
         }
     }
 
     /**
      * Draws a function and connects it correctly with the edges of the visible area
      */
-    private void drawFunctionWithEdges(Graphics2D g2d, FunctionInfo functionInfo) {
+    private void drawFunctionWithEdges(Graphics2D g2d, FunctionInfo functionInfo, boolean isSelected) {
         g2d.setColor(functionInfo.getColor());
-        g2d.setStroke(new BasicStroke(2f));
+
+        // Use thicker stroke for selected function
+        float strokeWidth = isSelected ? SELECTED_STROKE_WIDTH : NORMAL_STROKE_WIDTH;
+        g2d.setStroke(new BasicStroke(strokeWidth));
 
         // Drawing area
         int drawingWidth = panel.getWidth() - 2 * GraphPanel.AXIS_MARGIN;
