@@ -2,6 +2,7 @@
 package plugins.plotter3d.interaction;
 
 import javax.swing.*;
+import javax.swing.event.ChangeListener;
 
 import plugins.plotter3d.Plot3DPanel;
 import plugins.plotter3d.view.Plot3DViewController;
@@ -117,6 +118,7 @@ public class Plot3DInteractionHandler {
 
     /**
      * Verarbeitet die Rotation des 3D-Plots mit der Mausposition als Drehpunkt
+     * und aktualisiert die Schieberegler in der UI
      * 
      * @param dx            Horizontale Mausbewegung
      * @param dy            Vertikale Mausbewegung
@@ -125,7 +127,13 @@ public class Plot3DInteractionHandler {
     private void handleRotation(int dx, int dy, Point mousePosition) {
         // Aktuelle Rotationswinkel holen
         double currentRotationX = viewController.getCurrentRotationX();
+        double currentRotationY = viewController.getCurrentRotationY();
         double currentRotationZ = viewController.getCurrentRotationZ();
+
+        // Für Debug-Zwecke - Ausgangsrotation speichern
+        double startRotX = currentRotationX;
+        double startRotY = currentRotationY;
+        double startRotZ = currentRotationZ;
 
         // Anpassbare Rotationsempfindlichkeit
         double rotationSensitivity = 0.5;
@@ -143,7 +151,6 @@ public class Plot3DInteractionHandler {
 
         // Anpassung der Rotationsgeschwindigkeit basierend auf der Position des
         // Mauszeigers
-        // Nahe am Rand = schnellere Rotation, nahe der Mitte = langsamere Rotation
         double centerX = plotPanel.getWidth() / 2.0;
         double centerY = plotPanel.getHeight() / 2.0;
 
@@ -156,8 +163,6 @@ public class Plot3DInteractionHandler {
         distanceY = Math.min(distanceY, 1.0);
 
         // Rotationsgeschwindigkeit basierend auf Position anpassen
-        // (Optional: Dies kann weggelassen werden, wenn keine positionsabhängige
-        // Geschwindigkeit gewünscht wird)
         double xSpeedFactor = 0.8 + 0.4 * distanceY; // 0.8-1.2x Geschwindigkeit
         double zSpeedFactor = 0.8 + 0.4 * distanceX; // 0.8-1.2x Geschwindigkeit
 
@@ -179,6 +184,9 @@ public class Plot3DInteractionHandler {
         viewController.setCurrentRotationX(newRotationX);
         viewController.setCurrentRotationZ(newRotationZ);
 
+        // Schieberegler in der UI aktualisieren
+        updateRotationSliders(newRotationX, currentRotationY, newRotationZ);
+
         // Aktualisiere Rotation im Renderer
         viewController.updateRotation();
 
@@ -189,9 +197,246 @@ public class Plot3DInteractionHandler {
         if (mainPanel != null) {
             mainPanel.renderPlot();
         }
-        debug("Rotation geändert zu: X=" + formatDouble(newRotationX) +
-                ", Z=" + formatDouble(newRotationZ) +
-                (zRotationDirection < 0 ? " (umgedrehte Z-Richtung)" : ""));
+
+        // Erweiterte Debug-Ausgabe
+        debugRotation(startRotX, startRotY, startRotZ,
+                newRotationX, currentRotationY, newRotationZ,
+                dx, dy);
+    }
+
+    /**
+     * Erweiterte Debug-Ausgabe für Rotationen
+     */
+    private void debugRotation(double oldRotX, double oldRotY, double oldRotZ,
+            double newRotX, double newRotY, double newRotZ,
+            int mouseDx, int mouseDy) {
+
+        // Grundlegende Rotation-Info
+        StringBuilder debugInfo = new StringBuilder();
+        debugInfo.append("Rotation geändert: ");
+        debugInfo.append(String.format("X=%.1f→%.1f, Y=%.1f, Z=%.1f→%.1f ",
+                oldRotX, newRotX, newRotY, oldRotZ, newRotZ));
+        debugInfo.append(String.format("(Maus dx=%d, dy=%d)", mouseDx, mouseDy));
+
+        // Berechnen der Rotationsmatrix für detailliertere Analyse
+        double[] axisAngle = calculateRotationAxisAngle(newRotX, newRotY, newRotZ);
+
+        debugInfo.append("\nRotationsanalyse: ");
+
+        // Ausgabe der Rotationsachse und des Rotationswinkels
+        if (axisAngle != null) {
+            double axisX = axisAngle[0];
+            double axisY = axisAngle[1];
+            double axisZ = axisAngle[2];
+            double angle = axisAngle[3];
+
+            debugInfo.append(String.format("Hauptrotation: %.1f° um Achse [%.2f, %.2f, %.2f]",
+                    angle, axisX, axisY, axisZ));
+
+            // Interpretation der Rotation
+            debugInfo.append(" - ");
+
+            // Bestimme die dominante Achse
+            if (Math.abs(axisX) > Math.abs(axisY) && Math.abs(axisX) > Math.abs(axisZ)) {
+                debugInfo.append(axisX > 0 ? "Kippung nach rechts" : "Kippung nach links");
+            } else if (Math.abs(axisY) > Math.abs(axisX) && Math.abs(axisY) > Math.abs(axisZ)) {
+                debugInfo.append(axisY > 0 ? "Drehung im Uhrzeigersinn" : "Drehung gegen Uhrzeigersinn");
+            } else if (Math.abs(axisZ) > Math.abs(axisX) && Math.abs(axisZ) > Math.abs(axisY)) {
+                debugInfo.append(axisZ > 0 ? "Kippung nach hinten" : "Kippung nach vorne");
+            } else {
+                debugInfo.append("Komplexe Rotation");
+            }
+        } else {
+            debugInfo.append("Keine signifikante Rotation");
+        }
+
+        // Zusätzliche Orientierungsinfo
+        double[][] rotMatrix = calculateRotationMatrix(newRotX, newRotY, newRotZ);
+        if (rotMatrix != null) {
+            // Z-Vektor gibt die "Oben"-Richtung der Kamera an
+            double upX = rotMatrix[2][0];
+            double upY = rotMatrix[2][1];
+            double upZ = rotMatrix[2][2];
+
+            // Bestimme die aktuelle Orientierung des Graphen relativ zur Kamera
+            debugInfo.append("\nGraph-Orientierung: ");
+
+            // Vereinfachte Orientierungsanalyse
+            if (upZ > 0.7) {
+                debugInfo.append("Aufsicht");
+            } else if (upZ < -0.7) {
+                debugInfo.append("Untersicht");
+            } else if (upX > 0.7) {
+                debugInfo.append("Seitenansicht rechts");
+            } else if (upX < -0.7) {
+                debugInfo.append("Seitenansicht links");
+            } else if (upY > 0.7) {
+                debugInfo.append("Frontansicht");
+            } else if (upY < -0.7) {
+                debugInfo.append("Rückansicht");
+            } else {
+                debugInfo.append("Schräge Perspektive");
+            }
+        }
+
+        debug(debugInfo.toString());
+    }
+
+    /**
+     * Berechnet die Rotationsmatrix für die gegebenen Euler-Winkel
+     * In der Rotationsfolge Z → Y → X
+     */
+    private double[][] calculateRotationMatrix(double rotX, double rotY, double rotZ) {
+        // Umwandeln in Radiant
+        double rx = Math.toRadians(rotX);
+        double ry = Math.toRadians(rotY);
+        double rz = Math.toRadians(rotZ);
+
+        // Sinus und Kosinus vorberechnen
+        double sx = Math.sin(rx);
+        double cx = Math.cos(rx);
+        double sy = Math.sin(ry);
+        double cy = Math.cos(ry);
+        double sz = Math.sin(rz);
+        double cz = Math.cos(rz);
+
+        // 3x3 Rotationsmatrix
+        double[][] matrix = new double[3][3];
+
+        // Berechnung der Rotationsmatrix - Z→Y→X Reihenfolge
+        // Erste Spalte
+        matrix[0][0] = cy * cz;
+        matrix[1][0] = cy * sz;
+        matrix[2][0] = -sy;
+
+        // Zweite Spalte
+        matrix[0][1] = sx * sy * cz - cx * sz;
+        matrix[1][1] = sx * sy * sz + cx * cz;
+        matrix[2][1] = sx * cy;
+
+        // Dritte Spalte
+        matrix[0][2] = cx * sy * cz + sx * sz;
+        matrix[1][2] = cx * sy * sz - sx * cz;
+        matrix[2][2] = cx * cy;
+
+        return matrix;
+    }
+
+    /**
+     * Berechnet die Achse-Winkel-Darstellung der Rotation
+     * 
+     * @return Array mit 4 Elementen: [achseX, achseY, achseZ, winkel]
+     */
+    private double[] calculateRotationAxisAngle(double rotX, double rotY, double rotZ) {
+        // Berechne erst die Rotationsmatrix
+        double[][] rotMatrix = calculateRotationMatrix(rotX, rotY, rotZ);
+
+        // Der Rotationswinkel kann aus der Spur (trace) der Matrix abgeleitet werden
+        double trace = rotMatrix[0][0] + rotMatrix[1][1] + rotMatrix[2][2];
+        double angle = Math.acos((trace - 1) / 2);
+
+        // Wenn der Winkel zu klein ist, gibt es keine signifikante Rotation
+        if (Math.abs(angle) < 0.001 || Math.abs(angle - Math.PI) < 0.001) {
+            return null;
+        }
+
+        // Berechne die Rotationsachse
+        double x = (rotMatrix[2][1] - rotMatrix[1][2]) / (2 * Math.sin(angle));
+        double y = (rotMatrix[0][2] - rotMatrix[2][0]) / (2 * Math.sin(angle));
+        double z = (rotMatrix[1][0] - rotMatrix[0][1]) / (2 * Math.sin(angle));
+
+        // Normalisiere die Achse
+        double length = Math.sqrt(x * x + y * y + z * z);
+        x /= length;
+        y /= length;
+        z /= length;
+
+        // Konvertiere den Winkel in Grad
+        angle = Math.toDegrees(angle);
+
+        return new double[] { x, y, z, angle };
+    }
+
+    /**
+     * Aktualisiert die Rotations-Schieberegler in der UI
+     * 
+     * @param rotX X-Rotationswert
+     * @param rotY Y-Rotationswert
+     * @param rotZ Z-Rotationswert
+     */
+    private void updateRotationSliders(double rotX, double rotY, double rotZ) {
+        try {
+            // Hole Referenzen auf die Schieberegler aus dem UI-Builder
+            JSlider rotXSlider = mainPanel.getUIBuilder().getRotationXSlider();
+            JSlider rotYSlider = mainPanel.getUIBuilder().getRotationYSlider();
+            JSlider rotZSlider = mainPanel.getUIBuilder().getRotationZSlider();
+
+            JLabel rotXLabel = mainPanel.getUIBuilder().getRotationXLabel();
+            JLabel rotYLabel = mainPanel.getUIBuilder().getRotationYLabel();
+            JLabel rotZLabel = mainPanel.getUIBuilder().getRotationZLabel();
+
+            // Wenn die Schieberegler existieren, ihre Werte aktualisieren
+            if (rotXSlider != null) {
+                // Verhindere Event-Schleifen, indem wir ChangeListener vorübergehend entfernen
+                ChangeListener[] xListeners = rotXSlider.getChangeListeners();
+                for (ChangeListener listener : xListeners) {
+                    rotXSlider.removeChangeListener(listener);
+                }
+
+                // Setze neuen Wert
+                rotXSlider.setValue((int) rotX);
+
+                // Füge Listener wieder hinzu
+                for (ChangeListener listener : xListeners) {
+                    rotXSlider.addChangeListener(listener);
+                }
+
+                // Beschriftung aktualisieren
+                if (rotXLabel != null) {
+                    rotXLabel.setText("X: " + (int) rotX + "°");
+                }
+            }
+
+            if (rotYSlider != null) {
+                // Verhindere Event-Schleifen
+                ChangeListener[] yListeners = rotYSlider.getChangeListeners();
+                for (ChangeListener listener : yListeners) {
+                    rotYSlider.removeChangeListener(listener);
+                }
+
+                rotYSlider.setValue((int) rotY);
+
+                for (ChangeListener listener : yListeners) {
+                    rotYSlider.addChangeListener(listener);
+                }
+
+                if (rotYLabel != null) {
+                    rotYLabel.setText("Y: " + (int) rotY + "°");
+                }
+            }
+
+            if (rotZSlider != null) {
+                // Verhindere Event-Schleifen
+                ChangeListener[] zListeners = rotZSlider.getChangeListeners();
+                for (ChangeListener listener : zListeners) {
+                    rotZSlider.removeChangeListener(listener);
+                }
+
+                rotZSlider.setValue((int) rotZ);
+
+                for (ChangeListener listener : zListeners) {
+                    rotZSlider.addChangeListener(listener);
+                }
+
+                if (rotZLabel != null) {
+                    rotZLabel.setText("Z: " + (int) rotZ + "°");
+                }
+            }
+
+        } catch (Exception e) {
+            // Falls ein Fehler auftritt (z.B. fehlende UI-Komponenten)
+            debug("Fehler bei der Aktualisierung der Schieberegler: " + e.getMessage());
+        }
     }
 
     /**
@@ -204,79 +449,95 @@ public class Plot3DInteractionHandler {
      * @param mousePosition Aktuelle Position des Mauszeigers
      */
     private void handlePanning(int dx, int dy, Point mousePosition) {
-        // Aktuelle Rotationswinkel in Radiant holen
-        double rotationXRad = Math.toRadians(viewController.getCurrentRotationX());
-        double rotationYRad = Math.toRadians(viewController.getCurrentRotationY());
-        double rotationZRad = Math.toRadians(viewController.getCurrentRotationZ());
+        // Rotationswinkel in Radiant
+        double rotX = Math.toRadians(viewController.getCurrentRotationX());
+        double rotY = Math.toRadians(viewController.getCurrentRotationY());
+        double rotZ = Math.toRadians(viewController.getCurrentRotationZ());
 
         // Sinus und Kosinus der Rotationswinkel vorberechnen
-        double sinX = Math.sin(rotationXRad);
-        double cosX = Math.cos(rotationXRad);
-        double sinY = Math.sin(rotationYRad);
-        double cosY = Math.cos(rotationYRad);
-        double sinZ = Math.sin(rotationZRad);
-        double cosZ = Math.cos(rotationZRad);
+        double sinX = Math.sin(rotX);
+        double cosX = Math.cos(rotX);
+        double sinY = Math.sin(rotY);
+        double cosY = Math.cos(rotY);
+        double sinZ = Math.sin(rotZ);
+        double cosZ = Math.cos(rotZ);
 
-        // Bereichsgrößen berechnen
+        // Skalierungsfaktor für die Mausbewegung
         double xRange = viewController.getCurrentXMax() - viewController.getCurrentXMin();
         double yRange = viewController.getCurrentYMax() - viewController.getCurrentYMin();
+        double scaleX = xRange / plotPanel.getWidth();
+        double scaleY = yRange / plotPanel.getHeight();
 
-        // Skalierungsfaktoren basierend auf Fenstergröße
-        double viewWidth = plotPanel.getWidth();
-        double viewHeight = plotPanel.getHeight();
-        double scaleX = xRange / viewWidth;
-        double scaleY = yRange / viewHeight;
+        // Die Basis-Bewegung im Bildschirm, negiert für natürliche Bewegung
+        double screenDx = -dx * scaleX;
+        double screenDy = dy * scaleY; // Y ist auf dem Bildschirm invertiert
 
-        // Position des Mauszeigers relativ zur Mitte (Bereich -1 bis 1)
-        double relPosX = (mousePosition.x - viewWidth / 2) / (viewWidth / 2);
-        double relPosY = (mousePosition.y - viewHeight / 2) / (viewHeight / 2);
+        // Die Basis-Verschiebungsvektoren im Weltraum vor jeglicher Rotation
+        // Diese Vektoren werden durch die Rotation transformiert
+        double[] rightVector = { 1, 0, 0 }; // Rechts-Vektor (entlang x-Achse)
+        double[] upVector = { 0, 1, 0 }; // Hoch-Vektor (entlang y-Achse)
 
-        // Optional: Anpassung der Panning-Geschwindigkeit basierend auf der
-        // Mausposition
-        // Nahe am Rand = schnelleres Panning für präzisere Steuerung
-        double speedFactor = 1.0 + 0.3 * (Math.abs(relPosX) + Math.abs(relPosY)) / 2.0;
+        // Transformiere diese Vektoren durch die Rotationsoperationen
+        // In der gleichen Reihenfolge wie im Renderer: Z → Y → X
 
-        // Mausbewegung im Bildschirmraum - beide Richtungen invertieren für intuitive
-        // Bewegung
-        double screenDx = -dx * scaleX * speedFactor;
-        double screenDy = dy * scaleY * speedFactor;
+        // 1. Z-Rotation auf den rechten Vektor anwenden
+        double rightX = rightVector[0] * cosZ - rightVector[1] * sinZ;
+        double rightY = rightVector[0] * sinZ + rightVector[1] * cosZ;
+        double rightZ = rightVector[2];
 
-        // 1. Transformation: Mausbewegung im Bildschirmraum entsprechend Z-Rotation
-        // anpassen
-        double rotatedDx = screenDx * cosZ - screenDy * sinZ;
-        double rotatedDy = screenDx * sinZ + screenDy * cosZ;
+        // 2. Y-Rotation auf den resultierenden Vektor anwenden
+        double tempX = rightX * cosY + rightZ * sinY;
+        double tempZ = -rightX * sinY + rightZ * cosY;
+        rightX = tempX;
+        rightZ = tempZ;
 
-        // 2. Transformation: Berücksichtigung der Y-Rotation
-        double panX = rotatedDx * cosY;
-        double panZ = -rotatedDx * sinY;
+        // 3. X-Rotation auf den resultierenden Vektor anwenden
+        tempZ = rightY * sinX + rightZ * cosX;
+        double tempY = rightY * cosX - rightZ * sinX;
+        rightY = tempY;
+        rightZ = tempZ;
 
-        // 3. Transformation: Berücksichtigung der X-Rotation für Y und Z
-        double tempY = rotatedDy * cosX - panZ * sinX;
-        double tempZ = rotatedDy * sinX + panZ * cosX;
-        double panY = tempY;
+        // Das Gleiche nun für den up-Vektor
 
-        // Endgültige Panning-Werte
-        double sensitivity = 1.0;
-        double finalDx = panX * sensitivity;
-        double finalDy = panY * sensitivity;
+        // 1. Z-Rotation auf den up-Vektor anwenden
+        double upX = upVector[0] * cosZ - upVector[1] * sinZ;
+        double upY = upVector[0] * sinZ + upVector[1] * cosZ;
+        double upZ = upVector[2];
 
-        // Neue Grenzen berechnen
-        double newXMin = viewController.getCurrentXMin() + finalDx;
-        double newXMax = viewController.getCurrentXMax() + finalDx;
-        double newYMin = viewController.getCurrentYMin() + finalDy;
-        double newYMax = viewController.getCurrentYMax() + finalDy;
+        // 2. Y-Rotation auf den resultierenden Vektor anwenden
+        tempX = upX * cosY + upZ * sinY;
+        tempZ = -upX * sinY + upZ * cosY;
+        upX = tempX;
+        upZ = tempZ;
 
-        // Werte im View-Controller aktualisieren
+        // 3. X-Rotation auf den resultierenden Vektor anwenden
+        tempZ = upY * sinX + upZ * cosX;
+        tempY = upY * cosX - upZ * sinX;
+        upY = tempY;
+        upZ = tempZ;
+
+        // Berechne die Weltverschiebung durch Projektion der Bildschirmbewegung
+        // auf die transformierten Einheitsvektoren
+        double worldDx = screenDx * rightX + screenDy * upX;
+        double worldDy = screenDx * rightY + screenDy * upY;
+
+        // Grenzen des Graphen aktualisieren
+        double newXMin = viewController.getCurrentXMin() + worldDx;
+        double newXMax = viewController.getCurrentXMax() + worldDx;
+        double newYMin = viewController.getCurrentYMin() + worldDy;
+        double newYMax = viewController.getCurrentYMax() + worldDy;
+
+        // Ansicht aktualisieren
         viewController.setCurrentXMin(newXMin);
         viewController.setCurrentXMax(newXMax);
         viewController.setCurrentYMin(newYMin);
         viewController.setCurrentYMax(newYMax);
 
-        // Neuen Plot mit verschobenem Wertebereich zeichnen
+        // Neu zeichnen
         mainPanel.renderPlot();
 
-        debug("Wertebereich verschoben nach: x=[" + formatDouble(newXMin) + "," + formatDouble(newXMax) +
-                "], y=[" + formatDouble(newYMin) + "," + formatDouble(newYMax) + "]");
+        debug("Panning: Screen (dx=" + dx + ", dy=" + dy + ") -> World (" +
+                formatDouble(worldDx) + ", " + formatDouble(worldDy) + ")");
     }
 
     /**

@@ -220,4 +220,11 @@ public class Plot3DPanel extends JPanel {
     public JPanel getPlotPanel() {
         return plotPanel;
     }
+
+    /**
+     * Gibt den UI-Builder zurück
+     */
+    public Plot3DUIBuilder getUIBuilder() {
+        return uiBuilder;
+    }
 }

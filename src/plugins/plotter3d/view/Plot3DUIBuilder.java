@@ -572,4 +572,46 @@ public class Plot3DUIBuilder {
     public JTextField getYMaxField() {
         return yMaxField;
     }
+
+    /**
+     * Gibt den Rotations-X-Schieberegler zurück
+     */
+    public JSlider getRotationXSlider() {
+        return rotationXSlider;
+    }
+
+    /**
+     * Gibt den Rotations-Y-Schieberegler zurück
+     */
+    public JSlider getRotationYSlider() {
+        return rotationYSlider;
+    }
+
+    /**
+     * Gibt den Rotations-Z-Schieberegler zurück
+     */
+    public JSlider getRotationZSlider() {
+        return rotationZSlider;
+    }
+
+    /**
+     * Gibt das Rotations-X-Label zurück
+     */
+    public JLabel getRotationXLabel() {
+        return rotationXLabel;
+    }
+
+    /**
+     * Gibt das Rotations-Y-Label zurück
+     */
+    public JLabel getRotationYLabel() {
+        return rotationYLabel;
+    }
+
+    /**
+     * Gibt das Rotations-Z-Label zurück
+     */
+    public JLabel getRotationZLabel() {
+        return rotationZLabel;
+    }
 }
