@@ -166,13 +166,33 @@ public class Plot3DInteractionHandler {
         double xSpeedFactor = 0.8 + 0.4 * distanceY; // 0.8-1.2x Geschwindigkeit
         double zSpeedFactor = 0.8 + 0.4 * distanceX; // 0.8-1.2x Geschwindigkeit
 
-        // Rotationsänderungen berechnen
+        // Verhalten der Maus analysieren und entsprechend anpassen
+        // Bei einer 3D-Darstellung:
+        // - Nach oben ziehen sollte das Objekt nach oben drehen (kleinerer X-Wert)
+        // - Nach unten ziehen sollte das Objekt nach unten drehen (größerer X-Wert)
+        // - Nach rechts ziehen sollte das Objekt nach rechts drehen (größerer Z-Wert)
+        // - Nach links ziehen sollte das Objekt nach links drehen (kleinerer Z-Wert)
+
+        // WICHTIG: Wir verwenden dy für X-Rotation (vertikal) und dx für Z-Rotation
+        // (horizontal)
+
+        // KOMPLETTE ÜBERARBEITUNG DER ROTATIONSLOGIK:
+        // Natürliche Rotation: Mausbewegung führt zu Rotation in derselben Richtung
+        // Umkehrung für Y, da Y-Achse auf dem Bildschirm nach unten wächst
         double deltaRotationX = -dy * rotationSensitivity * xSpeedFactor;
         double deltaRotationZ = dx * rotationSensitivity * zSpeedFactor * zRotationDirection;
 
-        // Neue Rotationswerte berechnen und normalisieren (0-360 Grad)
-        double newRotationX = (currentRotationX + deltaRotationX) % 360;
-        double newRotationZ = (currentRotationZ + deltaRotationZ) % 360;
+        // Debug-Ausgabe der Rotation (vor Normalisierung)
+        debug("Mausbewegung: dx=" + dx + ", dy=" + dy);
+        debug("Delta Rotation: X=" + deltaRotationX + ", Z=" + deltaRotationZ);
+
+        // Neue Rotationswerte berechnen
+        double newRotationX = currentRotationX + deltaRotationX;
+        double newRotationZ = currentRotationZ + deltaRotationZ;
+
+        // Normalisieren (0-360 Grad)
+        newRotationX = newRotationX % 360;
+        newRotationZ = newRotationZ % 360;
 
         // Negative Werte korrigieren
         if (newRotationX < 0)
@@ -441,91 +461,69 @@ public class Plot3DInteractionHandler {
 
     /**
      * Verarbeitet das Verschieben der Ansicht unter Berücksichtigung der
-     * Mausposition
-     * und der aktuellen Rotation
+     * aktuellen Rotation und Skalierung
      * 
      * @param dx            Horizontale Mausbewegung
      * @param dy            Vertikale Mausbewegung
      * @param mousePosition Aktuelle Position des Mauszeigers
      */
     private void handlePanning(int dx, int dy, Point mousePosition) {
-        // Rotationswinkel in Radiant
+        // Aktuelle Wertebereiche und Skalierung
+        double xMin = viewController.getCurrentXMin();
+        double xMax = viewController.getCurrentXMax();
+        double yMin = viewController.getCurrentYMin();
+        double yMax = viewController.getCurrentYMax();
+        double scale = viewController.getCurrentScale();
+
+        // Panel-Dimensionen
+        int width = plotPanel.getWidth();
+        int height = plotPanel.getHeight();
+
+        // Berechne das Verhältnis zwischen Pixel und Weltkoordinaten
+        double xRange = xMax - xMin;
+        double yRange = yMax - yMin;
+        double pixelToWorldRatioX = xRange / width;
+        double pixelToWorldRatioY = yRange / height;
+
+        // Umwandlung von Pixel-Delta in Welt-Delta
+        double screenDx = dx * pixelToWorldRatioX;
+        double screenDy = -dy * pixelToWorldRatioY; // Y-Achse ist auf dem Bildschirm invertiert
+
+        // Anpassung an die Skalierung
+        screenDx /= scale;
+        screenDy /= scale;
+
+        // Hole die Rotationswinkel in Radiant
         double rotX = Math.toRadians(viewController.getCurrentRotationX());
         double rotY = Math.toRadians(viewController.getCurrentRotationY());
         double rotZ = Math.toRadians(viewController.getCurrentRotationZ());
 
-        // Sinus und Kosinus der Rotationswinkel vorberechnen
-        double sinX = Math.sin(rotX);
+        // Berechne Sinus und Kosinus der Winkel
         double cosX = Math.cos(rotX);
-        double sinY = Math.sin(rotY);
+        double sinX = Math.sin(rotX);
         double cosY = Math.cos(rotY);
-        double sinZ = Math.sin(rotZ);
+        double sinY = Math.sin(rotY);
         double cosZ = Math.cos(rotZ);
+        double sinZ = Math.sin(rotZ);
 
-        // Skalierungsfaktor für die Mausbewegung
-        double xRange = viewController.getCurrentXMax() - viewController.getCurrentXMin();
-        double yRange = viewController.getCurrentYMax() - viewController.getCurrentYMin();
-        double scaleX = xRange / plotPanel.getWidth();
-        double scaleY = yRange / plotPanel.getHeight();
+        // Vereinfachte Transformation:
+        // 1. Z-Rotation dreht die X-Y-Ebene
+        double rotatedDx = screenDx * cosZ - screenDy * sinZ;
+        double rotatedDy = screenDx * sinZ + screenDy * cosZ;
 
-        // Die Basis-Bewegung im Bildschirm, negiert für natürliche Bewegung
-        double screenDx = -dx * scaleX;
-        double screenDy = dy * scaleY; // Y ist auf dem Bildschirm invertiert
+        // 2. X-Rotation kann die Y-Komponente beeinflussen (Kippen nach vorne/hinten)
+        // Bei X-Rotation von 90° würde die Y-Bewegung entlang der Z-Achse gehen
+        double effectiveDy = rotatedDy * cosX;
 
-        // Die Basis-Verschiebungsvektoren im Weltraum vor jeglicher Rotation
-        // Diese Vektoren werden durch die Rotation transformiert
-        double[] rightVector = { 1, 0, 0 }; // Rechts-Vektor (entlang x-Achse)
-        double[] upVector = { 0, 1, 0 }; // Hoch-Vektor (entlang y-Achse)
-
-        // Transformiere diese Vektoren durch die Rotationsoperationen
-        // In der gleichen Reihenfolge wie im Renderer: Z → Y → X
-
-        // 1. Z-Rotation auf den rechten Vektor anwenden
-        double rightX = rightVector[0] * cosZ - rightVector[1] * sinZ;
-        double rightY = rightVector[0] * sinZ + rightVector[1] * cosZ;
-        double rightZ = rightVector[2];
-
-        // 2. Y-Rotation auf den resultierenden Vektor anwenden
-        double tempX = rightX * cosY + rightZ * sinY;
-        double tempZ = -rightX * sinY + rightZ * cosY;
-        rightX = tempX;
-        rightZ = tempZ;
-
-        // 3. X-Rotation auf den resultierenden Vektor anwenden
-        tempZ = rightY * sinX + rightZ * cosX;
-        double tempY = rightY * cosX - rightZ * sinX;
-        rightY = tempY;
-        rightZ = tempZ;
-
-        // Das Gleiche nun für den up-Vektor
-
-        // 1. Z-Rotation auf den up-Vektor anwenden
-        double upX = upVector[0] * cosZ - upVector[1] * sinZ;
-        double upY = upVector[0] * sinZ + upVector[1] * cosZ;
-        double upZ = upVector[2];
-
-        // 2. Y-Rotation auf den resultierenden Vektor anwenden
-        tempX = upX * cosY + upZ * sinY;
-        tempZ = -upX * sinY + upZ * cosY;
-        upX = tempX;
-        upZ = tempZ;
-
-        // 3. X-Rotation auf den resultierenden Vektor anwenden
-        tempZ = upY * sinX + upZ * cosX;
-        tempY = upY * cosX - upZ * sinX;
-        upY = tempY;
-        upZ = tempZ;
-
-        // Berechne die Weltverschiebung durch Projektion der Bildschirmbewegung
-        // auf die transformierten Einheitsvektoren
-        double worldDx = screenDx * rightX + screenDy * upX;
-        double worldDy = screenDx * rightY + screenDy * upY;
+        // 3. Y-Rotation kann die X-Komponente beeinflussen (Kippen nach links/rechts)
+        // Bei Y-Rotation von 90° würde die X-Bewegung entlang der Z-Achse gehen
+        double effectiveDx = rotatedDx * cosY;
 
         // Grenzen des Graphen aktualisieren
-        double newXMin = viewController.getCurrentXMin() + worldDx;
-        double newXMax = viewController.getCurrentXMax() + worldDx;
-        double newYMin = viewController.getCurrentYMin() + worldDy;
-        double newYMax = viewController.getCurrentYMax() + worldDy;
+        double newXMin = xMin - effectiveDx;
+        double newXMax = xMax - effectiveDx;
+        double newYMin = yMin - effectiveDy;
+        double newYMax = yMax - effectiveDy;
 
         // Ansicht aktualisieren
         viewController.setCurrentXMin(newXMin);
@@ -537,7 +535,7 @@ public class Plot3DInteractionHandler {
         mainPanel.renderPlot();
 
         debug("Panning: Screen (dx=" + dx + ", dy=" + dy + ") -> World (" +
-                formatDouble(worldDx) + ", " + formatDouble(worldDy) + ")");
+                formatDouble(effectiveDx) + ", " + formatDouble(effectiveDy) + ")");
     }
 
     /**
