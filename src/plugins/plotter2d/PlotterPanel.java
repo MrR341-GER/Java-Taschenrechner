@@ -443,7 +443,7 @@ public class PlotterPanel extends JPanel {
     /**
      * Helper method to get the function expression by index
      */
-    private String getFunctionExpressionByIndex(int index) {
+    public String getFunctionExpressionByIndex(int index) {
         DefaultListModel<String> listModel = functionInputPanel.getFunctionListModel();
 
         if (index < 0 || index >= listModel.size()) {

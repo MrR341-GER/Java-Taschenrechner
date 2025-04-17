@@ -47,7 +47,8 @@ public class Plot3DView {
         this.originalYMin = yMin;
         this.originalYMax = yMax;
 
-        this.resolution = Math.max(10, Math.min(100, resolution)); // Minimum 10, Maximum 100
+        // Nur Minimalwert begrenzen, keine Obergrenze mehr
+        this.resolution = Math.max(10, resolution);
 
         // Standardrotation
         this.rotationX = 30;
@@ -170,7 +171,8 @@ public class Plot3DView {
      * Setzt die Auflösung (Gitterdichte)
      */
     public void setResolution(int resolution) {
-        this.resolution = Math.max(10, Math.min(100, resolution)); // Minimum 10, Maximum 100
+        // Nur Minimalwert begrenzen, keine Obergrenze mehr
+        this.resolution = Math.max(10, resolution);
     }
 
     /**

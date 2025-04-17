@@ -6,6 +6,7 @@ import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Locale;
 import javax.swing.JTextField;
+import javax.swing.JOptionPane;
 
 import plugins.plotter3d.Plot3DPanel;
 import plugins.plotter3d.renderer.Plot3DRenderer;
@@ -51,7 +52,7 @@ public class Plot3DViewController {
     private boolean showGrid = true;
     private boolean showHelperLines = true;
     private boolean useSolidSurface = false;
-    private boolean showIntersections = true; // Neue Option für Schnittlinien
+    private boolean showIntersections = true; // Neue Eigenschaft für Schnittlinien
 
     // Debug-Referenz
     private DebugManager debugManager;
@@ -76,20 +77,16 @@ public class Plot3DViewController {
     /**
      * Aktiviert oder deaktiviert die Anzeige von Schnittlinien zwischen Funktionen
      */
-    public void setShowIntersections(boolean showIntersections) {
-        this.showIntersections = showIntersections;
-
+    public void setShowIntersections(boolean show) {
+        this.showIntersections = show;
         if (renderer != null) {
-            renderer.setShowIntersections(showIntersections);
+            renderer.setShowIntersections(show);
 
             // Explizites Neuzeichnen, wenn verfügbar
             if (parentPanel != null) {
                 parentPanel.renderPlot();
             }
         }
-
-        debug("Schnittlinien zwischen Funktionen: " +
-                (showIntersections ? "aktiviert" : "deaktiviert"));
     }
 
     /**
@@ -192,8 +189,35 @@ public class Plot3DViewController {
      * Aktualisiert die Auflösung im Renderer
      */
     public void setResolution(int resolution) {
-        renderer.setResolution(resolution);
+        if (resolution <= 0) {
+            throw new IllegalArgumentException("Die Auflösung muss größer als 0 sein.");
+        }
+
+        // Hohe Auflösungswerte können die Performance beeinträchtigen
+        if (resolution > 300) {
+            // Bei extremen Werten eine Warnung anzeigen
+            int option = JOptionPane.showConfirmDialog(
+                    parentPanel,
+                    "Eine Auflösung von " + resolution + " kann sehr rechenintensiv sein und das System verlangsamen.\n"
+                            +
+                            "Empfohlene Obergrenze: 300\n\n" +
+                            "Möchten Sie trotzdem fortfahren?",
+                    "Warnung: Hohe Auflösung",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
+            if (option != JOptionPane.YES_OPTION) {
+                debug("Hoher Auflösungswert abgelehnt: " + resolution);
+                return;
+            }
+        } else if (resolution > 200) {
+            // Einfacher Hinweis (kein Dialog) für Werte zwischen 200 und 300
+            debug("Hinweis: Hohe Auflösung " + resolution + " kann die Darstellung verlangsamen");
+        }
+
+        // Erfolgreiche Aktualisierung protokollieren
         debug("Auflösung geändert auf " + resolution);
+        renderer.setResolution(resolution);
 
         // Explizites Neuzeichnen, wenn verfügbar
         if (parentPanel != null) {
@@ -474,5 +498,15 @@ public class Plot3DViewController {
             DecimalFormat df = new DecimalFormat("0.##");
             yMaxField.setText(df.format(yMax));
         }
+    }
+
+    /**
+     * Gibt die aktuelle Auflösung zurück
+     */
+    public int getCurrentResolution() {
+        if (renderer != null) {
+            return renderer.getResolution();
+        }
+        return DEFAULT_RESOLUTION;
     }
 }

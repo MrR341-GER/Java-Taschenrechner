@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.view;
 
 import javax.swing.*;
@@ -72,10 +71,20 @@ public class Plot3DUIBuilder {
         // 2. Zweispaltige Ansicht: Links Beispiele, rechts Funktionsliste
         JPanel splitPanel = new JPanel(new GridLayout(1, 2, 5, 5));
 
+        // Mindesthöhe für das gesamte Split-Panel festlegen
+        splitPanel.setMinimumSize(new Dimension(0, 180));
+        splitPanel.setPreferredSize(new Dimension(0, 180));
+
         // Beispiel-Panel erstellen
         JPanel examplesPanel = null;
         if (examplePanel != null) {
             examplesPanel = examplePanel.createExamplesPanel();
+
+            // Falls möglich, setze explizit eine Mindesthöhe für das Beispielpanel
+            if (examplesPanel != null) {
+                examplesPanel.setMinimumSize(new Dimension(100, 150));
+                examplesPanel.setPreferredSize(new Dimension(100, 150));
+            }
         }
 
         // Funktionslisten-Panel erstellen
@@ -109,6 +118,16 @@ public class Plot3DUIBuilder {
         // Steuerungshinweis
         JPanel instructionPanel = createInstructionPanel();
 
+        // Damit jede Komponente ihre bevorzugte Größe hat
+        functionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        splitPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        rangePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        resolutionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        displayOptionsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        rotationPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        instructionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        resetViewButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         // Alles zusammenfügen
         panel.add(functionPanel);
         panel.add(Box.createVerticalStrut(10));
@@ -139,7 +158,7 @@ public class Plot3DUIBuilder {
         JPanel functionPanel = new JPanel(new BorderLayout(5, 5));
         functionPanel.setBorder(BorderFactory.createTitledBorder("Funktion (z = f(x,y))"));
 
-        functionField = new JTextField(Plot3DViewController.DEFAULT_FUNCTION, 20);
+        functionField = new JTextField("", 20);
         functionField.setToolTipText("Geben Sie eine Funktion mit Variablen x und y ein, z.B. x^2+y^2");
 
         // Farbauswahl hinzufügen
@@ -217,19 +236,25 @@ public class Plot3DUIBuilder {
 
         // Scroll-Bereich für die Liste
         JScrollPane scrollPane = new JScrollPane(functionManager.getFunctionList());
-        scrollPane.setPreferredSize(new Dimension(100, 100));
+        scrollPane.setPreferredSize(new Dimension(100, 150));
+        scrollPane.setMinimumSize(new Dimension(100, 150));
         functionsPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Button-Panel
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 5, 5));
+        // Button-Panel - von GridLayout(1, 2, 5, 5) auf GridLayout(1, 3, 5, 5) ändern,
+        // um Platz für den Kombinieren-Button zu schaffen
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 3, 5, 5));
 
         JButton removeButton = new JButton("Entfernen");
         removeButton.addActionListener(e -> functionManager.removeSelectedFunction());
+
+        JButton combineButton = new JButton("Kombinieren");
+        combineButton.addActionListener(e -> functionManager.combineSelectedFunctions());
 
         JButton clearButton = new JButton("Alle löschen");
         clearButton.addActionListener(e -> functionManager.clearAllFunctions());
 
         buttonPanel.add(removeButton);
+        buttonPanel.add(combineButton);
         buttonPanel.add(clearButton);
         functionsPanel.add(buttonPanel, BorderLayout.SOUTH);
 
@@ -327,30 +352,169 @@ public class Plot3DUIBuilder {
         JPanel resolutionPanel = new JPanel(new BorderLayout(5, 5));
         resolutionPanel.setBorder(BorderFactory.createTitledBorder("Auflösung"));
 
-        resolutionSlider = new JSlider(JSlider.HORIZONTAL, 10, 100, Plot3DViewController.DEFAULT_RESOLUTION);
+        // Hauptpanel mit Slider und Eingabefeld
+        JPanel mainPanel = new JPanel(new BorderLayout(5, 5));
+
+        // Panel für das Eingabefeld mit Erklärung
+        JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
+        inputPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(0, 0, 5, 0),
+                BorderFactory.createTitledBorder("Auflösung einstellen (10-500)")));
+
+        JPanel fieldPanel = new JPanel(new BorderLayout(5, 5));
+        JLabel inputLabel = new JLabel("Wert: ");
+
+        // Hole die aktuelle Auflösung vom Controller
+        int currentResolution = viewController.getCurrentResolution();
+
+        // Textfeld für manuelle Eingabe der Auflösung mit aktuellem Wert
+        JTextField resolutionField = new JTextField(String.valueOf(currentResolution), 4);
+        resolutionField.setToolTipText("Geben Sie hier Werte von 10 bis 500 ein (max. empfohlen: 300)");
+
+        fieldPanel.add(inputLabel, BorderLayout.WEST);
+        fieldPanel.add(resolutionField, BorderLayout.CENTER);
+
+        // Button zum Anwenden der eingegebenen Auflösung
+        JButton applyButton = new JButton("Anwenden");
+        fieldPanel.add(applyButton, BorderLayout.EAST);
+
+        // Erklärung für den Benutzer
+        JLabel infoLabel = new JLabel(
+                "<html><small>Für höhere Details geben Sie größere Werte ein (z.B. 150, 200, 300).</small></html>");
+        infoLabel.setForeground(Color.DARK_GRAY);
+
+        inputPanel.add(fieldPanel, BorderLayout.NORTH);
+        inputPanel.add(infoLabel, BorderLayout.CENTER);
+
+        // Slider-Panel mit Titel
+        JPanel sliderPanel = new JPanel(new BorderLayout(5, 5));
+        sliderPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(5, 0, 0, 0),
+                BorderFactory.createTitledBorder("Schnelleinstellung")));
+
+        // Slider für Auflösung - auf aktuellen Wert setzen, aber maximal 100
+        int sliderValue = Math.min(currentResolution, 100);
+        resolutionSlider = new JSlider(JSlider.HORIZONTAL, 10, 100, sliderValue);
         resolutionSlider.setMajorTickSpacing(30);
         resolutionSlider.setMinorTickSpacing(10);
         resolutionSlider.setPaintTicks(true);
         resolutionSlider.setPaintLabels(true);
 
-        resolutionLabel = new JLabel("Auflösung: " + Plot3DViewController.DEFAULT_RESOLUTION);
+        // Label für den Slider
+        resolutionLabel = new JLabel("Größere Werte erhöhen Details, benötigen aber mehr Rechenleistung");
         resolutionLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        resolutionLabel.setFont(resolutionLabel.getFont().deriveFont(Font.PLAIN, 11f));
 
-        resolutionSlider.addChangeListener(e -> {
-            int value = resolutionSlider.getValue();
-            resolutionLabel.setText("Auflösung: " + value);
+        // Listener für den Slider - AKTUALISIERT TEXTFELD UND SETZT BEI ENDE DES
+        // SCHIEBENS DIE AUFLÖSUNG
+        resolutionSlider.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                int value = resolutionSlider.getValue();
 
-            // Nur neu rendern, wenn nicht mehr am Schieben
-            if (!resolutionSlider.getValueIsAdjusting()) {
-                viewController.setResolution(value);
-                // Explizites Neuzeichnen wird nun in setResolution() ausgeführt
+                // Synchronisiere das Textfeld mit dem Slider
+                resolutionField.setText(String.valueOf(value));
+
+                // Nur wenn der Benutzer das Schieben beendet hat, die Auflösung aktualisieren
+                if (!resolutionSlider.getValueIsAdjusting()) {
+                    // Auflösung direkt über das Textfeld anwenden
+                    applyResolution(resolutionField);
+                    // Cast zu Plot3DPanel nötig, da debug-Methode in dieser Klasse definiert ist
+                    ((plugins.plotter3d.Plot3DPanel) mainPanel)
+                            .debug("Auflösung über Slider auf " + value + " gesetzt");
+                }
             }
         });
 
-        resolutionPanel.add(resolutionSlider, BorderLayout.CENTER);
+        // Listener für das Textfeld und den Button
+        applyButton.addActionListener(e -> applyResolution(resolutionField));
+
+        // Auch Enter im Textfeld verarbeiten
+        resolutionField.addActionListener(e -> applyResolution(resolutionField));
+
+        sliderPanel.add(resolutionSlider, BorderLayout.CENTER);
+
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(sliderPanel, BorderLayout.CENTER);
+
+        resolutionPanel.add(mainPanel, BorderLayout.CENTER);
         resolutionPanel.add(resolutionLabel, BorderLayout.SOUTH);
 
         return resolutionPanel;
+    }
+
+    /**
+     * Wendet die eingegebene Auflösung an
+     */
+    private void applyResolution(JTextField field) {
+        try {
+            // Parse und validiere den eingegebenen Wert
+            int value = Integer.parseInt(field.getText().trim());
+
+            // Aktueller Wert vor der Änderung (für Statusanzeige)
+            int currentResolution = viewController.getCurrentResolution();
+
+            // Sinnvolle Grenzen für die Auflösung
+            if (value < 10) {
+                value = 10; // Minimale Auflösung
+                field.setText("10");
+                this.mainPanel.debug("Auflösung auf Minimalwert 10 begrenzt (vorher: " + currentResolution + ")");
+                JOptionPane.showMessageDialog(
+                        mainPanel,
+                        "Die Auflösung wurde auf den Minimalwert 10 gesetzt.",
+                        "Auflösung angepasst",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } else if (value > 500) {
+                // Bei extrem hohen Werten eine Warnung anzeigen
+                int option = JOptionPane.showConfirmDialog(
+                        mainPanel,
+                        "Eine Auflösung von " + value + " ist extrem hoch und kann zu Systemabstürzen führen.\n" +
+                                "Empfohlene Obergrenze: 300\n\n" +
+                                "Möchten Sie den Wert auf 300 begrenzen?",
+                        "Warnung: Sehr hohe Auflösung",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+
+                if (option == JOptionPane.YES_OPTION) {
+                    value = 300;
+                    field.setText("300");
+                    this.mainPanel.debug(
+                            "Auflösung auf empfohlenen Maximalwert 300 begrenzt (vorher: " + currentResolution + ")");
+                } else {
+                    this.mainPanel.debug("Benutzer hat extrem hohen Auflösungswert " + value + " bestätigt (vorher: "
+                            + currentResolution + ")");
+                }
+            }
+
+            // Aktualisiere den Slider, wenn der Wert in seinem Bereich liegt
+            if (value <= 100) {
+                resolutionSlider.setValue(value);
+            }
+
+            // Auflösung direkt im ViewController setzen
+            viewController.setResolution(value);
+
+            // Erfolgsbestätigung mit Vergleich zum vorherigen Wert
+            if (value != currentResolution) {
+                this.mainPanel.debug("Auflösung erfolgreich von " + currentResolution + " auf " + value + " geändert");
+            } else {
+                this.mainPanel.debug("Auflösung unverändert bei " + value);
+            }
+
+        } catch (NumberFormatException ex) {
+            // Bei ungültiger Eingabe Standardwert wiederherstellen
+            int currentResolution = viewController.getCurrentResolution();
+            field.setText(String.valueOf(currentResolution));
+
+            this.mainPanel.debug("Ungültige Auflösung eingegeben: " + ex.getMessage() + " - Wert zurückgesetzt auf "
+                    + currentResolution);
+            JOptionPane.showMessageDialog(
+                    mainPanel,
+                    "Bitte geben Sie eine gültige Zahl für die Auflösung ein.\n" +
+                            "Der Wert wurde auf " + currentResolution + " zurückgesetzt.",
+                    "Ungültige Eingabe",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**

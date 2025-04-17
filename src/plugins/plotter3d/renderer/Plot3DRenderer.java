@@ -317,4 +317,11 @@ public class Plot3DRenderer {
     public double getYMax() {
         return view.getYMax();
     }
+
+    /**
+     * Gibt die aktuelle Auflösung zurück
+     */
+    public int getResolution() {
+        return view.getResolution();
+    }
 }

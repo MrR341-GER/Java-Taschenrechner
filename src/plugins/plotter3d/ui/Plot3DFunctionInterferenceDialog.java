@@ -1,4 +1,4 @@
-package plugins.plotter2d;
+package plugins.plotter3d.ui;
 
 import javax.swing.*;
 import java.awt.*;
@@ -6,13 +6,14 @@ import java.awt.event.*;
 import java.util.List;
 import java.util.ArrayList;
 import common.ColorChooser;
+import plugins.plotter3d.Plot3DPanel;
 
 /**
  * Dialog zum Erstellen von Interferenz-Funktionen (Kombinationen mehrerer
- * Funktionen)
+ * Funktionen) für den 3D-Plotter
  */
-public class FunctionInterferenceDialog extends JDialog {
-    private final PlotterPanel plotter;
+public class Plot3DFunctionInterferenceDialog extends JDialog {
+    private final Plot3DPanel plotter;
     private final List<Integer> selectedIndices;
     private JComboBox<String> operationComboBox;
     private JTextField customExpressionField;
@@ -36,10 +37,10 @@ public class FunctionInterferenceDialog extends JDialog {
      * Erstellt einen neuen Dialog zum Erstellen von Interferenz-Funktionen
      * 
      * @param parent          Der Eltern-Frame
-     * @param plotter         Der PlotterPanel
+     * @param plotter         Der Plot3DPanel
      * @param selectedIndices Die Indizes der ausgewählten Funktionen
      */
-    public FunctionInterferenceDialog(Frame parent, PlotterPanel plotter, List<Integer> selectedIndices) {
+    public Plot3DFunctionInterferenceDialog(Frame parent, Plot3DPanel plotter, List<Integer> selectedIndices) {
         super(parent, "Funktionen kombinieren", true);
         this.plotter = plotter;
         this.selectedIndices = new ArrayList<>(selectedIndices);
@@ -256,7 +257,7 @@ public class FunctionInterferenceDialog extends JDialog {
      * Gibt den Namen einer Funktion basierend auf dem Index zurück
      */
     private String getFunctionName(int index) {
-        DefaultListModel<String> listModel = plotter.getFunctionInputPanel().getFunctionListModel();
+        DefaultListModel<String> listModel = plotter.getFunctionManager().getFunctionListModel();
         if (index >= 0 && index < listModel.size()) {
             String entry = listModel.get(index);
             int equalsPos = entry.indexOf('=');
@@ -282,7 +283,7 @@ public class FunctionInterferenceDialog extends JDialog {
         // Sammle alle Funktionsausdrücke
         for (int i = 0; i < selectedIndices.size(); i++) {
             int index = selectedIndices.get(i);
-            String expression = plotter.getFunctionExpressionByIndex(index);
+            String expression = getFunctionExpressionByIndex(index);
             functionExpressions.add(expression);
         }
 
@@ -312,6 +313,29 @@ public class FunctionInterferenceDialog extends JDialog {
             }
 
             return customExpression;
+        }
+    }
+
+    /**
+     * Extrahiert den Funktionsausdruck aus einem Listeneintrag
+     */
+    private String getFunctionExpressionByIndex(int index) {
+        DefaultListModel<String> listModel = plotter.getFunctionManager().getFunctionListModel();
+
+        if (index < 0 || index >= listModel.size()) {
+            return "f" + (index + 1);
+        }
+
+        String entry = listModel.get(index);
+
+        // Extrahiere den Funktionsausdruck (zwischen "=" und "[")
+        int equalsPos = entry.indexOf('=');
+        int bracketPos = entry.lastIndexOf('[');
+
+        if (equalsPos >= 0 && bracketPos > equalsPos) {
+            return entry.substring(equalsPos + 1, bracketPos).trim();
+        } else {
+            return "f" + (index + 1);
         }
     }
 
@@ -433,9 +457,10 @@ public class FunctionInterferenceDialog extends JDialog {
     /**
      * Öffnet den Dialog und gibt zurück, ob der Benutzer ihn bestätigt hat
      */
-    public static FunctionInterferenceDialog showDialog(JFrame parent, PlotterPanel plotter,
+    public static Plot3DFunctionInterferenceDialog showDialog(JFrame parent, Plot3DPanel plotter,
             List<Integer> selectedIndices) {
-        FunctionInterferenceDialog dialog = new FunctionInterferenceDialog(parent, plotter, selectedIndices);
+        Plot3DFunctionInterferenceDialog dialog = new Plot3DFunctionInterferenceDialog(parent, plotter,
+                selectedIndices);
         dialog.setVisible(true);
         return dialog;
     }

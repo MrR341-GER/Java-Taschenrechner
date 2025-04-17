@@ -1,4 +1,3 @@
-
 package plugins.plotter3d;
 
 import javax.swing.*;
@@ -109,11 +108,21 @@ public class Plot3DPanel extends JPanel {
 
         // Steuerungsbereich erstellen
         JPanel controlPanel = uiBuilder.createControlPanel();
-        controlPanel.setMinimumSize(new Dimension(250, 300));
+
+        // ScrollPane für den Steuerungsbereich einrichten
+        JScrollPane controlScrollPane = new JScrollPane(controlPanel);
+        controlScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        controlScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        controlScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        controlScrollPane.getVerticalScrollBar().setUnitIncrement(16); // Schnelleres Scrollen
+
+        // Mindestgröße für den Steuerungsbereich festlegen
+        controlScrollPane.setMinimumSize(new Dimension(250, 300));
+        controlScrollPane.setPreferredSize(new Dimension(300, 500));
 
         // Panes zusammenfügen
         splitPane.setLeftComponent(plotPanel);
-        splitPane.setRightComponent(controlPanel);
+        splitPane.setRightComponent(controlScrollPane);
 
         add(splitPane, BorderLayout.CENTER);
     }
@@ -128,23 +137,8 @@ public class Plot3DPanel extends JPanel {
         try {
             // Überprüfe auf leere Funktionen
             if (functionManager.getFunctionListModel().isEmpty()) {
-                // Optional: Füge eine Standard-Funktion hinzu
-                if (renderer.getFunctions().isEmpty()) {
-                    String defaultFunction = Plot3DViewController.DEFAULT_FUNCTION;
-                    Color defaultColor = ColorChooser.generateRandomColor();
-                    String colorName = ColorChooser.getColorName(defaultColor);
-
-                    // Testweise eine Funktion hinzufügen (nur beim ersten Start)
-                    renderer.addFunction(defaultFunction, defaultColor);
-                    functionManager.getFunctionListModel()
-                            .addElement("f(x,y) = " + defaultFunction + " [" + colorName + "]");
-
-                    // Wenn es ein Funktionsfeld gibt, aktualisiere es auch
-                    JTextField functionField = getFunctionField();
-                    if (functionField != null) {
-                        functionField.setText(defaultFunction);
-                    }
-                }
+                // Kein Code zum Hinzufügen einer Standardfunktion mehr
+                // Das Koordinatensystem wird leer angezeigt
             }
 
             // Bereichsangaben parsen und Renderer aktualisieren

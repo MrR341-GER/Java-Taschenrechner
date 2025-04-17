@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.ui;
 
 import javax.swing.*;
@@ -84,6 +83,7 @@ public class Example3DPanel {
         // Scrollpane für die Liste
         JScrollPane scrollPane = new JScrollPane(exampleList);
         scrollPane.setPreferredSize(new Dimension(150, 150));
+        scrollPane.setMinimumSize(new Dimension(150, 150));
 
         // Button-Panel für Aktionen
         JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 5, 0));

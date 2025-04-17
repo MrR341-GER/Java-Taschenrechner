@@ -84,6 +84,11 @@ public class Plot3DFunctionRenderer {
 
             // Verarbeite jede Funktion, um ihre Dreiecke zu sammeln
             for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
+                // Überspringe unsichtbare Funktionen
+                if (!functionInfo.isVisible()) {
+                    continue;
+                }
+
                 allTriangles.addAll(collectTrianglesFromFunction(
                         functionInfo, model, displayScale, xOffset, yOffset, useHeatmap));
             }
@@ -109,6 +114,11 @@ public class Plot3DFunctionRenderer {
 
             // Verarbeite jede Funktion, um ihre Liniensegmente zu sammeln
             for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
+                // Überspringe unsichtbare Funktionen
+                if (!functionInfo.isVisible()) {
+                    continue;
+                }
+
                 allLineSegments.addAll(collectLineSegmentsFromFunction(
                         functionInfo, model, displayScale, xOffset, yOffset, useHeatmap));
             }
@@ -414,6 +424,11 @@ public class Plot3DFunctionRenderer {
         List<LineSegment> allLineSegments = new ArrayList<>();
 
         for (Plot3DModel.Function3DInfo functionInfo : model.getFunctions()) {
+            // Überspringe unsichtbare Funktionen
+            if (!functionInfo.isVisible()) {
+                continue;
+            }
+
             // Dunklere Version jeder Linie für bessere Sichtbarkeit über undurchsichtigen
             // Oberflächen erstellen
             List<LineSegment> functionSegments = collectLineSegmentsFromFunction(

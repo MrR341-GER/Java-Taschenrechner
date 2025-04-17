@@ -82,6 +82,20 @@ public class Plot3DModel {
             calculateFunctionValues(functionInfo, xMin, xMax, yMin, yMax, resolution);
         }
 
+        // Wenn keine Funktionen vorhanden sind oder keine validen Z-Werte berechnet
+        // wurden,
+        // setze Standard-Z-Bereich
+        if (functions.isEmpty() || zMin == Double.POSITIVE_INFINITY || zMax == Double.NEGATIVE_INFINITY) {
+            // Setze auf einen sinnvollen Standardbereich (analog zum x,y-Bereich)
+            double xRange = Math.abs(xMax - xMin);
+            double yRange = Math.abs(yMax - yMin);
+            double defaultRange = Math.max(xRange, yRange);
+
+            // Standardbereich symmetrisch um 0, mit ähnlicher Ausdehnung wie x,y-Bereich
+            zMin = -defaultRange / 2;
+            zMax = defaultRange / 2;
+        }
+
         // Stelle sicher, dass der Z-Wertebereich gültig ist (verhindere zu kleine
         // Bereiche)
         if (Math.abs(zMax - zMin) < 1e-10) {
@@ -209,6 +223,7 @@ public class Plot3DModel {
         public final String expression;
         private Plot3DPoint[][][] gridPoints; // [x][y][Phase], wobei Phase 0 = original, 1 = transformiert, 2 =
                                               // projiziert
+        private boolean visible = true; // Standardmäßig sichtbar
 
         public Function3DInfo(Function3DParser function, Color color, String expression) {
             this.function = function;
@@ -231,6 +246,27 @@ public class Plot3DModel {
 
         public void setGridPoints(Plot3DPoint[][][] gridPoints) {
             this.gridPoints = gridPoints;
+        }
+
+        /**
+         * Gibt an, ob die Funktion sichtbar ist
+         */
+        public boolean isVisible() {
+            return visible;
+        }
+
+        /**
+         * Setzt die Sichtbarkeit der Funktion
+         */
+        public void setVisible(boolean visible) {
+            this.visible = visible;
+        }
+
+        /**
+         * Schaltet die Sichtbarkeit der Funktion um
+         */
+        public void toggleVisibility() {
+            visible = !visible;
         }
     }
 }
