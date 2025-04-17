@@ -1,4 +1,3 @@
-
 package plugins.plotter3d.interaction;
 
 import javax.swing.*;
@@ -468,74 +467,62 @@ public class Plot3DInteractionHandler {
      * @param mousePosition Aktuelle Position des Mauszeigers
      */
     private void handlePanning(int dx, int dy, Point mousePosition) {
-        // Aktuelle Wertebereiche und Skalierung
+        // Ich ersetze die Panning-Logik durch eine inverse Rotation, um Mausbewegungen
+        // korrekt abzubilden
         double xMin = viewController.getCurrentXMin();
         double xMax = viewController.getCurrentXMax();
         double yMin = viewController.getCurrentYMin();
         double yMax = viewController.getCurrentYMax();
         double scale = viewController.getCurrentScale();
 
-        // Panel-Dimensionen
         int width = plotPanel.getWidth();
         int height = plotPanel.getHeight();
 
-        // Berechne das Verhältnis zwischen Pixel und Weltkoordinaten
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
         double pixelToWorldRatioX = xRange / width;
         double pixelToWorldRatioY = yRange / height;
 
-        // Umwandlung von Pixel-Delta in Welt-Delta
-        double screenDx = dx * pixelToWorldRatioX;
-        double screenDy = -dy * pixelToWorldRatioY; // Y-Achse ist auf dem Bildschirm invertiert
+        // Umwandlung von Pixel-Delta in Welt-Delta (ohne Rotation)
+        double screenDx = dx * pixelToWorldRatioX / scale;
+        double screenDy = -dy * pixelToWorldRatioY / scale;
 
-        // Anpassung an die Skalierung
-        screenDx /= scale;
-        screenDy /= scale;
-
-        // Hole die Rotationswinkel in Radiant
+        // Winkel in Radiant
         double rotX = Math.toRadians(viewController.getCurrentRotationX());
         double rotY = Math.toRadians(viewController.getCurrentRotationY());
         double rotZ = Math.toRadians(viewController.getCurrentRotationZ());
 
-        // Berechne Sinus und Kosinus der Winkel
-        double cosX = Math.cos(rotX);
-        double sinX = Math.sin(rotX);
-        double cosY = Math.cos(rotY);
-        double sinY = Math.sin(rotY);
-        double cosZ = Math.cos(rotZ);
-        double sinZ = Math.sin(rotZ);
+        double sinX = Math.sin(rotX), cosX = Math.cos(rotX);
+        double sinY = Math.sin(rotY), cosY = Math.cos(rotY);
+        double sinZ = Math.sin(rotZ), cosZ = Math.cos(rotZ);
 
-        // Vereinfachte Transformation:
-        // 1. Z-Rotation dreht die X-Y-Ebene
-        double rotatedDx = screenDx * cosZ - screenDy * sinZ;
-        double rotatedDy = screenDx * sinZ + screenDy * cosZ;
+        // Inverse Rotation: R_x^T
+        double v1x = screenDx;
+        double v1y = cosX * screenDy;
+        double v1z = -sinX * screenDy;
 
-        // 2. X-Rotation kann die Y-Komponente beeinflussen (Kippen nach vorne/hinten)
-        // Bei X-Rotation von 90° würde die Y-Bewegung entlang der Z-Achse gehen
-        double effectiveDy = rotatedDy * cosX;
+        // R_y^T
+        double v2x = cosY * v1x - sinY * v1z;
+        double v2y = v1y;
 
-        // 3. Y-Rotation kann die X-Komponente beeinflussen (Kippen nach links/rechts)
-        // Bei Y-Rotation von 90° würde die X-Bewegung entlang der Z-Achse gehen
-        double effectiveDx = rotatedDx * cosY;
+        // R_z^T
+        double worldDx = cosZ * v2x + sinZ * v2y;
+        double worldDy = -sinZ * v2x + cosZ * v2y;
 
-        // Grenzen des Graphen aktualisieren
-        double newXMin = xMin - effectiveDx;
-        double newXMax = xMax - effectiveDx;
-        double newYMin = yMin - effectiveDy;
-        double newYMax = yMax - effectiveDy;
+        // Neue Bereiche setzen
+        double newXMin = xMin - worldDx;
+        double newXMax = xMax - worldDx;
+        double newYMin = yMin - worldDy;
+        double newYMax = yMax - worldDy;
 
-        // Ansicht aktualisieren
         viewController.setCurrentXMin(newXMin);
         viewController.setCurrentXMax(newXMax);
         viewController.setCurrentYMin(newYMin);
         viewController.setCurrentYMax(newYMax);
 
-        // Neu zeichnen
         mainPanel.renderPlot();
-
         debug("Panning: Screen (dx=" + dx + ", dy=" + dy + ") -> World (" +
-                formatDouble(effectiveDx) + ", " + formatDouble(effectiveDy) + ")");
+                formatDouble(worldDx) + ", " + formatDouble(worldDy) + ")");
     }
 
     /**
